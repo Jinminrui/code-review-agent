@@ -1,0 +1,26 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  color-scheme: light;
+  --bg: 248 247 242;
+  --panel: 255 255 252;
+  --ink: 31 35 41;
+  --muted: 103 112 123;
+  --accent: 196 84 37;
+  --border: 223 216 206;
+}
+
+html,
+body,
+#root {
+  height: 100%;
+}
+
+body {
+  margin: 0;
+  font-family: "SF Pro Display", "PingFang SC", sans-serif;
+  background: radial-gradient(circle at top left, rgba(196, 84, 37, 0.12), transparent 32%), rgb(var(--bg));
+  color: rgb(var(--ink));
+}

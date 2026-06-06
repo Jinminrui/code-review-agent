@@ -1,0 +1,42 @@
+import { z } from "zod";
+export declare const reviewFindingSchema: z.ZodObject<{
+    id: z.ZodString;
+    severity: z.ZodEnum<["high", "medium", "low"]>;
+    category: z.ZodString;
+    summary: z.ZodString;
+    explanation: z.ZodString;
+    file: z.ZodString;
+    startLine: z.ZodOptional<z.ZodNumber>;
+    endLine: z.ZodOptional<z.ZodNumber>;
+    evidence: z.ZodOptional<z.ZodString>;
+    suggestion: z.ZodOptional<z.ZodString>;
+    confidenceSignals: z.ZodDefault<z.ZodArray<z.ZodString, "many">>;
+    status: z.ZodEnum<["line-level", "file-level"]>;
+}, "strip", z.ZodTypeAny, {
+    status: "line-level" | "file-level";
+    id: string;
+    severity: "high" | "medium" | "low";
+    category: string;
+    summary: string;
+    explanation: string;
+    file: string;
+    confidenceSignals: string[];
+    startLine?: number | undefined;
+    endLine?: number | undefined;
+    evidence?: string | undefined;
+    suggestion?: string | undefined;
+}, {
+    status: "line-level" | "file-level";
+    id: string;
+    severity: "high" | "medium" | "low";
+    category: string;
+    summary: string;
+    explanation: string;
+    file: string;
+    startLine?: number | undefined;
+    endLine?: number | undefined;
+    evidence?: string | undefined;
+    suggestion?: string | undefined;
+    confidenceSignals?: string[] | undefined;
+}>;
+export type ReviewFinding = z.infer<typeof reviewFindingSchema>;

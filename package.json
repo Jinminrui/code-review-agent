@@ -1,0 +1,22 @@
+{
+  "name": "code-review-agent",
+  "private": true,
+  "packageManager": "pnpm@11.5.2",
+  "engines": {
+    "node": ">=22 <23"
+  },
+  "volta": {
+    "node": "22.16.0",
+    "pnpm": "11.5.2"
+  },
+  "scripts": {
+    "build": "corepack pnpm --filter @app/review-backend build && corepack pnpm --filter @app/review-app build",
+    "test": "corepack pnpm --filter @app/review-backend test && corepack pnpm --filter @app/review-app test",
+    "test:watch": "corepack pnpm --filter @app/review-app test",
+    "typecheck": "tsc -b packages/review-backend packages/review-app"
+  },
+  "devDependencies": {
+    "typescript": "^5.8.3",
+    "vitest": "^3.1.4"
+  }
+}
