@@ -15,6 +15,12 @@ describe("reviewSessionDetailSchema", () => {
         highSeverityCount: 0,
         files: ["src/a.ts"]
       },
+      diffByFile: {
+        "src/a.ts": {
+          original: "",
+          modified: ""
+        }
+      },
       findings: []
     });
 

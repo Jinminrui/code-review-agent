@@ -12,7 +12,7 @@ describe("ReviewSessionPage", () => {
     });
   });
 
-  it("renders session status after loading session detail", async () => {
+  it("renders review workbench regions in Chinese after loading session detail", async () => {
     window.reviewWorkbenchApi = {
       listRepositories: vi.fn(),
       listBranches: vi.fn(),
@@ -63,10 +63,14 @@ describe("ReviewSessionPage", () => {
     );
 
     await waitFor(() => {
-      expect(screen.getByText("当前状态：running")).toBeInTheDocument();
+      expect(screen.getByText("当前状态：In Progress")).toBeInTheDocument();
     });
 
-    expect(screen.getByText("变更文件 1")).toBeInTheDocument();
+    expect(screen.getAllByText("Code Review 工作台")[0]).toBeInTheDocument();
+    expect(screen.getByText("Code Review 摘要")).toBeInTheDocument();
+    expect(screen.getByText("High-Risk Files")).toBeInTheDocument();
+    expect(screen.getByText("证据摘要")).toBeInTheDocument();
+    expect(screen.getByText("行级定位")).toBeInTheDocument();
     expect(screen.getByRole("button", { name: /空值保护缺失/ })).toBeInTheDocument();
   });
 });

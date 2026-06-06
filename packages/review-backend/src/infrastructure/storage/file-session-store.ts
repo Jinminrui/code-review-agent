@@ -2,6 +2,13 @@ import { appendFile, mkdir, readFile, readdir, writeFile } from "node:fs/promise
 import { join } from "node:path";
 import { randomUUID } from "node:crypto";
 
+const emptySummary = {
+  changedFilesCount: 0,
+  findingsCount: 0,
+  highSeverityCount: 0,
+  files: []
+};
+
 export class FileSessionStore {
   constructor(private readonly rootDir: string) {}
 
@@ -29,15 +36,34 @@ export class FileSessionStore {
 
   async getSession(sessionId: string) {
     const sessionDir = join(this.rootDir, sessionId);
-    const [sessionJson, summaryJson] = await Promise.all([
-      readFile(join(sessionDir, "session.json"), "utf8"),
-      readFile(join(sessionDir, "summary.json"), "utf8")
-    ]);
-
-    return {
-      ...JSON.parse(sessionJson),
-      ...JSON.parse(summaryJson)
+    const sessionJson = await readFile(join(sessionDir, "session.json"), "utf8");
+    const session = JSON.parse(sessionJson) as {
+      sessionId: string;
+      status: string;
+      repositoryPath: string;
+      baseRef: string;
+      targetRef: string;
     };
+
+    try {
+      const summaryJson = await readFile(join(sessionDir, "summary.json"), "utf8");
+
+      return {
+        ...session,
+        ...JSON.parse(summaryJson)
+      };
+    } catch (error) {
+      if ((error as NodeJS.ErrnoException).code !== "ENOENT") {
+        throw error;
+      }
+
+      return {
+        ...session,
+        summary: emptySummary,
+        findings: [],
+        diffByFile: {}
+      };
+    }
   }
 
   async listSessions() {

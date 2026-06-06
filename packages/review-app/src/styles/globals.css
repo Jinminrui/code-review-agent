@@ -4,12 +4,22 @@
 
 :root {
   color-scheme: light;
-  --bg: 248 247 242;
-  --panel: 255 255 252;
-  --ink: 31 35 41;
-  --muted: 103 112 123;
-  --accent: 196 84 37;
-  --border: 223 216 206;
+  --bg: 241 244 248;
+  --shell: 228 234 241;
+  --panel: 249 251 253;
+  --panel-elevated: 255 255 255;
+  --panel-muted: 244 247 250;
+  --ink: 22 28 36;
+  --muted: 108 120 136;
+  --muted-strong: 78 91 108;
+  --accent: 67 104 170;
+  --accent-ink: 38 72 128;
+  --accent-soft: 225 233 247;
+  --accent-surface: 235 241 251;
+  --accent-border: 89 124 185;
+  --border: 209 218 230;
+  --border-subtle: 224 231 240;
+  --border-strong: 174 188 206;
 }
 
 html,
@@ -20,7 +30,12 @@ body,
 
 body {
   margin: 0;
-  font-family: "SF Pro Display", "PingFang SC", sans-serif;
-  background: radial-gradient(circle at top left, rgba(196, 84, 37, 0.12), transparent 32%), rgb(var(--bg));
+  font-family: "Geist Sans", "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", sans-serif;
+  background:
+    radial-gradient(circle at top left, rgba(67, 104, 170, 0.1), transparent 24%),
+    linear-gradient(180deg, rgba(255, 255, 255, 0.7), rgba(255, 255, 255, 0.18)),
+    rgb(var(--bg));
   color: rgb(var(--ink));
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
 }

@@ -1,3 +1,4 @@
+import { useEffect } from "react";
 import { AppShell } from "@/components/layout/app-shell";
 import { MonacoDiffViewer } from "@/components/diff/monaco-diff-viewer";
 import { DiffEmptyState } from "@/components/session/diff-empty-state";
@@ -20,10 +21,25 @@ export function ReviewSessionPage() {
   const selectedFinding = useSelectedFinding();
   const selectedDiff = selectedFinding ? session?.diffByFile[selectedFinding.file] : null;
 
+  useEffect(() => {
+    if (!session) {
+      return;
+    }
+
+    if (session.findings.length === 0) {
+      setSelectedFinding(null);
+      return;
+    }
+
+    if (!selectedFindingId) {
+      setSelectedFinding(session.findings[0]?.id ?? null);
+    }
+  }, [selectedFindingId, session, setSelectedFinding]);
+
   return (
     <AppShell>
-      <div className="grid h-full grid-cols-[360px_1fr]">
-        <aside className="grid gap-4 overflow-auto border-r border-[rgb(var(--border))] bg-[rgb(var(--panel))] p-4">
+      <div className="grid h-full grid-cols-[408px_1fr]">
+        <aside className="grid min-h-0 grid-rows-[auto_auto_auto_1fr] gap-4 overflow-hidden border-r border-[rgb(var(--border))] bg-[rgb(var(--panel))] p-5">
           <SessionProgress status={session?.status ?? "idle"} />
           {session ? (
             <>
@@ -41,7 +57,7 @@ export function ReviewSessionPage() {
             </>
           ) : null}
         </aside>
-        <section className="min-w-0">
+        <section className="min-w-0 bg-[rgb(var(--panel-muted))] p-4">
           {selectedFinding ? (
             <MonacoDiffViewer
               original={selectedDiff?.original ?? ""}

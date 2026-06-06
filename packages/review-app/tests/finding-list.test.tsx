@@ -28,4 +28,28 @@ describe("FindingList", () => {
     fireEvent.click(screen.getByRole("button", { name: /空值保护缺失/ }));
     expect(onSelect).toHaveBeenCalledWith("f_1");
   });
+
+  it("shows finding metadata including file-level fallback", () => {
+    render(
+      <FindingList
+        findings={[
+          {
+            id: "f_1",
+            severity: "high",
+            category: "bug-risk",
+            summary: "空值保护缺失",
+            explanation: "调用链可能传入 undefined",
+            file: "src/a.ts",
+            confidenceSignals: [],
+            status: "file-level"
+          }
+        ]}
+        selectedFindingId={null}
+        onSelect={() => {}}
+      />
+    );
+
+    expect(screen.getAllByText("Review Findings")[0]).toBeInTheDocument();
+    expect(screen.getAllByText("文件级定位")[0]).toBeInTheDocument();
+  });
 });

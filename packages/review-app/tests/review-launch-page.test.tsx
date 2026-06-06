@@ -20,10 +20,14 @@ describe("ReviewLaunchPage", () => {
       </MemoryRouter>
     );
 
+    expect(await screen.findByText("Code Review Intake")).toBeInTheDocument();
+    expect(screen.getByText("发起一次 Code Review")).toBeInTheDocument();
+    expect(screen.getByText("改动摘要")).toBeInTheDocument();
+
     fireEvent.change(await screen.findByLabelText("仓库"), { target: { value: "/repo" } });
-    fireEvent.change(await screen.findByLabelText("Base 分支"), { target: { value: "main" } });
-    fireEvent.change(await screen.findByLabelText("Target 分支"), { target: { value: "feature" } });
-    fireEvent.click(screen.getByRole("button", { name: "开始审查" }));
+    fireEvent.change(await screen.findByLabelText("基线分支"), { target: { value: "main" } });
+    fireEvent.change(await screen.findByLabelText("目标分支"), { target: { value: "feature" } });
+    fireEvent.click(screen.getByRole("button", { name: "开始 Code Review" }));
 
     await waitFor(() => {
       expect(window.reviewWorkbenchApi.createSession).toHaveBeenCalledWith({

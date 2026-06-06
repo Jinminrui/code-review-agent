@@ -5,6 +5,33 @@ import { describe, expect, it } from "vitest";
 import { FileSessionStore } from "../src/infrastructure/storage/file-session-store.js";
 
 describe("FileSessionStore", () => {
+  it("returns a running session detail when summary is not written yet", async () => {
+    const rootDir = await mkdtemp(join(tmpdir(), "review-store-"));
+    const store = new FileSessionStore(rootDir);
+
+    const session = await store.createSession({
+      repositoryPath: "/repo",
+      baseRef: "main",
+      targetRef: "feature"
+    });
+
+    await expect(store.getSession(session.sessionId)).resolves.toMatchObject({
+      sessionId: session.sessionId,
+      status: "running",
+      repositoryPath: "/repo",
+      baseRef: "main",
+      targetRef: "feature",
+      summary: {
+        changedFilesCount: 0,
+        findingsCount: 0,
+        highSeverityCount: 0,
+        files: []
+      },
+      findings: [],
+      diffByFile: {}
+    });
+  });
+
   it("persists and reads back a finished session", async () => {
     const rootDir = await mkdtemp(join(tmpdir(), "review-store-"));
     const store = new FileSessionStore(rootDir);
