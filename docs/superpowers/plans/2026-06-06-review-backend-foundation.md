@@ -100,7 +100,7 @@ packages/
 - Create: `packages/review-backend/src/index.ts`
 - Test: `packages/review-backend/package.json`
 
-- [ ] **Step 1: 先写工具链存在性的冒烟测试命令**
+- [x] **Step 1: 先写工具链存在性的冒烟测试命令**
 
 Run: `pnpm --version`
 Expected: 输出版本号，例如 `11.x.x`
@@ -108,7 +108,7 @@ Expected: 输出版本号，例如 `11.x.x`
 Run: `node --version`
 Expected: 输出 `v22.x.x` 或兼容版本
 
-- [ ] **Step 2: 创建 workspace 根配置**
+- [x] **Step 2: 创建 workspace 根配置**
 
 ```json
 {
@@ -146,7 +146,7 @@ packages:
 }
 ```
 
-- [ ] **Step 3: 创建后端包配置**
+- [x] **Step 3: 创建后端包配置**
 
 ```json
 {
@@ -194,7 +194,7 @@ if (process.env.NODE_ENV !== "test") {
 }
 ```
 
-- [ ] **Step 4: 增加 Vitest workspace 配置**
+- [x] **Step 4: 增加 Vitest workspace 配置**
 
 ```ts
 import { defineWorkspace } from "vitest/config";
@@ -239,7 +239,7 @@ git commit -m "chore: bootstrap review backend workspace"
 - Create: `packages/review-backend/tests/review-session-types.test.ts`
 - Modify: `packages/review-backend/src/index.ts`
 
-- [ ] **Step 1: 先写失败测试，锁定 session 和 finding 结构**
+- [x] **Step 1: 先写失败测试，锁定 session 和 finding 结构**
 
 ```ts
 import { describe, expect, it } from "vitest";
@@ -280,7 +280,7 @@ describe("review session schemas", () => {
 Run: `pnpm --filter @app/review-backend test packages/review-backend/tests/review-session-types.test.ts`
 Expected: FAIL，提示 `Cannot find module '../src/index'` 或导出缺失
 
-- [ ] **Step 3: 写最小领域模型与 schema**
+- [x] **Step 3: 写最小领域模型与 schema**
 
 ```ts
 import { z } from "zod";
@@ -352,7 +352,7 @@ export * from "./contracts/ipc";
 export * from "./application/stream-review-session";
 ```
 
-- [ ] **Step 4: 补上 IPC 合约，固定前后端边界**
+- [x] **Step 4: 补上 IPC 合约，固定前后端边界**
 
 ```ts
 import { z } from "zod";
@@ -365,7 +365,7 @@ export type CreateReviewSessionRequest = z.infer<typeof createReviewSessionReque
 export type ReviewSessionEventPayload = z.infer<typeof reviewSessionEventPayloadSchema>;
 ```
 
-- [ ] **Step 5: 运行测试验证通过**
+- [x] **Step 5: 运行测试验证通过**
 
 Run: `pnpm --filter @app/review-backend test packages/review-backend/tests/review-session-types.test.ts`
 Expected: PASS，2 tests passed
@@ -385,7 +385,7 @@ git commit -m "feat: define backend domain contracts"
 - Create: `packages/review-backend/tests/git-client.test.ts`
 - Modify: `packages/review-backend/src/index.ts`
 
-- [ ] **Step 1: 先写失败测试，锁定 git 能力接口**
+- [x] **Step 1: 先写失败测试，锁定 git 能力接口**
 
 ```ts
 import { describe, expect, it } from "vitest";
@@ -415,7 +415,7 @@ diff --git a/src/a.ts b/src/a.ts
 Run: `pnpm --filter @app/review-backend test packages/review-backend/tests/git-client.test.ts`
 Expected: FAIL，提示 `parseUnifiedDiff` 未定义
 
-- [ ] **Step 3: 实现最小 diff parser**
+- [x] **Step 3: 实现最小 diff parser**
 
 ```ts
 export type ParsedDiffFile = {
@@ -466,7 +466,7 @@ export function parseUnifiedDiff(input: string): ParsedDiffFile[] {
 }
 ```
 
-- [ ] **Step 4: 实现 GitClient，统一 git 命令入口**
+- [x] **Step 4: 实现 GitClient，统一 git 命令入口**
 
 ```ts
 import { execa } from "execa";
@@ -499,7 +499,7 @@ export class GitClient {
 }
 ```
 
-- [ ] **Step 5: 为 GitClient 增加临时仓库集成测试**
+- [x] **Step 5: 为 GitClient 增加临时仓库集成测试**
 
 ```ts
 import { mkdtemp, writeFile, mkdir } from "node:fs/promises";
@@ -526,7 +526,7 @@ describe("GitClient", () => {
 });
 ```
 
-- [ ] **Step 6: 运行测试并 typecheck**
+- [x] **Step 6: 运行测试并 typecheck**
 
 Run: `pnpm --filter @app/review-backend test packages/review-backend/tests/git-client.test.ts`
 Expected: PASS
@@ -550,7 +550,7 @@ git commit -m "feat: add git client and diff parser"
 - Modify: `packages/review-backend/src/domain/review-unit.ts`
 - Modify: `packages/review-backend/src/index.ts`
 
-- [ ] **Step 1: 先写失败测试，固定分组规则**
+- [x] **Step 1: 先写失败测试，固定分组规则**
 
 ```ts
 import { describe, expect, it } from "vitest";
@@ -574,7 +574,7 @@ describe("buildReviewUnits", () => {
 Run: `pnpm --filter @app/review-backend test packages/review-backend/tests/review-unit-planner.test.ts`
 Expected: FAIL，提示 `buildReviewUnits` 未定义
 
-- [ ] **Step 3: 实现 review unit 模型和 planner**
+- [x] **Step 3: 实现 review unit 模型和 planner**
 
 ```ts
 export type ReviewUnit = {
@@ -599,7 +599,7 @@ export function buildReviewUnits(files: ParsedDiffFile[]): ReviewUnit[] {
 }
 ```
 
-- [ ] **Step 4: 实现最小 ContextCollector**
+- [x] **Step 4: 实现最小 ContextCollector**
 
 ```ts
 import type { GitClient } from "../git/git-client";
@@ -625,7 +625,7 @@ export async function collectUnitContext(input: {
 }
 ```
 
-- [ ] **Step 5: 扩展测试覆盖空文件和新增文件场景**
+- [x] **Step 5: 扩展测试覆盖空文件和新增文件场景**
 
 ```ts
 it("keeps primary file even when hunks are empty", () => {
@@ -634,7 +634,7 @@ it("keeps primary file even when hunks are empty", () => {
 });
 ```
 
-- [ ] **Step 6: 运行测试**
+- [x] **Step 6: 运行测试**
 
 Run: `pnpm --filter @app/review-backend test packages/review-backend/tests/review-unit-planner.test.ts`
 Expected: PASS
@@ -655,7 +655,7 @@ git commit -m "feat: add review unit planner and context collector"
 - Modify: `packages/review-backend/src/domain/provider.ts`
 - Modify: `packages/review-backend/src/index.ts`
 
-- [ ] **Step 1: 先写失败测试，锁定模型输出结构**
+- [x] **Step 1: 先写失败测试，锁定模型输出结构**
 
 ```ts
 import { describe, expect, it } from "vitest";
@@ -691,7 +691,7 @@ describe("normalizeProviderOutput", () => {
 Run: `pnpm --filter @app/review-backend test packages/review-backend/tests/normalize-provider-output.test.ts`
 Expected: FAIL，提示 `normalizeProviderOutput` 未定义
 
-- [ ] **Step 3: 实现 Provider 接口与 OpenAI-compatible provider**
+- [x] **Step 3: 实现 Provider 接口与 OpenAI-compatible provider**
 
 ```ts
 export type ProviderProfile = {
@@ -741,7 +741,7 @@ export class OpenAiCompatibleProvider implements LlmProvider {
 }
 ```
 
-- [ ] **Step 4: 实现 Finding Normalizer，保证坏输出可降级**
+- [x] **Step 4: 实现 Finding Normalizer，保证坏输出可降级**
 
 ```ts
 import { randomUUID } from "node:crypto";
@@ -785,7 +785,7 @@ export function normalizeProviderOutput(input: {
 }
 ```
 
-- [ ] **Step 5: 补充测试覆盖坏 JSON 和文件级降级**
+- [x] **Step 5: 补充测试覆盖坏 JSON 和文件级降级**
 
 ```ts
 it("returns empty list for invalid JSON", () => {
@@ -822,7 +822,7 @@ it("downgrades finding without line numbers", () => {
 });
 ```
 
-- [ ] **Step 6: 调整 normalizer 以避免坏 JSON 抛异常**
+- [x] **Step 6: 调整 normalizer 以避免坏 JSON 抛异常**
 
 ```ts
 export function normalizeProviderOutput(input: {
@@ -852,7 +852,7 @@ export function normalizeProviderOutput(input: {
 }
 ```
 
-- [ ] **Step 7: 运行测试**
+- [x] **Step 7: 运行测试**
 
 Run: `pnpm --filter @app/review-backend test packages/review-backend/tests/normalize-provider-output.test.ts`
 Expected: PASS
@@ -876,7 +876,7 @@ git commit -m "feat: add llm provider and finding normalizer"
 - Create: `packages/review-backend/tests/start-review-session.test.ts`
 - Modify: `packages/review-backend/src/index.ts`
 
-- [ ] **Step 1: 先写失败测试，锁定最小编排能力**
+- [x] **Step 1: 先写失败测试，锁定最小编排能力**
 
 ```ts
 import { describe, expect, it, vi } from "vitest";
@@ -926,7 +926,7 @@ describe("streamReviewSession", () => {
 Run: `pnpm --filter @app/review-backend test packages/review-backend/tests/start-review-session.test.ts`
 Expected: FAIL，提示 `streamReviewSession` 未定义
 
-- [ ] **Step 3: 实现文件型 SessionStore**
+- [x] **Step 3: 实现文件型 SessionStore**
 
 ```ts
 import { mkdir, readFile, writeFile } from "node:fs/promises";
@@ -961,7 +961,7 @@ export class FileSessionStore {
 }
 ```
 
-- [ ] **Step 4: 实现最小编排主流程**
+- [x] **Step 4: 实现最小编排主流程**
 
 ```ts
 import { randomUUID } from "node:crypto";
@@ -1035,7 +1035,7 @@ export async function* streamReviewSession(input: {
 }
 ```
 
-- [ ] **Step 5: 增加 review summary builder，避免前端直接拼数据**
+- [x] **Step 5: 增加 review summary builder，避免前端直接拼数据**
 
 ```ts
 import type { ReviewFinding } from "../domain/review-finding";
@@ -1053,7 +1053,7 @@ export function buildReviewSummary(input: {
 }
 ```
 
-- [ ] **Step 6: 运行完整后端测试**
+- [x] **Step 6: 运行完整后端测试**
 
 Run: `pnpm test`
 Expected: 所有 backend tests PASS

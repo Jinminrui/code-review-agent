@@ -10,10 +10,12 @@
     "pnpm": "11.5.2"
   },
   "scripts": {
-    "build": "corepack pnpm --filter @app/review-backend build && corepack pnpm --filter @app/review-app build",
-    "test": "corepack pnpm --filter @app/review-backend test && corepack pnpm --filter @app/review-app test",
-    "test:watch": "corepack pnpm --filter @app/review-app test",
-    "typecheck": "tsc -b packages/review-backend packages/review-app"
+    "build": "pnpm --filter @app/review-backend build && pnpm --filter @app/review-app build && pnpm --filter @app/review-shell build",
+    "dev:web": "VITE_USE_MOCK_API=true pnpm --filter @app/review-app dev -- --host 127.0.0.1 --port 5173",
+    "dev:desktop": "node scripts/dev-desktop.mjs",
+    "test": "pnpm --filter @app/review-backend test && pnpm --filter @app/review-app test && pnpm --filter @app/review-shell test",
+    "test:watch": "pnpm --filter @app/review-app test",
+    "typecheck": "tsc -b packages/review-backend packages/review-app packages/review-shell"
   },
   "devDependencies": {
     "typescript": "^5.8.3",

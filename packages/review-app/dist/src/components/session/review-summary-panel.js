@@ -1,0 +1,4 @@
+import { jsx as _jsx, jsxs as _jsxs } from "react/jsx-runtime";
+export function ReviewSummaryPanel({ changedFilesCount, findingsCount, highSeverityCount }) {
+    return (_jsxs("section", { className: "grid gap-3 rounded-[28px] border border-[rgb(var(--border))] bg-[rgb(var(--panel))] p-4", children: [_jsx("div", { className: "text-xs font-semibold uppercase tracking-[0.24em] text-[rgb(var(--muted))]", children: "Summary" }), _jsxs("div", { className: "grid grid-cols-3 gap-3", children: [_jsxs("div", { className: "rounded-2xl bg-stone-100 p-3 text-sm text-[rgb(var(--ink))]", children: ["\u53D8\u66F4\u6587\u4EF6 ", changedFilesCount] }), _jsxs("div", { className: "rounded-2xl bg-stone-100 p-3 text-sm text-[rgb(var(--ink))]", children: ["\u95EE\u9898\u603B\u6570 ", findingsCount] }), _jsxs("div", { className: "rounded-2xl bg-stone-100 p-3 text-sm text-[rgb(var(--ink))]", children: ["\u9AD8\u98CE\u9669 ", highSeverityCount] })] })] }));
+}

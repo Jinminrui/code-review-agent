@@ -27,6 +27,12 @@ export const reviewSessionDetailSchema = z.object({
     highSeverityCount: z.number(),
     files: z.array(z.string())
   }),
+  diffByFile: z.record(
+    z.object({
+      original: z.string(),
+      modified: z.string()
+    })
+  ),
   findings: z.array(reviewFindingSchema)
 });
 

@@ -1,13 +1,13 @@
 import { AppShell } from "@/components/layout/app-shell";
+import { PrivacySettingsForm } from "@/components/settings/privacy-settings-form";
+import { ProviderProfileForm } from "@/components/settings/provider-profile-form";
 
 export function SettingsPage() {
   return (
     <AppShell>
-      <div className="grid h-full place-items-center p-10">
-        <div className="rounded-3xl border border-[rgb(var(--border))] bg-[rgb(var(--panel))] p-8 shadow-sm">
-          <h1 className="m-0 text-2xl font-semibold">Settings</h1>
-          <p className="mb-0 mt-3 text-sm text-[rgb(var(--muted))]">这里会配置模型 provider 和隐私策略。</p>
-        </div>
+      <div className="mx-auto grid h-full max-w-4xl content-center gap-6 px-10 py-12">
+        <ProviderProfileForm />
+        <PrivacySettingsForm />
       </div>
     </AppShell>
   );

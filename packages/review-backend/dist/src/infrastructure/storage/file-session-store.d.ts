@@ -9,4 +9,8 @@ export declare class FileSessionStore {
         sessionId: `${string}-${string}-${string}-${string}-${string}`;
         sessionDir: string;
     }>;
+    appendEvent(sessionId: string, event: unknown): Promise<void>;
+    completeSession(sessionId: string, summary: unknown): Promise<void>;
+    getSession(sessionId: string): Promise<any>;
+    listSessions(): Promise<any[]>;
 }

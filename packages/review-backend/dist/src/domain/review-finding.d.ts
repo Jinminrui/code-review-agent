@@ -13,9 +13,9 @@ export declare const reviewFindingSchema: z.ZodObject<{
     confidenceSignals: z.ZodDefault<z.ZodArray<z.ZodString, "many">>;
     status: z.ZodEnum<["line-level", "file-level"]>;
 }, "strip", z.ZodTypeAny, {
-    status: "line-level" | "file-level";
     id: string;
     severity: "high" | "medium" | "low";
+    status: "line-level" | "file-level";
     category: string;
     summary: string;
     explanation: string;
@@ -26,9 +26,9 @@ export declare const reviewFindingSchema: z.ZodObject<{
     evidence?: string | undefined;
     suggestion?: string | undefined;
 }, {
-    status: "line-level" | "file-level";
     id: string;
     severity: "high" | "medium" | "low";
+    status: "line-level" | "file-level";
     category: string;
     summary: string;
     explanation: string;

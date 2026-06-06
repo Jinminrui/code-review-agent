@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { reviewFindingSchema } from "./review-finding.js";
 
 export const reviewSessionInputSchema = z.object({
   repositoryPath: z.string().min(1),
@@ -20,11 +21,40 @@ export const reviewSessionEventSchema = z.discriminatedUnion("type", [
     findingsCount: z.number().int().nonnegative()
   }),
   z.object({
+    type: z.literal("unit-failed"),
+    sessionId: z.string(),
+    unitId: z.string(),
+    reason: z.string()
+  }),
+  z.object({
     type: z.literal("session-finished"),
     sessionId: z.string(),
-    totalFindings: z.number().int().nonnegative()
+    totalFindings: z.number().int().nonnegative(),
+    status: z.enum(["finished", "partial"])
   })
 ]);
 
+export const reviewSessionDetailSchema = z.object({
+  sessionId: z.string(),
+  status: z.enum(["idle", "running", "partial", "finished", "failed"]),
+  repositoryPath: z.string(),
+  baseRef: z.string(),
+  targetRef: z.string(),
+  summary: z.object({
+    changedFilesCount: z.number(),
+    findingsCount: z.number(),
+    highSeverityCount: z.number(),
+    files: z.array(z.string())
+  }),
+  findings: z.array(reviewFindingSchema),
+  diffByFile: z.record(
+    z.object({
+      original: z.string(),
+      modified: z.string()
+    })
+  )
+});
+
 export type ReviewSessionInput = z.infer<typeof reviewSessionInputSchema>;
 export type ReviewSessionEvent = z.infer<typeof reviewSessionEventSchema>;
+export type ReviewSessionDetail = z.infer<typeof reviewSessionDetailSchema>;

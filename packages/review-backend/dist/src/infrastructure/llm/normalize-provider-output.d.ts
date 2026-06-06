@@ -2,9 +2,9 @@ export declare function normalizeProviderOutput(input: {
     content: string;
     fallbackFile: string;
 }): {
-    status: "line-level" | "file-level";
     id: string;
     severity: "high" | "medium" | "low";
+    status: "line-level" | "file-level";
     category: string;
     summary: string;
     explanation: string;

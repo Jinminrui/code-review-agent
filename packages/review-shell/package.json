@@ -1,0 +1,20 @@
+{
+  "name": "@app/review-shell",
+  "private": true,
+  "type": "module",
+  "main": "dist/src/main.js",
+  "scripts": {
+    "build": "tsc -b",
+    "dev": "electron dist/src/main.js",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "@app/review-backend": "workspace:*",
+    "electron": "^36.4.0"
+  },
+  "devDependencies": {
+    "@types/node": "^22.13.10",
+    "typescript": "^5.8.3",
+    "vitest": "^3.2.6"
+  }
+}

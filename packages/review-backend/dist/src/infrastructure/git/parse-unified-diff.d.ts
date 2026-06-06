@@ -8,4 +8,4 @@ export type ParsedDiffFile = {
         lines: string[];
     }>;
 };
-export declare function parseUnifiedDiff(_input: string): ParsedDiffFile[];
+export declare function parseUnifiedDiff(input: string): ParsedDiffFile[];

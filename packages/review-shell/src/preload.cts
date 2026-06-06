@@ -1,0 +1,16 @@
+const { contextBridge, ipcRenderer } = require("electron");
+
+contextBridge.exposeInMainWorld("reviewWorkbenchApi", {
+  listRepositories: () => ipcRenderer.invoke("review:listRepositories"),
+  listBranches: (repositoryPath: string) =>
+    ipcRenderer.invoke("review:listBranches", repositoryPath),
+  createSession: (input: unknown) => ipcRenderer.invoke("review:createSession", input),
+  getSession: (sessionId: string) => ipcRenderer.invoke("review:getSession", sessionId),
+  listSessions: () => ipcRenderer.invoke("review:listSessions"),
+  subscribeSession: (sessionId: string, onEvent: (event: unknown) => void) => {
+    const channel = `review:session:${sessionId}`;
+    const listener = (_event: unknown, payload: unknown) => onEvent(payload);
+    ipcRenderer.on(channel, listener);
+    return () => ipcRenderer.removeListener(channel, listener);
+  }
+});

@@ -15,5 +15,12 @@ export default defineWorkspace([
       environment: "jsdom",
       setupFiles: ["./packages/review-app/src/test/setup.ts"]
     }
+  },
+  {
+    test: {
+      name: "review-shell",
+      include: ["packages/review-shell/tests/**/*.test.ts"],
+      environment: "node"
+    }
   }
 ]);
