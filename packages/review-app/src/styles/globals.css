@@ -3,39 +3,246 @@
 @tailwind utilities;
 
 :root {
-  color-scheme: light;
-  --bg: 241 244 248;
-  --shell: 228 234 241;
-  --panel: 249 251 253;
-  --panel-elevated: 255 255 255;
-  --panel-muted: 244 247 250;
-  --ink: 22 28 36;
-  --muted: 108 120 136;
-  --muted-strong: 78 91 108;
-  --accent: 67 104 170;
-  --accent-ink: 38 72 128;
-  --accent-soft: 225 233 247;
-  --accent-surface: 235 241 251;
-  --accent-border: 89 124 185;
-  --border: 209 218 230;
-  --border-subtle: 224 231 240;
-  --border-strong: 174 188 206;
+  color-scheme: dark;
+
+  /* ===== 基底色 ===== */
+  --bg-base: #0D1117;
+  --bg-surface: #161B22;
+  --bg-elevated: #1C2128;
+  --bg-overlay: #21262D;
+  --bg-input: #0D1117;
+
+  /* ===== 文字色 ===== */
+  --text-primary: #E6EDF3;
+  --text-secondary: #8B949E;
+  --text-tertiary: #6E7681;
+  --text-disabled: #484F58;
+  --text-on-accent: #FFFFFF;
+
+  /* ===== 强调色 ===== */
+  --accent-cyan: #56D4DD;
+  --accent-cyan-muted: #3BA8B0;
+  --accent-cyan-subtle: rgba(86, 212, 221, 0.15);
+  --accent-green: #3FB950;
+  --accent-red: #F85149;
+  --accent-amber: #D29922;
+  --accent-purple: #BC8CFF;
+  --accent-blue: #58A6FF;
+
+  /* ===== 边框色 ===== */
+  --border-default: #30363D;
+  --border-muted: #21262D;
+  --border-subtle: #1B1F25;
+  --border-accent: rgba(86, 212, 221, 0.4);
+
+  /* ===== 阴影 ===== */
+  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.3);
+  --shadow-md: 0 4px 12px rgba(0, 0, 0, 0.4);
+  --shadow-lg: 0 12px 40px rgba(0, 0, 0, 0.5);
+  --shadow-glow-cyan: 0 0 20px rgba(86, 212, 221, 0.15);
+  --shadow-glow-red: 0 0 20px rgba(248, 81, 73, 0.2);
+  --shadow-inset: inset 0 1px 0 rgba(255, 255, 255, 0.03);
+
+  /* ===== 字体 ===== */
+  --font-mono: 'JetBrains Mono', 'Fira Code', 'SF Mono', 'Cascadia Code', 'Consolas', monospace;
+  --font-sans: 'Inter', 'SF Pro Display', -apple-system, BlinkMacSystemFont, sans-serif;
+  --font-cjk: 'PingFang SC', 'Hiragino Sans GB', 'Microsoft YaHei', 'Noto Sans CJK SC';
 }
 
-html,
-body,
-#root {
-  height: 100%;
-}
-
+/* ===== 全局样式 ===== */
 body {
   margin: 0;
-  font-family: "Geist Sans", "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", sans-serif;
-  background:
-    radial-gradient(circle at top left, rgba(67, 104, 170, 0.1), transparent 24%),
-    linear-gradient(180deg, rgba(255, 255, 255, 0.7), rgba(255, 255, 255, 0.18)),
-    rgb(var(--bg));
-  color: rgb(var(--ink));
+  padding: 0;
+  font-family: var(--font-sans), var(--font-cjk);
+  font-size: 14px;
+  line-height: 1.5;
+  color: var(--text-primary);
+  background-color: var(--bg-base);
+  background-image:
+    linear-gradient(rgba(86, 212, 221, 0.03) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(86, 212, 221, 0.03) 1px, transparent 1px),
+    radial-gradient(ellipse at 0% 0%, rgba(86, 212, 221, 0.08) 0%, transparent 50%),
+    radial-gradient(ellipse at 100% 100%, rgba(188, 140, 255, 0.05) 0%, transparent 50%);
+  background-size:
+    24px 24px,
+    24px 24px,
+    100% 100%,
+    100% 100%;
   -webkit-font-smoothing: antialiased;
-  text-rendering: optimizeLegibility;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* ===== 代码字体 ===== */
+code, pre, .font-mono {
+  font-family: var(--font-mono), var(--font-cjk);
+}
+
+/* ===== 滚动条 ===== */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: var(--bg-base);
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--border-default);
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: var(--text-disabled);
+}
+
+/* ===== 选中高亮 ===== */
+::selection {
+  background: rgba(86, 212, 221, 0.3);
+  color: var(--text-primary);
+}
+
+/* ===== 焦点样式 ===== */
+:focus-visible {
+  outline: 2px solid var(--accent-cyan);
+  outline-offset: 2px;
+}
+
+/* ===== 图标尺寸 ===== */
+.icon-xs { width: 14px; height: 14px; }
+.icon-sm { width: 16px; height: 16px; }
+.icon-md { width: 20px; height: 20px; }
+.icon-lg { width: 24px; height: 24px; }
+.icon-xl { width: 32px; height: 32px; }
+
+/* ===== 图标动画 ===== */
+.icon-spin {
+  animation: spin 1s linear infinite;
+}
+
+.icon-pulse {
+  animation: pulse 2s ease-in-out infinite;
+}
+
+.icon-danger-pulse {
+  animation: danger-pulse 3s ease-in-out infinite;
+}
+
+@keyframes spin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
+@keyframes pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.5; }
+}
+
+@keyframes danger-pulse {
+  0%, 100% {
+    filter: drop-shadow(0 0 4px rgba(248, 81, 73, 0.3));
+  }
+  50% {
+    filter: drop-shadow(0 0 8px rgba(248, 81, 73, 0.5));
+  }
+}
+
+/* ===== 终端风格标签 ===== */
+.section-label {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  font-weight: 500;
+  letter-spacing: 0.05em;
+  color: var(--text-tertiary);
+  text-transform: uppercase;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.section-label .prompt {
+  color: var(--accent-cyan);
+}
+
+.section-label .command {
+  color: var(--text-secondary);
+}
+
+.section-label .count-badge {
+  color: var(--text-tertiary);
+  padding: 1px 6px;
+  background: var(--accent-cyan-subtle);
+  border-radius: 4px;
+  font-size: 10px;
+}
+
+/* ===== Monaco 编辑器主题覆盖 ===== */
+.monaco-editor .margin {
+  background: var(--bg-base) !important;
+}
+
+.monaco-editor .line-numbers {
+  color: var(--text-disabled) !important;
+}
+
+.monaco-editor .inline-added {
+  background: rgba(63, 185, 80, 0.15) !important;
+}
+
+.monaco-editor .inline-removed {
+  background: rgba(248, 81, 73, 0.15) !important;
+}
+
+.review-finding-line {
+  background: rgba(86, 212, 221, 0.1) !important;
+}
+
+.review-finding-gutter {
+  background: var(--accent-cyan) !important;
+}
+
+/* ===== 页面转场动画 ===== */
+@keyframes page-enter {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.page-content {
+  animation: page-enter 0.3s ease-out;
+}
+
+/* ===== 高危脉冲动画 ===== */
+@keyframes high-risk-pulse {
+  0%, 100% {
+    box-shadow: -4px 0 12px rgba(248, 81, 73, 0.2);
+  }
+  50% {
+    box-shadow: -4px 0 20px rgba(248, 81, 73, 0.35);
+  }
+}
+
+/* ===== 进度条发光动画 ===== */
+@keyframes progress-glow {
+  0%, 100% {
+    box-shadow: 0 0 8px rgba(86, 212, 221, 0.3);
+  }
+  50% {
+    box-shadow: 0 0 16px rgba(86, 212, 221, 0.5);
+  }
+}
+
+/* ===== 终端光标闪烁 ===== */
+@keyframes cursor-blink {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0; }
+}
+
+.cursor-blink {
+  animation: cursor-blink 1s step-end infinite;
 }
