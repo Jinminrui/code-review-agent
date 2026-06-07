@@ -1,1 +1,37 @@
+# dependencies
 node_modules
+.pnpm-store
+
+# build outputs
+dist
+out
+release
+*.tsbuildinfo
+
+# vite
+.vite
+
+# environment
+.env
+.env.local
+.env.*.local
+
+# ide
+.idea
+.vscode
+*.swp
+*.swo
+*~
+
+# os
+.DS_Store
+Thumbs.db
+
+# test artifacts
+test-results
+playwright-report
+
+# electron
+*.dmg
+*.AppImage
+*.snap
