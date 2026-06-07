@@ -139,7 +139,11 @@ export function LaunchReviewForm() {
         >
           {isSubmitting ? "正在创建 Code Review..." : "开始 Code Review"}
         </button>
-        <div className="border-t border-[rgb(var(--border-subtle))]" />
+        <div className="flex items-center gap-3 text-[11px] uppercase tracking-[0.2em] text-[rgb(var(--muted))]">
+          <div className="h-px flex-1 bg-[rgb(var(--border))]" />
+          <span>或</span>
+          <div className="h-px flex-1 bg-[rgb(var(--border))]" />
+        </div>
         <button
           type="button"
           className="h-11 justify-self-start whitespace-nowrap rounded-[14px] border border-[rgb(var(--border))] bg-[rgb(var(--panel))] px-5 text-[13px] font-medium tracking-[0.01em] text-[rgb(var(--ink))] transition hover:-translate-y-0.5 hover:border-[rgb(var(--border-strong))] hover:shadow-[0_10px_24px_rgba(31,35,41,0.06)] focus:outline-none focus:ring-2 focus:ring-[rgba(67,104,170,0.18)] disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:translate-y-0 disabled:hover:shadow-none"
