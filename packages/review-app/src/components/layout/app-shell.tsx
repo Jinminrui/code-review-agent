@@ -4,8 +4,7 @@ import { NavLink } from "react-router-dom";
 export function AppShell({ children }: PropsWithChildren) {
   const navItems = [
     { to: "/", label: "发起 Code Review", end: true },
-    { to: "/sessions", label: "Review 历史" },
-    { to: "/settings", label: "设置" }
+    { to: "/sessions", label: "Review 历史" }
   ];
 
   return (

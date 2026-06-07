@@ -19,7 +19,6 @@ describe("createReviewWorkbenchHandlers", () => {
         repositoryPath: "/repo",
         baseRef: "main",
         targetRef: "feature",
-        providerProfileId: "default",
         contextBudgetTokens: 12000
       })
     ).resolves.toEqual({ sessionId: "s_1" });

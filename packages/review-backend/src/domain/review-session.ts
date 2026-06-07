@@ -5,7 +5,6 @@ export const reviewSessionInputSchema = z.object({
   repositoryPath: z.string().min(1),
   baseRef: z.string().min(1),
   targetRef: z.string().min(1),
-  providerProfileId: z.string().min(1),
   contextBudgetTokens: z.number().int().positive().default(12000)
 });
 

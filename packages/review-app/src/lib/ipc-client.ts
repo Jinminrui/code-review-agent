@@ -4,7 +4,6 @@ export type CreateSessionInput = {
   repositoryPath: string;
   baseRef: string;
   targetRef: string;
-  providerProfileId: string;
 };
 
 export type ReviewWorkbenchApi = {

@@ -12,12 +12,12 @@ import {
 import { createReviewWorkbenchHandlers } from "./ipc/review-workbench-handlers.js";
 import { getPreloadFilename, getRendererUrl } from "./runtime-config.js";
 
-function createProvider(providerProfileId: string) {
+function createProvider() {
   return new OpenAiCompatibleProvider({
-    id: providerProfileId,
-    baseUrl: process.env.OPENAI_BASE_URL ?? "https://api.openai.com/v1",
-    apiKey: process.env.OPENAI_API_KEY ?? "",
-    model: process.env.OPENAI_MODEL ?? "gpt-5"
+    id: "default",
+    baseUrl: process.env.OPENAI_BASE_URL ?? "https://token-plan-cn.xiaomimimo.com/v1",
+    apiKey: process.env.OPENAI_API_KEY ?? "tp-cev7060igk6y4mifiobfaeo83p3sbh2on3z6eensw9r4zwnv",
+    model: process.env.OPENAI_MODEL ?? "mimo-v2.5-pro"
   });
 }
 
@@ -40,7 +40,7 @@ async function createWindow() {
       listBranches: async (repositoryPath: string) => new GitClient(repositoryPath).listBranches(),
       createSession: async (request) => {
         const gitClient = new GitClient(request.repositoryPath);
-        const provider = createProvider(request.providerProfileId);
+        const provider = createProvider();
         const iterator = streamReviewSession({
           input: request,
           dependencies: {
