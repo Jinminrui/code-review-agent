@@ -36,7 +36,10 @@ async function createWindow() {
 
   const handlers = createReviewWorkbenchHandlers({
     backend: {
-      listRepositories: async () => [process.cwd()],
+      listRepositories: async () => [
+        process.cwd(),
+        "/Users/jinminrui/Desktop/test-repo"
+      ],
       listBranches: async (repositoryPath: string) => new GitClient(repositoryPath).listBranches(),
       createSession: async (request) => {
         const gitClient = new GitClient(request.repositoryPath);

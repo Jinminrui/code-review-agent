@@ -141,61 +141,61 @@ export function executeToolCall(
 export const REVIEW_TOOL_DEFINITIONS = [
   {
     name: "file_read" as const,
-    description: "Read the content of a file at a specific path. Optionally specify start_line and end_line to read a range. Content is capped at 500 lines.",
+    description: "读取指定路径的文件内容。可选 start_line 和 end_line 参数读取指定行范围。内容上限 500 行。",
     parameters: {
       type: "object",
       properties: {
-        path: { type: "string", description: "The file path relative to the repository root" },
-        start_line: { type: "number", description: "Optional start line number (1-based)" },
-        end_line: { type: "number", description: "Optional end line number (1-based, inclusive)" }
+        path: { type: "string", description: "相对于仓库根目录的文件路径" },
+        start_line: { type: "number", description: "可选，起始行号（从 1 开始）" },
+        end_line: { type: "number", description: "可选，结束行号（包含）" }
       },
       required: ["path"]
     }
   },
   {
     name: "file_find" as const,
-    description: "Search for files by name keyword in the repository.",
-    parameters: { type: "object", properties: { keyword: { type: "string", description: "The keyword to search for in file names" } }, required: ["keyword"] }
+    description: "按文件名关键词搜索仓库中的文件。",
+    parameters: { type: "object", properties: { keyword: { type: "string", description: "文件名搜索关键词" } }, required: ["keyword"] }
   },
   {
     name: "code_search" as const,
-    description: "Search for text or regex patterns across the repository. Returns file:line:content matches. Limited to 100 results.",
+    description: "在仓库中搜索文本或正则表达式。返回 file:line:content 格式的匹配结果，最多 100 条。",
     parameters: {
       type: "object",
       properties: {
-        pattern: { type: "string", description: "The search pattern" },
-        regex: { type: "boolean", description: "Whether to use regex mode (default: false, uses literal text match)" }
+        pattern: { type: "string", description: "搜索模式" },
+        regex: { type: "boolean", description: "是否使用正则表达式模式（默认 false，使用文本匹配）" }
       },
       required: ["pattern"]
     }
   },
   {
     name: "code_comment" as const,
-    description: "Submit a review comment/findings. Provide the file path, line range, severity, summary, and explanation.",
+    description: "提交审查发现的问题。请提供文件路径、行范围、严重级别、摘要和详细说明。",
     parameters: {
       type: "object",
       properties: {
-        file: { type: "string", description: "The file path" },
-        start_line: { type: "number", description: "Start line number" },
-        end_line: { type: "number", description: "End line number" },
-        severity: { type: "string", enum: ["high", "medium", "low"], description: "Issue severity" },
-        category: { type: "string", description: "Issue category (e.g., bug, security, performance)" },
-        summary: { type: "string", description: "Brief summary of the issue" },
-        explanation: { type: "string", description: "Detailed explanation" },
-        evidence: { type: "string", description: "Code snippet or evidence" },
-        suggestion: { type: "string", description: "Suggested fix" }
+        file: { type: "string", description: "文件路径" },
+        start_line: { type: "number", description: "起始行号" },
+        end_line: { type: "number", description: "结束行号" },
+        severity: { type: "string", enum: ["high", "medium", "low"], description: "严重级别：high（高）、medium（中）、low（低）" },
+        category: { type: "string", description: "问题类别，如：bug、安全、性能、代码质量" },
+        summary: { type: "string", description: "问题摘要" },
+        explanation: { type: "string", description: "详细说明" },
+        evidence: { type: "string", description: "代码片段或证据" },
+        suggestion: { type: "string", description: "修复建议" }
       },
       required: ["file", "severity", "summary", "explanation"]
     }
   },
   {
     name: "file_read_diff" as const,
-    description: "Get the diff content for a specific changed file, or a summary of all changed files if no path is specified.",
-    parameters: { type: "object", properties: { path: { type: "string", description: "Optional file path to get diff for. If omitted, returns summary of all changes." } } }
+    description: "获取指定变更文件的 diff 内容，或所有变更文件的摘要。",
+    parameters: { type: "object", properties: { path: { type: "string", description: "可选，文件路径。省略则返回所有变更的摘要。" } } }
   },
   {
     name: "task_done" as const,
-    description: "Signal that the review task is complete. Call this when you have finished reviewing the code.",
+    description: "表示审查任务已完成。审查结束后调用此工具。",
     parameters: { type: "object", properties: {} }
   }
 ];

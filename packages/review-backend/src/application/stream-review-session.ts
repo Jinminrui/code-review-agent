@@ -3,10 +3,13 @@ import type { ReviewFinding } from "../domain/review-finding.js";
 import type { LlmProvider } from "../domain/provider.js";
 import type { ReviewSessionEvent, ReviewSessionInput } from "../domain/review-session.js";
 import { collectUnitContext } from "../infrastructure/context/context-collector.js";
+import { filterReviewFiles } from "../infrastructure/filter/file-filter.js";
 import type { GitClient } from "../infrastructure/git/git-client.js";
 import type { ParsedDiffFile } from "../infrastructure/git/parse-unified-diff.js";
 import { logger } from "../infrastructure/logging/logger.js";
 import { normalizeProviderOutput } from "../infrastructure/llm/normalize-provider-output.js";
+import { generateReviewPlan } from "../infrastructure/llm/plan-generator.js";
+import { relocateFinding } from "../infrastructure/llm/line-relocator.js";
 import { runToolUseLoop } from "../infrastructure/llm/tool-use-loop.js";
 import { buildReviewUnits } from "../infrastructure/planner/review-unit-planner.js";
 
@@ -47,13 +50,34 @@ export async function* streamReviewSession(
   await input.dependencies.sessionStore.appendEvent(session.sessionId, startedEvent);
   yield startedEvent;
 
+  // Read diff
   const diffStartTime = Date.now();
-  const diffFiles = targetRef === "WORKSPACE"
+  const allDiffFiles = targetRef === "WORKSPACE"
     ? await input.dependencies.gitClient.readWorkspaceDiff()
     : await input.dependencies.gitClient.readDiff(baseRef, targetRef);
-  log.info(`读取 diff 完成: ${diffFiles.length} 个文件, ${Date.now() - diffStartTime}ms`);
+  log.info(`读取 diff 完成: ${allDiffFiles.length} 个文件, ${Date.now() - diffStartTime}ms`);
 
-  const units = buildReviewUnits(diffFiles as ParsedDiffFile[]);
+  // Filter files
+  const diffFiles = filterReviewFiles({
+    files: allDiffFiles as ParsedDiffFile[],
+    config: {
+      extensionAllowlist: [
+        ".ts", ".tsx", ".js", ".jsx", ".mjs", ".cjs",
+        ".go", ".py", ".java", ".kt", ".rs", ".c", ".cpp", ".h", ".hpp",
+        ".rb", ".php", ".swift", ".dart", ".lua", ".sh", ".bash",
+        ".sql", ".graphql", ".proto",
+        ".json", ".yaml", ".yml", ".toml", ".xml", ".html", ".css", ".scss",
+        ".md", ".txt"
+      ],
+      excludePatterns: [
+        "**/node_modules/**", "**/vendor/**", "**/*.lock",
+        "**/dist/**", "**/build/**", "**/*.min.js", "**/*.min.css"
+      ],
+      excludeTestFiles: false
+    }
+  });
+
+  const units = buildReviewUnits(diffFiles);
   const findings: ReviewFinding[] = [];
   const diffByFile: Record<string, { original: string; modified: string }> = {};
   let hasUnitFailure = false;
@@ -76,10 +100,26 @@ export async function* streamReviewSession(
       const t0 = Date.now();
 
       if (input.dependencies.provider.chat) {
-        const systemPrompt = buildSystemPrompt(unit.primaryFile);
+        // Generate plan for large changes
+        const diffText = buildDiffText(unit.primaryFile, diffFiles);
+        const diffLineCount = diffText.split("\n").length;
+        let planGuidance = "";
+
+        if (diffLineCount > 50) {
+          const plan = await generateReviewPlan({
+            provider: input.dependencies.provider,
+            diff: diffText,
+            fileContent: context.afterContent
+          });
+          planGuidance = `\n\nReview plan:\n- Risk points: ${plan.riskPoints.map((r) => `${r.area} (${r.riskLevel})`).join(", ") || "none identified"}\n- Strategy: ${plan.reviewStrategy}\n- Complexity: ${plan.estimatedComplexity}`;
+          unitLog.info(`计划生成: ${plan.riskPoints.length} 个风险点, 复杂度=${plan.estimatedComplexity}`);
+        }
+
+        // Tool-use loop
+        const systemPrompt = buildSystemPrompt(unit.primaryFile) + planGuidance;
         const initialUserMessage = buildReviewPrompt({
           filePath: unit.primaryFile,
-          diff: buildDiffText(unit.primaryFile, diffFiles),
+          diff: diffText,
           beforeContent: context.beforeContent,
           afterContent: context.afterContent,
           contextBudgetTokens
@@ -99,19 +139,25 @@ export async function* streamReviewSession(
         unitFindings = loopResult.findings;
         unitLog.info(`审查完成: ${unitFindings.length} 个问题, ${loopResult.totalRounds} 轮, ${Date.now() - t0}ms`);
       } else {
-        const prompt = JSON.stringify({
-          task: "review",
-          contextBudgetTokens,
-          unit,
-          context
-        });
+        // Single-shot path
+        const prompt = JSON.stringify({ task: "review", contextBudgetTokens, unit, context });
         const result = await input.dependencies.provider.review({ prompt });
-        unitFindings = normalizeProviderOutput({
-          content: result.content,
-          fallbackFile: unit.primaryFile
-        });
+        unitFindings = normalizeProviderOutput({ content: result.content, fallbackFile: unit.primaryFile });
         unitLog.info(`审查完成: ${unitFindings.length} 个问题, ${Date.now() - t0}ms`);
       }
+
+      // Relocate findings without line numbers
+      unitFindings = await Promise.all(
+        unitFindings.map((finding) =>
+          finding.startLine
+            ? Promise.resolve(finding)
+            : relocateFinding({
+                provider: input.dependencies.provider,
+                finding,
+                fileContent: context.afterContent
+              })
+        )
+      );
 
       findings.push(...unitFindings);
 
@@ -164,19 +210,20 @@ export async function* streamReviewSession(
 }
 
 function buildSystemPrompt(filePath: string): string {
-  return `You are an expert code reviewer. Review the code changes in file "${filePath}" carefully.
+  return `你是一位资深代码审查专家。请仔细审查文件 "${filePath}" 的代码变更。
 
-Your task:
-1. Analyze the diff for potential bugs, security issues, performance problems, and code quality concerns.
-2. Use the provided tools to gather additional context when needed (read files, search code, etc.).
-3. Submit your findings using the code_comment tool.
-4. Call task_done when you have finished reviewing.
+你的任务：
+1. 分析 diff 中的潜在 bug、安全问题、性能问题和代码质量问题。
+2. 需要时使用工具获取更多上下文（读取文件、搜索代码等）。
+3. 使用 code_comment 工具提交发现的问题。
+4. 审查完成后调用 task_done。
 
-Guidelines:
-- Focus on real issues, not style preferences.
-- Provide specific line references and evidence.
-- Consider edge cases and error handling.
-- Be thorough but avoid false positives.`;
+要求：
+- 关注真实问题，不要纠结代码风格。
+- 提供具体的行号引用和证据。
+- 考虑边界情况和错误处理。
+- 全面但避免误报。
+- 所有输出必须使用中文。`;
 }
 
 function buildReviewPrompt(input: {
@@ -186,19 +233,19 @@ function buildReviewPrompt(input: {
   afterContent: string;
   contextBudgetTokens: number;
 }): string {
-  return `Review the following code changes in "${input.filePath}":
+  return `请审查文件 "${input.filePath}" 的以下代码变更：
 
 ## Diff
 \`\`\`diff
 ${input.diff}
 \`\`\`
 
-## File Content (after changes)
+## 变更后的文件内容
 \`\`\`
 ${input.afterContent.slice(0, 50000)}
 \`\`\`
 
-Please review these changes and report any issues found.`;
+请审查这些变更并报告发现的问题。`;
 }
 
 function buildDiffText(filePath: string, diffFiles: ParsedDiffFile[]): string {
