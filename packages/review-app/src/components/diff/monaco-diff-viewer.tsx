@@ -105,11 +105,11 @@ export function MonacoDiffViewer({ original, modified, finding }: MonacoDiffView
                 "editorLineNumber.foreground": "#484f58",
                 "editorLineNumber.activeForeground": "#8b949e",
                 "diffEditor.insertedTextBackground": "rgba(46,160,67,0.25)",
-                "diffEditor.removedTextBackground": "rgba(248,81,73,0.2)",
+                "diffEditor.removedTextBackground": "rgba(210,153,34,0.2)",
                 "diffEditor.insertedLineBackground": "rgba(46,160,67,0.12)",
-                "diffEditor.removedLineBackground": "rgba(248,81,73,0.12)",
+                "diffEditor.removedLineBackground": "rgba(210,153,34,0.08)",
                 "diffEditor.insertedTextBorder": "rgba(46,160,67,0.4)",
-                "diffEditor.removedTextBorder": "rgba(248,81,73,0.4)"
+                "diffEditor.removedTextBorder": "rgba(210,153,34,0.3)"
               }
             });
           }}
