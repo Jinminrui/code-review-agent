@@ -39,4 +39,17 @@ export class GitClient {
 
     return stdout;
   }
+
+  async readWorkspaceDiff() {
+    const { stdout } = await execa(
+      "git",
+      ["diff", "--no-ext-diff", "HEAD"],
+      {
+        cwd: this.repositoryPath,
+        maxBuffer: 20_000_000
+      }
+    );
+
+    return parseUnifiedDiff(stdout);
+  }
 }
