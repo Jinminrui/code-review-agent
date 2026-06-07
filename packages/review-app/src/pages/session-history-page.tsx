@@ -1,73 +1,108 @@
-import { sessionStatusLabel } from "@/lib/review-copy";
-import { useEffect, useState } from "react";
-import { Link } from "react-router-dom";
-import { AppShell } from "@/components/layout/app-shell";
-import { ipcClient } from "@/lib/ipc-client";
-import type { ReviewSessionDetail } from "@/lib/review-model";
+import { Link } from 'react-router-dom'
+import { cn } from '@/lib/utils'
+import { Icon } from '@/components/ui/icon'
+import { SectionLabel } from '@/components/ui/section-label'
+import { StatusBadge } from '@/components/ui/status-badge'
+import { Clock, GitBranch, Folder, FileText, AlertTriangle } from 'lucide-react'
+
+interface Session {
+  id: string
+  baseRef: string
+  targetRef: string
+  repoPath: string
+  status: 'finished' | 'failed' | 'running'
+  changedFiles: number
+  findings: number
+  highRisk: number
+  createdAt: string
+}
 
 export function SessionHistoryPage() {
-  const [sessions, setSessions] = useState<ReviewSessionDetail[]>([]);
-
-  useEffect(() => {
-    void ipcClient.listSessions().then(setSessions);
-  }, []);
+  // TODO: 从后端获取会话列表
+  const sessions: Session[] = []
 
   return (
-    <AppShell>
-      <div className="h-full bg-[rgb(var(--panel-muted))] p-6">
-        <div className="mx-auto grid h-full max-w-5xl content-start gap-6">
-          <section className="grid gap-2 rounded-[28px] border border-[rgb(var(--border))] bg-[rgb(var(--panel-elevated))] p-6">
-            <div className="text-[11px] font-medium uppercase tracking-[0.3em] text-[rgb(var(--muted))]">Review Archive</div>
-            <h1 className="m-0 text-[34px] font-semibold tracking-[-0.04em] text-[rgb(var(--ink))]">Code Review 历史</h1>
-            <p className="m-0 text-[14px] leading-6 text-[rgb(var(--muted-strong))]">
-              回看已经完成或中途保留的 Code Review 记录，继续从问题流进入对应的 diff 验证现场。
-            </p>
-          </section>
+    <div className="min-h-screen bg-bg-base p-8">
+      <div className="max-w-3xl mx-auto">
+        {/* 标题 */}
+        <div className="mb-8">
+          <SectionLabel command="review-history" />
+        </div>
 
-          <section className="grid gap-4">
-            {sessions.length === 0 ? (
-              <div className="rounded-[26px] border border-dashed border-[rgb(var(--border))] bg-[rgb(var(--panel-elevated))] p-6 text-sm leading-6 text-[rgb(var(--muted-strong))]">
-                还没有可回看的 Code Review 记录。发起一次新的 Code Review 后，这里会保留你的历史会话。
-              </div>
-            ) : (
-              sessions.map((session) => (
-                <Link
-                  key={session.sessionId}
-                  to={`/sessions/${session.sessionId}`}
-                  className="grid gap-4 rounded-[26px] border border-[rgb(var(--border))] bg-[rgb(var(--panel-elevated))] p-5 text-[rgb(var(--ink))] no-underline transition hover:-translate-y-0.5 hover:border-[rgb(var(--border-strong))] hover:shadow-[0_16px_40px_rgba(29,31,35,0.06)]"
-                >
-                  <div className="flex items-start justify-between gap-4">
-                    <div className="grid gap-1">
-                      <div className="text-[11px] font-medium uppercase tracking-[0.3em] text-[rgb(var(--muted))]">
-                        Review Record
-                      </div>
-                      <div className="text-[18px] font-semibold tracking-[-0.02em] text-[rgb(var(--ink))]">
-                        {session.baseRef} -&gt; {session.targetRef}
-                      </div>
-                      <div className="text-sm text-[rgb(var(--muted-strong))]">{session.repositoryPath}</div>
-                    </div>
-                    <span className="rounded-full bg-[rgb(var(--accent-soft))] px-2.5 py-1 text-[11px] font-semibold uppercase tracking-[0.14em] text-[rgb(var(--accent-ink))]">
-                      {sessionStatusLabel[session.status]}
+        {/* 会话列表 */}
+        {sessions.length === 0 ? (
+          <div className="empty-state-terminal">
+            <div className="text-center">
+              <Icon icon={Clock} size="xl" variant="muted" className="mx-auto mb-4" />
+              <p className="text-text-tertiary">暂无审查记录</p>
+            </div>
+          </div>
+        ) : (
+          <div className="space-y-3">
+            <SectionLabel command="recent-sessions" count={sessions.length} />
+
+            {sessions.map((session) => (
+              <Link
+                key={session.id}
+                to={`/sessions/${session.id}`}
+                className={cn(
+                  'block p-4 rounded-lg border border-border-default bg-bg-surface',
+                  'hover:bg-bg-elevated hover:border-border-accent hover:shadow-glow-cyan',
+                  'transition-all duration-150'
+                )}
+              >
+                {/* 分支信息 */}
+                <div className="flex items-center gap-2 mb-2">
+                  <Icon icon={GitBranch} size="sm" variant="accent" />
+                  <span className="font-mono text-sm text-text-primary">
+                    {session.baseRef} → {session.targetRef}
+                  </span>
+                </div>
+
+                {/* 仓库路径 */}
+                <div className="flex items-center gap-2 mb-2">
+                  <Icon icon={Folder} size="sm" variant="muted" />
+                  <span className="font-mono text-xs text-text-tertiary">
+                    {session.repoPath}
+                  </span>
+                </div>
+
+                {/* 时间和状态 */}
+                <div className="flex items-center justify-between mb-3">
+                  <div className="flex items-center gap-2">
+                    <Icon icon={Clock} size="sm" variant="muted" />
+                    <span className="text-xs text-text-tertiary">
+                      {session.createdAt}
                     </span>
                   </div>
+                  <StatusBadge status={session.status} label={session.status.toUpperCase()} />
+                </div>
 
-                  <div className="grid grid-cols-3 gap-3">
-                    <div className="rounded-[20px] border border-[rgb(var(--border-subtle))] bg-[rgb(var(--panel-muted))] p-3 text-sm text-[rgb(var(--ink))]">
-                      变更文件 {session.summary.changedFilesCount}
-                    </div>
-                    <div className="rounded-[20px] border border-[rgb(var(--border-subtle))] bg-[rgb(var(--panel-muted))] p-3 text-sm text-[rgb(var(--ink))]">
-                      问题总数 {session.summary.findingsCount}
-                    </div>
-                    <div className="rounded-[20px] border border-[rgb(var(--border-subtle))] bg-[rgb(var(--panel-muted))] p-3 text-sm text-[rgb(var(--ink))]">
-                      高风险 {session.summary.highSeverityCount}
-                    </div>
+                {/* 分隔线 */}
+                <div className="h-px bg-border-muted mb-3" />
+
+                {/* 统计信息 */}
+                <div className="flex items-center gap-4 text-xs">
+                  <div className="flex items-center gap-1.5">
+                    <Icon icon={FileText} size="xs" variant="muted" />
+                    <span className="text-text-secondary">{session.changedFiles} files</span>
                   </div>
-                </Link>
-              ))
-            )}
-          </section>
-        </div>
+                  <div className="flex items-center gap-1.5">
+                    <Icon icon={AlertTriangle} size="xs" variant="warning" />
+                    <span className="text-text-secondary">{session.findings} findings</span>
+                  </div>
+                  {session.highRisk > 0 && (
+                    <div className="flex items-center gap-1.5">
+                      <Icon icon={AlertTriangle} size="xs" variant="danger" />
+                      <span className="text-accent-red">{session.highRisk} high</span>
+                    </div>
+                  )}
+                </div>
+              </Link>
+            ))}
+          </div>
+        )}
       </div>
-    </AppShell>
-  );
+    </div>
+  )
 }
