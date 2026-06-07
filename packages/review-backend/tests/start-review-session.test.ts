@@ -17,14 +17,14 @@ describe("streamReviewSession", () => {
         repositoryPath: "/tmp/repo",
         baseRef: "main",
         targetRef: "feature",
-        providerProfileId: "mock",
         contextBudgetTokens: 12000
       },
       dependencies: {
         provider,
         gitClient: {
           readDiff: vi.fn().mockResolvedValue([{ path: "src/a.ts", hunks: [] }]),
-          readFileAtRef: vi.fn().mockResolvedValue("export const a = 1;\n")
+          readFileAtRef: vi.fn().mockResolvedValue("export const a = 1;\n"),
+          readWorkspaceDiff: vi.fn().mockResolvedValue([])
         },
         sessionStore: {
           createSession: vi.fn().mockResolvedValue({ sessionId: "s_1" }),

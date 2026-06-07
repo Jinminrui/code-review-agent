@@ -24,8 +24,7 @@ describe("review session schemas", () => {
       reviewSessionInputSchema.parse({
         repositoryPath: "",
         baseRef: "main",
-        targetRef: "feature",
-        providerProfileId: "default"
+        targetRef: "feature"
       })
     ).toThrow();
   });

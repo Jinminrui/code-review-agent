@@ -18,7 +18,6 @@ describe("streamReviewSession partial mode", () => {
         repositoryPath: "/repo",
         baseRef: "main",
         targetRef: "feature",
-        providerProfileId: "default",
         contextBudgetTokens: 12000
       },
       dependencies: {
@@ -28,7 +27,8 @@ describe("streamReviewSession partial mode", () => {
             { path: "src/a.ts", hunks: [] },
             { path: "src/b.ts", hunks: [] }
           ]),
-          readFileAtRef: vi.fn().mockResolvedValue("export const value = 1;\n")
+          readFileAtRef: vi.fn().mockResolvedValue("export const value = 1;\n"),
+          readWorkspaceDiff: vi.fn().mockResolvedValue([])
         },
         sessionStore: {
           createSession: vi.fn().mockResolvedValue({ sessionId: "s_1" }),
