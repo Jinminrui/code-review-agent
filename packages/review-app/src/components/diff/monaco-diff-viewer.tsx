@@ -2,6 +2,10 @@ import { DiffEditor } from "@monaco-editor/react";
 import { useState } from "react";
 import { findingStatusLabel, severityLabel } from "@/lib/review-copy";
 import { useMonacoReveal } from "@/hooks/use-monaco-reveal";
+import { Icon } from "@/components/ui/icon";
+import { StatusBadge } from "@/components/ui/status-badge";
+import { SectionLabel } from "@/components/ui/section-label";
+import { Lock, FileText, MessageSquare, Lightbulb } from "lucide-react";
 
 type MonacoDiffViewerProps = {
   original: string;
@@ -40,27 +44,34 @@ export function MonacoDiffViewer({ original, modified, finding }: MonacoDiffView
   useMonacoReveal(editor, monaco, finding);
 
   return (
-    <div className="grid h-full min-h-0 grid-rows-[auto_auto_1fr] gap-3 rounded-[28px] border border-[rgb(var(--border))] bg-[rgb(var(--panel))] p-4">
-      <header className="flex items-start justify-between gap-4 rounded-[22px] border border-[rgb(var(--border-subtle))] bg-[rgb(var(--panel-elevated))] px-4 py-3">
+    <div className="grid h-full min-h-0 grid-rows-[auto_auto_1fr] gap-3 rounded-lg border border-border-default bg-bg-surface p-4">
+      <header className="flex items-start justify-between gap-4 rounded-md border border-border-subtle bg-bg-elevated px-4 py-3">
         <div className="grid gap-1">
-          <div className="text-[11px] font-semibold uppercase tracking-[0.24em] text-[rgb(var(--muted))]">上下文</div>
-          <div className="text-base font-semibold text-[rgb(var(--ink))]">{finding?.summary ?? "等待选择问题"}</div>
-          <div className="text-sm text-[rgb(var(--muted-strong))]">{finding?.file ?? "暂无文件上下文"}</div>
+          <SectionLabel icon={Lock} command="context" />
+          <div className="text-base font-semibold text-text-primary">{finding?.summary ?? "等待选择问题"}</div>
+          <div className="flex items-center gap-1.5">
+            <Icon icon={FileText} size="xs" variant="muted" />
+            <span className="text-sm font-mono text-text-secondary">{finding?.file ?? "暂无文件上下文"}</span>
+          </div>
         </div>
         <div className="grid justify-items-end gap-2 text-right">
-          <span className="rounded-full bg-[rgb(var(--accent-soft))] px-2.5 py-1 text-[11px] font-semibold tracking-[0.08em] text-[rgb(var(--accent-ink))]">
-            {finding ? severityLabel[finding.severity] : "提示"}
-          </span>
-          <span className="text-xs tracking-[0.08em] text-[rgb(var(--muted))]">
+          <StatusBadge
+            severity={finding?.severity}
+            label={finding ? severityLabel[finding.severity] : "提示"}
+          />
+          <span className="text-xs font-mono tracking-wider text-text-tertiary">
             {finding ? findingStatusLabel[finding.status] : "等待定位"}
           </span>
         </div>
       </header>
-      <section className="rounded-[20px] bg-[rgb(var(--panel-muted))] px-4 py-3">
-        <div className="text-[11px] font-semibold uppercase tracking-[0.24em] text-[rgb(var(--muted))]">证据摘要</div>
-        <p className="mt-2 text-sm leading-6 text-[rgb(var(--ink))]">{evidence}</p>
+      <section className="rounded-md bg-bg-base border border-border-subtle px-4 py-3">
+        <SectionLabel icon={MessageSquare} command="evidence" />
+        <div className="flex items-start gap-2 mt-2">
+          <Icon icon={Lightbulb} size="sm" variant="warning" className="mt-0.5 flex-shrink-0" />
+          <p className="text-sm leading-6 text-text-primary font-mono">{evidence}</p>
+        </div>
       </section>
-      <div className="min-h-0 overflow-hidden rounded-[24px] border border-[rgb(var(--border-subtle))]">
+      <div className="min-h-0 overflow-hidden rounded-md border border-border-subtle">
         <DiffEditor
           height="100%"
           language="typescript"
@@ -80,9 +91,9 @@ export function MonacoDiffViewer({ original, modified, finding }: MonacoDiffView
               inherit: true,
               rules: [],
               colors: {
-                "editor.background": "#fffdfa",
-                "diffEditor.insertedTextBackground": "#e8f4ec",
-                "diffEditor.removedTextBackground": "#f8e7e1"
+                "editor.background": "#0d1117",
+                "diffEditor.insertedTextBackground": "rgba(63,185,80,0.15)",
+                "diffEditor.removedTextBackground": "rgba(248,81,73,0.15)"
               }
             });
           }}
