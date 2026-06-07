@@ -23,7 +23,7 @@ export async function* streamReviewSession(
     input: ReviewSessionInput;
     dependencies: {
       provider: Pick<LlmProvider, "id" | "review">;
-      gitClient: Pick<GitClient, "readDiff" | "readFileAtRef">;
+      gitClient: Pick<GitClient, "readDiff" | "readFileAtRef" | "readWorkspaceDiff">;
       sessionStore: SessionStore;
     };
   }
@@ -41,10 +41,12 @@ export async function* streamReviewSession(
   await input.dependencies.sessionStore.appendEvent(session.sessionId, startedEvent);
   yield startedEvent;
 
-  const diffFiles = await input.dependencies.gitClient.readDiff(
-    input.input.baseRef,
-    input.input.targetRef
-  );
+  const diffFiles = input.input.targetRef === "WORKSPACE"
+    ? await input.dependencies.gitClient.readWorkspaceDiff()
+    : await input.dependencies.gitClient.readDiff(
+        input.input.baseRef,
+        input.input.targetRef
+      );
   const units = buildReviewUnits(diffFiles as ParsedDiffFile[]);
   const findings: ReviewFinding[] = [];
   const diffByFile: Record<string, { original: string; modified: string }> = {};
@@ -65,7 +67,6 @@ export async function* streamReviewSession(
 
       const prompt = JSON.stringify({
         task: "review",
-        providerProfileId: input.input.providerProfileId,
         contextBudgetTokens: input.input.contextBudgetTokens,
         unit,
         context
