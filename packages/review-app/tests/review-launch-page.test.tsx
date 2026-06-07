@@ -78,9 +78,9 @@ describe("ReviewLaunchPage", () => {
     await screen.findAllByText("Code Review Intake");
 
     const repoSelects = screen.getAllByLabelText("仓库");
-    fireEvent.change(repoSelects[0], { target: { value: "/repo" } });
+    fireEvent.change(repoSelects[0]!, { target: { value: "/repo" } });
     const workspaceButtons = screen.getAllByRole("button", { name: "审查当前工作区改动" });
-    fireEvent.click(workspaceButtons[0]);
+    fireEvent.click(workspaceButtons[0]!);
 
     await waitFor(() => {
       expect(window.reviewWorkbenchApi.createSession).toHaveBeenCalledWith({
