@@ -87,13 +87,19 @@ export function MonacoDiffViewer({ original, modified, finding }: MonacoDiffView
           }}
           beforeMount={(nextMonaco) => {
             nextMonaco.editor.defineTheme("review-workbench", {
-              base: "vs",
+              base: "vs-dark",
               inherit: true,
               rules: [],
               colors: {
                 "editor.background": "#0d1117",
+                "editor.foreground": "#e6edf3",
+                "editor.lineHighlightBackground": "#161b22",
+                "editorLineNumber.foreground": "#484f58",
+                "editorLineNumber.activeForeground": "#8b949e",
                 "diffEditor.insertedTextBackground": "rgba(63,185,80,0.15)",
-                "diffEditor.removedTextBackground": "rgba(248,81,73,0.15)"
+                "diffEditor.removedTextBackground": "rgba(248,81,73,0.15)",
+                "diffEditor.insertedLineBackground": "rgba(63,185,80,0.1)",
+                "diffEditor.removedLineBackground": "rgba(248,81,73,0.1)"
               }
             });
           }}
