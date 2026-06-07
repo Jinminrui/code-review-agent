@@ -89,17 +89,27 @@ export function MonacoDiffViewer({ original, modified, finding }: MonacoDiffView
             nextMonaco.editor.defineTheme("review-workbench", {
               base: "vs-dark",
               inherit: true,
-              rules: [],
+              rules: [
+                { token: "comment", foreground: "6e7681" },
+                { token: "keyword", foreground: "ff7b72" },
+                { token: "string", foreground: "a5d6ff" },
+                { token: "number", foreground: "79c0ff" },
+                { token: "type", foreground: "ffa657" },
+                { token: "function", foreground: "d2a8ff" },
+                { token: "variable", foreground: "e6edf3" },
+              ],
               colors: {
                 "editor.background": "#0d1117",
                 "editor.foreground": "#e6edf3",
                 "editor.lineHighlightBackground": "#161b22",
                 "editorLineNumber.foreground": "#484f58",
                 "editorLineNumber.activeForeground": "#8b949e",
-                "diffEditor.insertedTextBackground": "rgba(63,185,80,0.15)",
-                "diffEditor.removedTextBackground": "rgba(248,81,73,0.15)",
-                "diffEditor.insertedLineBackground": "rgba(63,185,80,0.1)",
-                "diffEditor.removedLineBackground": "rgba(248,81,73,0.1)"
+                "diffEditor.insertedTextBackground": "rgba(46,160,67,0.25)",
+                "diffEditor.removedTextBackground": "rgba(248,81,73,0.2)",
+                "diffEditor.insertedLineBackground": "rgba(46,160,67,0.12)",
+                "diffEditor.removedLineBackground": "rgba(248,81,73,0.12)",
+                "diffEditor.insertedTextBorder": "rgba(46,160,67,0.4)",
+                "diffEditor.removedTextBorder": "rgba(248,81,73,0.4)"
               }
             });
           }}
