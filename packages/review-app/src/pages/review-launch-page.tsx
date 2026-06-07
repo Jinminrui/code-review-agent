@@ -1,12 +1,9 @@
-import { AppShell } from "@/components/layout/app-shell";
-import { LaunchReviewForm } from "@/components/launch/launch-review-form";
+import { LaunchReviewForm } from '@/components/launch/launch-review-form'
 
 export function ReviewLaunchPage() {
   return (
-    <AppShell>
-      <div className="h-full bg-[rgb(var(--panel-muted))] p-6">
-        <LaunchReviewForm />
-      </div>
-    </AppShell>
-  );
+    <div className="min-h-screen bg-bg-base flex items-center justify-center p-8">
+      <LaunchReviewForm />
+    </div>
+  )
 }

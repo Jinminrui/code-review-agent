@@ -1,26 +1,41 @@
-type RepositoryPickerProps = {
-  repositories: string[];
-  value: string;
-  onChange(value: string): void;
-};
+import { cn } from '@/lib/utils'
+import { Icon } from '@/components/ui/icon'
+import { ChevronDown } from 'lucide-react'
 
-export function RepositoryPicker({ repositories, value, onChange }: RepositoryPickerProps) {
+interface RepositoryPickerProps {
+  value: string
+  onChange: (value: string) => void
+}
+
+export function RepositoryPicker({ value, onChange }: RepositoryPickerProps) {
+  // TODO: 从后端获取仓库列表
+  const repositories = [
+    { id: '1', name: 'my-project', path: '/Users/dev/my-project' },
+    { id: '2', name: 'another-project', path: '/Users/dev/another-project' },
+  ]
+
   return (
-    <label className="grid gap-2 text-sm">
-      <span className="text-[13px] font-medium tracking-[-0.01em] text-[rgb(var(--ink))]">仓库</span>
+    <div className="relative">
       <select
-        aria-label="仓库"
-        className="h-11 rounded-[14px] border border-[rgb(var(--border))] bg-[rgb(var(--panel))] px-3 text-[13px] font-normal text-[rgb(var(--ink))] transition hover:border-[rgb(var(--border-strong))] focus:border-[rgb(var(--accent-border))] focus:outline-none focus:ring-2 focus:ring-[rgba(67,104,170,0.18)]"
         value={value}
-        onChange={(event) => onChange(event.target.value)}
+        onChange={(e) => onChange(e.target.value)}
+        className={cn(
+          'w-full h-10 px-3 pr-8 rounded-md appearance-none cursor-pointer',
+          'bg-bg-input border border-border-default text-text-primary font-mono text-sm',
+          'focus:outline-none focus:border-accent-cyan focus:ring-1 focus:ring-accent-cyan-subtle',
+          'transition-colors duration-150'
+        )}
       >
-        <option value="">请选择仓库</option>
-        {repositories.map((item) => (
-          <option key={item} value={item}>
-            {item}
+        <option value="">选择仓库...</option>
+        {repositories.map((repo) => (
+          <option key={repo.id} value={repo.id}>
+            {repo.path}
           </option>
         ))}
       </select>
-    </label>
-  );
+      <div className="absolute right-2 top-1/2 -translate-y-1/2 pointer-events-none">
+        <Icon icon={ChevronDown} size="sm" variant="muted" />
+      </div>
+    </div>
+  )
 }

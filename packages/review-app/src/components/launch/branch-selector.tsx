@@ -1,27 +1,39 @@
-type BranchSelectorProps = {
-  label: string;
-  value: string;
-  branches: string[];
-  onChange(value: string): void;
-};
+import { cn } from '@/lib/utils'
+import { Icon } from '@/components/ui/icon'
+import { ChevronDown } from 'lucide-react'
 
-export function BranchSelector({ label, value, branches, onChange }: BranchSelectorProps) {
+interface BranchSelectorProps {
+  value: string
+  onChange: (value: string) => void
+  placeholder?: string
+}
+
+export function BranchSelector({ value, onChange, placeholder = '选择分支' }: BranchSelectorProps) {
+  // TODO: 从后端获取分支列表
+  const branches = ['main', 'develop', 'feature/auth', 'feature/api']
+
   return (
-    <label className="grid gap-2 text-sm">
-      <span className="text-[13px] font-medium tracking-[-0.01em] text-[rgb(var(--ink))]">{label}</span>
+    <div className="relative">
       <select
-        aria-label={label}
-        className="h-11 rounded-[14px] border border-[rgb(var(--border))] bg-[rgb(var(--panel))] px-3 text-[13px] font-normal text-[rgb(var(--ink))] transition hover:border-[rgb(var(--border-strong))] focus:border-[rgb(var(--accent-border))] focus:outline-none focus:ring-2 focus:ring-[rgba(67,104,170,0.18)]"
         value={value}
-        onChange={(event) => onChange(event.target.value)}
+        onChange={(e) => onChange(e.target.value)}
+        className={cn(
+          'w-full h-10 px-3 pr-8 rounded-md appearance-none cursor-pointer',
+          'bg-bg-input border border-border-default text-text-primary font-mono text-sm',
+          'focus:outline-none focus:border-accent-cyan focus:ring-1 focus:ring-accent-cyan-subtle',
+          'transition-colors duration-150'
+        )}
       >
-        <option value="">请选择分支</option>
+        <option value="">{placeholder}</option>
         {branches.map((branch) => (
           <option key={branch} value={branch}>
             {branch}
           </option>
         ))}
       </select>
-    </label>
-  );
+      <div className="absolute right-2 top-1/2 -translate-y-1/2 pointer-events-none">
+        <Icon icon={ChevronDown} size="sm" variant="muted" />
+      </div>
+    </div>
+  )
 }
