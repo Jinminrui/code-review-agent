@@ -1,13 +1,25 @@
+import { Icon } from '@/components/ui/icon'
+import { Search } from 'lucide-react'
+
 export function DiffEmptyState() {
   return (
-    <div className="grid h-full place-items-center rounded-[28px] border border-dashed border-[rgb(var(--border))] bg-[rgb(var(--panel))] p-8">
-      <div className="grid max-w-md gap-3 text-center">
-        <p className="text-[11px] font-semibold uppercase tracking-[0.24em] text-[rgb(var(--muted))]">Evidence Desk</p>
-        <h2 className="text-xl font-semibold text-[rgb(var(--ink))]">从左侧选择一条问题，开始核查证据</h2>
-        <p className="text-sm leading-6 text-[rgb(var(--muted-strong))]">
-          这里会展示当前问题的上下文、证据摘要与对应差异片段，帮助你快速完成验证。
-        </p>
+    <div className="flex-1 flex items-center justify-center p-8">
+      <div className="empty-state-terminal max-w-sm">
+        <div className="flex items-start gap-2 mb-4">
+          <span className="prompt">$</span>
+          <span className="command">select-finding</span>
+        </div>
+        <div className="flex items-start gap-2">
+          <span className="text-accent-cyan">&gt;</span>
+          <span>Choose a finding from the sidebar to start review</span>
+        </div>
+        <div className="mt-4 flex items-center gap-2">
+          <Icon icon={Search} size="lg" variant="muted" className="mx-auto" />
+        </div>
+        <div className="mt-2 flex items-start gap-2">
+          <span className="cursor-blink text-accent-cyan">_</span>
+        </div>
       </div>
     </div>
-  );
+  )
 }

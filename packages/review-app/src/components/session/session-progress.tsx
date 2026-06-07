@@ -1,31 +1,46 @@
-import { sessionStatusLabel } from "@/lib/review-copy";
+import { cn } from '@/lib/utils'
+import { Icon } from '@/components/ui/icon'
+import { ProgressBar } from '@/components/ui/progress-bar'
+import { SectionLabel } from '@/components/ui/section-label'
+import { StatusBadge } from '@/components/ui/status-badge'
+import { Loader2, FileText } from 'lucide-react'
 
-type SessionProgressProps = {
-  status: "idle" | "running" | "partial" | "finished" | "failed";
-};
+interface SessionProgressProps {
+  status: string
+  completedUnits?: number
+  totalUnits?: number
+}
 
-export function SessionProgress({ status }: SessionProgressProps) {
-  const tone =
-    status === "failed"
-      ? "bg-red-100 text-red-700"
-      : status === "finished"
-        ? "bg-emerald-100 text-emerald-700"
-        : "bg-[rgb(var(--accent-soft))] text-[rgb(var(--accent-ink))]";
-  const label = sessionStatusLabel[status];
+export function SessionProgress({ status, completedUnits = 0, totalUnits = 0 }: SessionProgressProps) {
+  const percentage = totalUnits > 0 ? Math.round((completedUnits / totalUnits) * 100) : 0
+  const isRunning = status === 'running' || status === 'streaming'
 
   return (
-    <section className="rounded-[24px] border border-[rgb(var(--border))] bg-[rgb(var(--panel-elevated))] px-4 py-3">
-      <div className="flex items-center justify-between gap-4">
-        <div className="grid gap-1">
-          <div className="text-[11px] font-medium uppercase tracking-[0.3em] text-[rgb(var(--muted))]">
-            Review Status
-          </div>
-          <div className="text-sm text-[rgb(var(--muted-strong))]">当前状态：{label}</div>
+    <div className="p-4 border-b border-border-muted">
+      <SectionLabel command="session-status" className="mb-3" />
+
+      {/* 状态和进度 */}
+      <div className="space-y-3">
+        {/* 状态标签 */}
+        <div className="flex items-center gap-2">
+          {isRunning ? (
+            <Icon icon={Loader2} size="sm" variant="accent" spin />
+          ) : null}
+          <StatusBadge
+            status={status as any}
+            label={status.toUpperCase()}
+          />
         </div>
-        <span className={`rounded-full px-2.5 py-1 text-[11px] font-semibold uppercase tracking-[0.14em] ${tone}`}>
-          {label}
-        </span>
+
+        {/* 进度条 */}
+        <ProgressBar value={percentage} />
+
+        {/* 单元计数 */}
+        <div className="flex items-center gap-2 text-xs text-text-tertiary">
+          <Icon icon={FileText} size="xs" variant="muted" />
+          <span>{completedUnits}/{totalUnits} units complete</span>
+        </div>
       </div>
-    </section>
-  );
+    </div>
+  )
 }

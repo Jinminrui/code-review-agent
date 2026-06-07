@@ -1,25 +1,34 @@
-type RiskFileListProps = {
-  files: string[];
-};
+import { cn } from '@/lib/utils'
+import { Icon } from '@/components/ui/icon'
+import { SectionLabel } from '@/components/ui/section-label'
+import { FileText } from 'lucide-react'
+
+interface RiskFileListProps {
+  files: string[]
+}
 
 export function RiskFileList({ files }: RiskFileListProps) {
+  if (files.length === 0) return null
+
   return (
-    <section className="grid gap-3 rounded-[24px] border border-[rgb(var(--border))] bg-[rgb(var(--panel-elevated))] p-4">
-      <div className="flex items-center justify-between gap-3">
-        <div className="text-[11px] font-semibold uppercase tracking-[0.24em] text-[rgb(var(--muted))]">High-Risk Files</div>
-        <span className="text-[11px] text-[rgb(var(--muted))]">{files.length} 个文件</span>
-      </div>
-      <div className="grid gap-2">
+    <div className="p-4 border-b border-border-muted">
+      <SectionLabel command="risk-files" count={files.length} className="mb-3" />
+
+      <div className="space-y-1">
         {files.map((file) => (
           <div
             key={file}
-            className="grid gap-1 rounded-[20px] border border-[rgb(var(--border-subtle))] bg-[rgb(var(--panel-muted))] px-3 py-3 text-sm text-[rgb(var(--ink))] transition hover:border-[rgb(var(--border-strong))] hover:bg-[rgb(var(--panel-elevated))]"
+            className={cn(
+              'flex items-center gap-2 px-2 py-1.5 rounded',
+              'text-xs font-mono text-text-secondary',
+              'hover:bg-bg-elevated transition-colors duration-150'
+            )}
           >
-            <div className="truncate font-medium">{file}</div>
-            <div className="text-xs text-[rgb(var(--muted))]">优先核查相关 finding 与上下文定位</div>
+            <Icon icon={FileText} size="sm" variant="muted" />
+            <span className="truncate">{file}</span>
           </div>
         ))}
       </div>
-    </section>
-  );
+    </div>
+  )
 }

@@ -1,5 +1,4 @@
 import { useEffect } from "react";
-import { AppShell } from "@/components/layout/app-shell";
 import { MonacoDiffViewer } from "@/components/diff/monaco-diff-viewer";
 import { DiffEmptyState } from "@/components/session/diff-empty-state";
 import { FindingList } from "@/components/session/finding-list";
@@ -37,38 +36,38 @@ export function ReviewSessionPage() {
   }, [selectedFindingId, session, setSelectedFinding]);
 
   return (
-    <AppShell>
-      <div className="grid h-full grid-cols-[408px_1fr]">
-        <aside className="grid min-h-0 grid-rows-[auto_auto_auto_1fr] gap-4 overflow-hidden border-r border-[rgb(var(--border))] bg-[rgb(var(--panel))] p-5">
-          <SessionProgress status={session?.status ?? "idle"} />
-          {session ? (
-            <>
-              <ReviewSummaryPanel
-                changedFilesCount={session.summary.changedFilesCount}
-                findingsCount={session.summary.findingsCount}
-                highSeverityCount={session.summary.highSeverityCount}
-              />
-              <RiskFileList files={session.summary.files} />
-              <FindingList
-                findings={session.findings}
-                selectedFindingId={selectedFindingId}
-                onSelect={setSelectedFinding}
-              />
-            </>
-          ) : null}
-        </aside>
-        <section className="min-w-0 bg-[rgb(var(--panel-muted))] p-4">
-          {selectedFinding ? (
-            <MonacoDiffViewer
-              original={selectedDiff?.original ?? ""}
-              modified={selectedDiff?.modified ?? ""}
-              finding={selectedFinding}
+    <div className="grid h-full grid-cols-[408px_1fr]">
+      <aside className="grid min-h-0 grid-rows-[auto_auto_auto_1fr] gap-4 overflow-hidden border-r border-[rgb(var(--border))] bg-[rgb(var(--panel))] p-5">
+        <SessionProgress
+          status={session?.status ?? "idle"}
+        />
+        {session ? (
+          <>
+            <ReviewSummaryPanel
+              changedFiles={session.summary.changedFilesCount}
+              findings={session.summary.findingsCount}
+              highRisk={session.summary.highSeverityCount}
             />
-          ) : (
-            <DiffEmptyState />
-          )}
-        </section>
-      </div>
-    </AppShell>
+            <RiskFileList files={session.summary.files} />
+            <FindingList
+              findings={session.findings}
+              selectedFindingId={selectedFindingId}
+              onSelectFinding={setSelectedFinding}
+            />
+          </>
+        ) : null}
+      </aside>
+      <section className="min-w-0 bg-[rgb(var(--panel-muted))] p-4">
+        {selectedFinding ? (
+          <MonacoDiffViewer
+            original={selectedDiff?.original ?? ""}
+            modified={selectedDiff?.modified ?? ""}
+            finding={selectedFinding}
+          />
+        ) : (
+          <DiffEmptyState />
+        )}
+      </section>
+    </div>
   );
 }

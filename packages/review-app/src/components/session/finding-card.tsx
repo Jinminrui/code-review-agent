@@ -1,41 +1,83 @@
-import type { ReviewFinding } from "@/lib/review-model";
-import { findingStatusLabel, severityLabel } from "@/lib/review-copy";
-import { severityTone } from "@/lib/severity";
+import { cn } from '@/lib/utils'
+import { Icon } from '@/components/ui/icon'
+import { StatusBadge } from '@/components/ui/status-badge'
+import { AlertTriangle, Lock, Bug, Shield, Zap, FileText, MessageSquare } from 'lucide-react'
+import type { ReviewFinding } from '@/lib/review-model'
 
-type FindingCardProps = {
-  finding: ReviewFinding;
-  active: boolean;
-  onSelect(id: string): void;
-};
+interface FindingCardProps {
+  finding: ReviewFinding
+  isSelected: boolean
+  onClick: () => void
+}
 
-export function FindingCard({ finding, active, onSelect }: FindingCardProps) {
-  const lineLabel =
-    finding.status === "file-level"
-      ? findingStatusLabel["file-level"]
-      : `第 ${finding.startLine ?? "?"}${finding.endLine && finding.endLine !== finding.startLine ? `-${finding.endLine}` : ""} 行`;
+const categoryIcons = {
+  security: Shield,
+  bug: Bug,
+  performance: Zap,
+  style: FileText,
+  default: AlertTriangle,
+}
+
+export function FindingCard({ finding, isSelected, onClick }: FindingCardProps) {
+  const CategoryIcon = categoryIcons[finding.category as keyof typeof categoryIcons] || categoryIcons.default
 
   return (
     <button
-      type="button"
-      className={`grid gap-3 rounded-[22px] border px-4 py-4 text-left transition ${severityTone[finding.severity]} ${
-        active
-          ? "border-[rgb(var(--accent-border))] bg-[rgb(var(--accent-surface))] shadow-[inset_0_1px_0_rgba(255,255,255,0.65),0_12px_28px_rgba(184,112,75,0.08)]"
-          : "hover:-translate-y-0.5 hover:border-[rgb(var(--border-strong))] hover:shadow-[0_14px_32px_rgba(29,31,35,0.05)]"
-      }`}
-      onClick={() => onSelect(finding.id)}
+      onClick={onClick}
+      className={cn(
+        'w-full text-left p-3 rounded-md border transition-all duration-150',
+        'bg-bg-surface border-border-default',
+        isSelected
+          ? 'border-accent-cyan bg-bg-elevated shadow-[inset_0_0_0_1px_var(--border-accent)]'
+          : 'hover:bg-bg-elevated hover:border-border-accent hover:shadow-glow-cyan hover:-translate-y-px',
+        finding.severity === 'high' && 'animate-pulse-border'
+      )}
+      style={{
+        borderLeftWidth: '3px',
+        borderLeftColor: finding.severity === 'high'
+          ? 'var(--accent-red)'
+          : finding.severity === 'medium'
+          ? 'var(--accent-amber)'
+          : 'var(--text-tertiary)',
+      }}
     >
-      <div className="flex items-center justify-between gap-3 text-[11px] font-semibold uppercase tracking-[0.18em]">
-        <span>{severityLabel[finding.severity]}</span>
-        <span>{finding.category}</span>
+      {/* 标题行 */}
+      <div className="flex items-start gap-2 mb-2">
+        <Icon
+          icon={CategoryIcon}
+          size="sm"
+          variant={finding.severity === 'high' ? 'danger' : finding.severity === 'medium' ? 'warning' : 'muted'}
+        />
+        <div className="flex-1 min-w-0">
+          <h3 className="text-sm font-medium text-text-primary truncate">
+            {finding.summary}
+          </h3>
+        </div>
+        <StatusBadge
+          severity={finding.severity}
+          label={finding.severity.toUpperCase()}
+        />
       </div>
-      <div className="text-sm font-semibold normal-case tracking-normal text-[rgb(var(--ink))]">{finding.summary}</div>
-      <div className="grid gap-1 text-sm normal-case tracking-normal text-[rgb(var(--muted-strong))]">
-        <div className="truncate">{finding.file}</div>
-        <div className="text-xs uppercase tracking-[0.14em] text-[rgb(var(--muted))]">{lineLabel}</div>
+
+      {/* 文件路径 */}
+      <div className="flex items-center gap-1.5 mb-2 ml-6">
+        <Icon icon={FileText} size="xs" variant="muted" />
+        <span className="text-xs font-mono text-text-tertiary truncate">
+          {finding.file}:{finding.startLine}-{finding.endLine}
+        </span>
       </div>
-      <div className="text-sm leading-6 normal-case tracking-normal text-[rgb(var(--muted-strong))]">
-        {finding.evidence ?? finding.suggestion ?? finding.explanation}
-      </div>
+
+      {/* 证据预览 */}
+      {finding.evidence && (
+        <div className="ml-6 mt-2 p-2 rounded bg-bg-base border border-border-subtle">
+          <div className="flex items-start gap-1.5">
+            <Icon icon={MessageSquare} size="xs" variant="accent" className="mt-0.5 flex-shrink-0" />
+            <p className="text-xs text-text-tertiary line-clamp-2 font-mono">
+              {finding.evidence}
+            </p>
+          </div>
+        </div>
+      )}
     </button>
-  );
+  )
 }

@@ -1,36 +1,40 @@
-import type { ReviewFinding } from "@/lib/review-model";
-import { FindingCard } from "./finding-card";
+import { cn } from '@/lib/utils'
+import { Icon } from '@/components/ui/icon'
+import { SectionLabel } from '@/components/ui/section-label'
+import { FindingCard } from './finding-card'
+import { AlertTriangle } from 'lucide-react'
+import type { ReviewFinding } from '@/lib/review-model'
 
-type FindingListProps = {
-  findings: ReviewFinding[];
-  selectedFindingId: string | null;
-  onSelect(id: string): void;
-};
+interface FindingListProps {
+  findings: ReviewFinding[]
+  selectedFindingId: string | null
+  onSelectFinding: (id: string) => void
+}
 
-export function FindingList({ findings, selectedFindingId, onSelect }: FindingListProps) {
+export function FindingList({ findings, selectedFindingId, onSelectFinding }: FindingListProps) {
   return (
-    <section className="grid min-h-0 grid-rows-[auto_1fr] gap-3 overflow-hidden">
-      <div className="flex items-center justify-between gap-3">
-        <div>
-          <div className="text-[11px] font-semibold uppercase tracking-[0.24em] text-[rgb(var(--muted))]">
-            Review Findings
+    <div className="flex-1 overflow-hidden flex flex-col">
+      <div className="p-4 pb-2">
+        <SectionLabel command="findings" count={findings.length} />
+      </div>
+
+      <div className="flex-1 overflow-y-auto px-4 pb-4 space-y-2">
+        {findings.length === 0 ? (
+          <div className="text-center py-8">
+            <Icon icon={AlertTriangle} size="lg" variant="muted" className="mx-auto mb-2" />
+            <p className="text-sm text-text-tertiary">暂无发现</p>
           </div>
-          <div className="text-sm text-[rgb(var(--muted-strong))]">按风险与定位状态组织的问题流</div>
-        </div>
-        <span className="rounded-full bg-[rgb(var(--panel-muted))] px-2.5 py-1 text-[11px] text-[rgb(var(--muted-strong))]">
-          {findings.length} 条
-        </span>
+        ) : (
+          findings.map((finding) => (
+            <FindingCard
+              key={finding.id}
+              finding={finding}
+              isSelected={finding.id === selectedFindingId}
+              onClick={() => onSelectFinding(finding.id)}
+            />
+          ))
+        )}
       </div>
-      <div className="grid gap-3 overflow-auto pr-1">
-      {findings.map((finding) => (
-        <FindingCard
-          key={finding.id}
-          finding={finding}
-          active={selectedFindingId === finding.id}
-          onSelect={onSelect}
-        />
-      ))}
-      </div>
-    </section>
-  );
+    </div>
+  )
 }

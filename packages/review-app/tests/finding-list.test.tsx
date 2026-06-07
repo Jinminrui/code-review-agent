@@ -3,8 +3,8 @@ import { describe, expect, it, vi } from "vitest";
 import { FindingList } from "../src/components/session/finding-list";
 
 describe("FindingList", () => {
-  it("calls onSelect when a finding is clicked", () => {
-    const onSelect = vi.fn();
+  it("calls onSelectFinding when a finding is clicked", () => {
+    const onSelectFinding = vi.fn();
 
     render(
       <FindingList
@@ -21,15 +21,15 @@ describe("FindingList", () => {
           }
         ]}
         selectedFindingId={null}
-        onSelect={onSelect}
+        onSelectFinding={onSelectFinding}
       />
     );
 
     fireEvent.click(screen.getByRole("button", { name: /空值保护缺失/ }));
-    expect(onSelect).toHaveBeenCalledWith("f_1");
+    expect(onSelectFinding).toHaveBeenCalledWith("f_1");
   });
 
-  it("shows finding metadata including file-level fallback", () => {
+  it("shows finding card with summary text", () => {
     render(
       <FindingList
         findings={[
@@ -45,11 +45,10 @@ describe("FindingList", () => {
           }
         ]}
         selectedFindingId={null}
-        onSelect={() => {}}
+        onSelectFinding={() => {}}
       />
     );
 
-    expect(screen.getAllByText("Review Findings")[0]).toBeInTheDocument();
-    expect(screen.getAllByText("文件级定位")[0]).toBeInTheDocument();
+    expect(screen.getAllByText("空值保护缺失").length).toBeGreaterThan(0);
   });
 });

@@ -1,33 +1,41 @@
-type ReviewSummaryPanelProps = {
-  changedFilesCount: number;
-  findingsCount: number;
-  highSeverityCount: number;
-};
+import { cn } from '@/lib/utils'
+import { Icon } from '@/components/ui/icon'
+import { SectionLabel } from '@/components/ui/section-label'
+import { FileText, AlertTriangle, Shield } from 'lucide-react'
 
-export function ReviewSummaryPanel({
-  changedFilesCount,
-  findingsCount,
-  highSeverityCount
-}: ReviewSummaryPanelProps) {
+interface ReviewSummaryPanelProps {
+  changedFiles: number
+  findings: number
+  highRisk: number
+}
+
+export function ReviewSummaryPanel({ changedFiles, findings, highRisk }: ReviewSummaryPanelProps) {
   return (
-    <section className="grid gap-4 rounded-[28px] border border-[rgb(var(--border))] bg-[rgb(var(--panel-elevated))] p-5">
-      <div className="grid gap-2">
-        <div className="text-[11px] font-medium uppercase tracking-[0.3em] text-[rgb(var(--muted))]">Code Review 摘要</div>
-        <p className="text-[14px] leading-6 text-[rgb(var(--ink))]">
-          本次改动聚焦于 Code Review 会话与差异验证链路，建议优先核查高风险问题。
-        </p>
-      </div>
+    <div className="p-4 border-b border-border-muted">
+      <SectionLabel command="session-summary" className="mb-3" />
+
       <div className="grid grid-cols-3 gap-3">
-        <div className="rounded-[22px] border border-[rgb(var(--border-subtle))] bg-[rgb(var(--panel-muted))] p-3 text-sm text-[rgb(var(--ink))]">
-          变更文件 {changedFilesCount}
+        {/* 变更文件 */}
+        <div className="text-center p-2 rounded-md bg-bg-base">
+          <Icon icon={FileText} size="md" variant="muted" className="mx-auto mb-1" />
+          <div className="text-lg font-semibold text-text-primary">{changedFiles}</div>
+          <div className="text-xs text-text-tertiary">files</div>
         </div>
-        <div className="rounded-[22px] border border-[rgb(var(--border-subtle))] bg-[rgb(var(--panel-muted))] p-3 text-sm text-[rgb(var(--ink))]">
-          问题总数 {findingsCount}
+
+        {/* 发现数量 */}
+        <div className="text-center p-2 rounded-md bg-bg-base">
+          <Icon icon={AlertTriangle} size="md" variant="warning" className="mx-auto mb-1" />
+          <div className="text-lg font-semibold text-text-primary">{findings}</div>
+          <div className="text-xs text-text-tertiary">findings</div>
         </div>
-        <div className="rounded-[22px] border border-[rgb(var(--border-subtle))] bg-[rgb(var(--panel-muted))] p-3 text-sm text-[rgb(var(--ink))]">
-          高风险 {highSeverityCount}
+
+        {/* 高危数量 */}
+        <div className="text-center p-2 rounded-md bg-bg-base">
+          <Icon icon={Shield} size="md" variant="danger" className="mx-auto mb-1" />
+          <div className="text-lg font-semibold text-accent-red">{highRisk}</div>
+          <div className="text-xs text-text-tertiary">high</div>
         </div>
       </div>
-    </section>
-  );
+    </div>
+  )
 }
