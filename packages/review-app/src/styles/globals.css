@@ -186,11 +186,11 @@ code, pre, .font-mono {
 }
 
 .monaco-editor .inline-added {
-  background: rgba(63, 185, 80, 0.15) !important;
+  background: rgba(46, 160, 67, 0.12) !important;
 }
 
 .monaco-editor .inline-removed {
-  background: rgba(248, 81, 73, 0.15) !important;
+  background: rgba(210, 153, 34, 0.08) !important;
 }
 
 .review-finding-line {
