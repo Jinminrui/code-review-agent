@@ -33,8 +33,60 @@ describe("ReviewLaunchPage", () => {
       expect(window.reviewWorkbenchApi.createSession).toHaveBeenCalledWith({
         repositoryPath: "/repo",
         baseRef: "main",
-        targetRef: "feature",
-        providerProfileId: "default"
+        targetRef: "feature"
+      });
+    });
+  });
+
+  it("renders workspace review button", async () => {
+    window.reviewWorkbenchApi = {
+      listRepositories: vi.fn().mockResolvedValue(["/repo"]),
+      listBranches: vi.fn().mockResolvedValue(["main", "feature"]),
+      createSession: vi.fn().mockResolvedValue({ sessionId: "s_2" }),
+      getSession: vi.fn(),
+      listSessions: vi.fn().mockResolvedValue([]),
+      subscribeSession: vi.fn()
+    };
+
+    render(
+      <MemoryRouter>
+        <ReviewLaunchPage />
+      </MemoryRouter>
+    );
+
+    expect(await screen.findAllByText("Code Review Intake")).toHaveLength(2);
+    const workspaceButtons = screen.getAllByRole("button", { name: "审查当前工作区改动" });
+    expect(workspaceButtons.length).toBeGreaterThan(0);
+  });
+
+  it("submits workspace review with WORKSPACE targetRef", async () => {
+    window.reviewWorkbenchApi = {
+      listRepositories: vi.fn().mockResolvedValue(["/repo"]),
+      listBranches: vi.fn().mockResolvedValue(["main", "feature"]),
+      createSession: vi.fn().mockResolvedValue({ sessionId: "s_3" }),
+      getSession: vi.fn(),
+      listSessions: vi.fn().mockResolvedValue([]),
+      subscribeSession: vi.fn()
+    };
+
+    render(
+      <MemoryRouter>
+        <ReviewLaunchPage />
+      </MemoryRouter>
+    );
+
+    await screen.findAllByText("Code Review Intake");
+
+    const repoSelects = screen.getAllByLabelText("仓库");
+    fireEvent.change(repoSelects[0], { target: { value: "/repo" } });
+    const workspaceButtons = screen.getAllByRole("button", { name: "审查当前工作区改动" });
+    fireEvent.click(workspaceButtons[0]);
+
+    await waitFor(() => {
+      expect(window.reviewWorkbenchApi.createSession).toHaveBeenCalledWith({
+        repositoryPath: "/repo",
+        baseRef: "HEAD",
+        targetRef: "WORKSPACE"
       });
     });
   });
