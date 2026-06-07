@@ -3,14 +3,13 @@ import { Icon } from '@/components/ui/icon'
 import { ChevronDown } from 'lucide-react'
 
 interface BranchSelectorProps {
+  branches: string[]
   value: string
   onChange: (value: string) => void
   placeholder?: string
 }
 
-export function BranchSelector({ value, onChange, placeholder = '选择分支' }: BranchSelectorProps) {
-  // TODO: 从后端获取分支列表
-  const branches = ['main', 'develop', 'feature/auth', 'feature/api']
+export function BranchSelector({ branches, value, onChange, placeholder = '选择分支' }: BranchSelectorProps) {
 
   return (
     <div className="relative">

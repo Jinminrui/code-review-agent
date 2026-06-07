@@ -3,17 +3,12 @@ import { Icon } from '@/components/ui/icon'
 import { ChevronDown } from 'lucide-react'
 
 interface RepositoryPickerProps {
+  repositories: string[]
   value: string
   onChange: (value: string) => void
 }
 
-export function RepositoryPicker({ value, onChange }: RepositoryPickerProps) {
-  // TODO: 从后端获取仓库列表
-  const repositories = [
-    { id: '1', name: 'my-project', path: '/Users/dev/my-project' },
-    { id: '2', name: 'another-project', path: '/Users/dev/another-project' },
-  ]
-
+export function RepositoryPicker({ repositories, value, onChange }: RepositoryPickerProps) {
   return (
     <div className="relative">
       <select
@@ -28,8 +23,8 @@ export function RepositoryPicker({ value, onChange }: RepositoryPickerProps) {
       >
         <option value="">选择仓库...</option>
         {repositories.map((repo) => (
-          <option key={repo.id} value={repo.id}>
-            {repo.path}
+          <option key={repo} value={repo}>
+            {repo}
           </option>
         ))}
       </select>

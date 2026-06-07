@@ -1,26 +1,85 @@
-import { useState } from 'react'
+import { startTransition, useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { cn } from '@/lib/utils'
 import { Icon } from '@/components/ui/icon'
 import { RepositoryPicker } from './repository-picker'
 import { BranchSelector } from './branch-selector'
 import { Play, RefreshCw, Folder, GitBranch } from 'lucide-react'
+import { ipcClient } from '@/lib/ipc-client'
 
 export function LaunchReviewForm() {
   const navigate = useNavigate()
-  const [repo, setRepo] = useState('')
-  const [baseBranch, setBaseBranch] = useState('')
-  const [targetBranch, setTargetBranch] = useState('')
+  const [repositories, setRepositories] = useState<string[]>([])
+  const [branches, setBranches] = useState<string[]>([])
+  const [repositoryPath, setRepositoryPath] = useState('')
+  const [baseRef, setBaseRef] = useState('')
+  const [targetRef, setTargetRef] = useState('')
+  const [isSubmitting, setIsSubmitting] = useState(false)
 
-  const handleSubmit = (e: React.FormEvent) => {
+  // 获取仓库列表
+  useEffect(() => {
+    void ipcClient.listRepositories().then(setRepositories)
+  }, [])
+
+  // 获取分支列表
+  useEffect(() => {
+    if (!repositoryPath) {
+      setBranches([])
+      setBaseRef('')
+      setTargetRef('')
+      return
+    }
+
+    void ipcClient.listBranches(repositoryPath).then((nextBranches) => {
+      setBranches(nextBranches)
+      setBaseRef((current) => (nextBranches.includes(current) ? current : ''))
+      setTargetRef((current) => (nextBranches.includes(current) ? current : ''))
+    })
+  }, [repositoryPath])
+
+  async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
-    // TODO: 调用后端启动审查
-    navigate('/sessions/new')
+    if (!repositoryPath || !baseRef || !targetRef || isSubmitting) {
+      return
+    }
+
+    setIsSubmitting(true)
+
+    try {
+      const session = await ipcClient.createSession({
+        repositoryPath,
+        baseRef,
+        targetRef,
+      })
+
+      startTransition(() => {
+        navigate(`/sessions/${session.sessionId}`)
+      })
+    } finally {
+      setIsSubmitting(false)
+    }
   }
 
-  const handleReviewWorkspace = () => {
-    // TODO: 调用后端审查工作区
-    navigate('/sessions/new')
+  async function handleWorkspaceReview() {
+    if (!repositoryPath || isSubmitting) {
+      return
+    }
+
+    setIsSubmitting(true)
+
+    try {
+      const session = await ipcClient.createSession({
+        repositoryPath,
+        baseRef: 'HEAD',
+        targetRef: 'WORKSPACE',
+      })
+
+      startTransition(() => {
+        navigate(`/sessions/${session.sessionId}`)
+      })
+    } finally {
+      setIsSubmitting(false)
+    }
   }
 
   return (
@@ -48,7 +107,11 @@ export function LaunchReviewForm() {
             <Icon icon={Folder} size="xs" />
             <span className="command">repository</span>
           </label>
-          <RepositoryPicker value={repo} onChange={setRepo} />
+          <RepositoryPicker
+            repositories={repositories}
+            value={repositoryPath}
+            onChange={setRepositoryPath}
+          />
         </div>
 
         {/* 基础分支 */}
@@ -58,7 +121,12 @@ export function LaunchReviewForm() {
             <Icon icon={GitBranch} size="xs" />
             <span className="command">base-branch</span>
           </label>
-          <BranchSelector value={baseBranch} onChange={setBaseBranch} placeholder="选择基础分支" />
+          <BranchSelector
+            branches={branches}
+            value={baseRef}
+            onChange={setBaseRef}
+            placeholder="选择基础分支"
+          />
         </div>
 
         {/* 目标分支 */}
@@ -68,16 +136,23 @@ export function LaunchReviewForm() {
             <Icon icon={GitBranch} size="xs" />
             <span className="command">target-branch</span>
           </label>
-          <BranchSelector value={targetBranch} onChange={setTargetBranch} placeholder="选择目标分支" />
+          <BranchSelector
+            branches={branches}
+            value={targetRef}
+            onChange={setTargetRef}
+            placeholder="选择目标分支"
+          />
         </div>
 
         {/* 提交按钮 */}
         <button
           type="submit"
+          disabled={!repositoryPath || !baseRef || !targetRef || isSubmitting}
           className={cn(
             'w-full h-10 px-4 rounded-md font-mono text-sm font-medium transition-all duration-150',
             'bg-accent-cyan text-text-on-accent hover:bg-accent-cyan-muted hover:shadow-glow-cyan',
-            'active:scale-[0.98]'
+            'active:scale-[0.98]',
+            'disabled:opacity-50 disabled:cursor-not-allowed'
           )}
         >
           <span className="inline-flex items-center gap-2">
@@ -96,11 +171,13 @@ export function LaunchReviewForm() {
         {/* 审查工作区按钮 */}
         <button
           type="button"
-          onClick={handleReviewWorkspace}
+          onClick={handleWorkspaceReview}
+          disabled={!repositoryPath || isSubmitting}
           className={cn(
             'w-full h-10 px-4 rounded-md font-mono text-sm font-medium transition-all duration-150',
             'bg-transparent border border-border-default text-text-secondary',
-            'hover:border-border-accent hover:text-text-primary hover:bg-accent-cyan-subtle'
+            'hover:border-border-accent hover:text-text-primary hover:bg-accent-cyan-subtle',
+            'disabled:opacity-50 disabled:cursor-not-allowed'
           )}
         >
           <span className="inline-flex items-center gap-2">
