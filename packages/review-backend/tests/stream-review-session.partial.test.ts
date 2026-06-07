@@ -24,11 +24,13 @@ describe("streamReviewSession partial mode", () => {
         provider,
         gitClient: {
           readDiff: vi.fn().mockResolvedValue([
-            { path: "src/a.ts", hunks: [] },
-            { path: "src/b.ts", hunks: [] }
+            { path: "src/a.ts", isNew: false, isDeleted: false, isBinary: false, insertions: 0, deletions: 0, hunks: [] },
+            { path: "src/b.ts", isNew: false, isDeleted: false, isBinary: false, insertions: 0, deletions: 0, hunks: [] }
           ]),
           readFileAtRef: vi.fn().mockResolvedValue("export const value = 1;\n"),
-          readWorkspaceDiff: vi.fn().mockResolvedValue([])
+          readWorkspaceDiff: vi.fn().mockResolvedValue([]),
+          lsFiles: vi.fn().mockResolvedValue([]),
+          grep: vi.fn().mockResolvedValue([])
         },
         sessionStore: {
           createSession: vi.fn().mockResolvedValue({ sessionId: "s_1" }),

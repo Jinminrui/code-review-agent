@@ -1,11 +1,16 @@
 import { describe, expect, it } from "vitest";
 import { buildReviewUnits } from "../src/infrastructure/planner/review-unit-planner.js";
+import type { ParsedDiffFile } from "../src/infrastructure/git/parse-unified-diff.js";
+
+function makeFile(path: string): ParsedDiffFile {
+  return { path, isNew: false, isDeleted: false, isBinary: false, insertions: 0, deletions: 0, hunks: [] };
+}
 
 describe("buildReviewUnits", () => {
   it("creates one unit per changed file in MVP mode", () => {
     const units = buildReviewUnits([
-      { path: "src/a.ts", hunks: [] },
-      { path: "src/b.ts", hunks: [] }
+      makeFile("src/a.ts"),
+      makeFile("src/b.ts")
     ]);
 
     expect(units).toHaveLength(2);
@@ -13,7 +18,7 @@ describe("buildReviewUnits", () => {
   });
 
   it("keeps primary file even when hunks are empty", () => {
-    const units = buildReviewUnits([{ path: "src/new.ts", hunks: [] }]);
+    const units = buildReviewUnits([makeFile("src/new.ts")]);
 
     expect(units[0]?.files).toEqual(["src/new.ts"]);
   });

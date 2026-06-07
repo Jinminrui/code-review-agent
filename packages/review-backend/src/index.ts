@@ -8,6 +8,7 @@ export * from "./domain/provider.js";
 export * from "./domain/review-finding.js";
 export * from "./domain/review-session.js";
 export * from "./domain/review-unit.js";
+export * from "./domain/tool.js";
 export * from "./infrastructure/context/context-collector.js";
 export * from "./infrastructure/git/git-client.js";
 export * from "./infrastructure/git/parse-unified-diff.js";

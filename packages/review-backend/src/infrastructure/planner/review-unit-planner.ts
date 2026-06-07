@@ -6,6 +6,9 @@ export function buildReviewUnits(files: ParsedDiffFile[]): ReviewUnit[] {
     id: `unit_${index + 1}`,
     primaryFile: file.path,
     files: [file.path],
-    diffPaths: [file.path]
+    diffPaths: [file.path],
+    isNew: file.isNew,
+    isDeleted: file.isDeleted,
+    isBinary: file.isBinary
   }));
 }

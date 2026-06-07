@@ -52,4 +52,47 @@ export class GitClient {
 
     return parseUnifiedDiff(stdout);
   }
+
+  async lsFiles(pattern?: string): Promise<string[]> {
+    const args = ["ls-files"];
+    if (pattern) {
+      args.push(pattern);
+    }
+
+    const { stdout } = await execa("git", args, {
+      cwd: this.repositoryPath
+    });
+
+    return stdout
+      .split("\n")
+      .map((line) => line.trim())
+      .filter(Boolean);
+  }
+
+  async grep(pattern: string, options?: { regex?: boolean }): Promise<string[]> {
+    const args = ["grep", "-n", "-H"];
+    if (options?.regex) {
+      args.push("-E");
+    } else {
+      args.push("-F");
+    }
+    args.push("--", pattern);
+
+    try {
+      const { stdout } = await execa("git", args, {
+        cwd: this.repositoryPath
+      });
+
+      return stdout
+        .split("\n")
+        .map((line) => line.trim())
+        .filter(Boolean);
+    } catch (error) {
+      // git grep exits with code 1 when no matches found
+      if ((error as { exitCode?: number }).exitCode === 1) {
+        return [];
+      }
+      throw error;
+    }
+  }
 }

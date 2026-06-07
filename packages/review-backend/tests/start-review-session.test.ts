@@ -22,9 +22,13 @@ describe("streamReviewSession", () => {
       dependencies: {
         provider,
         gitClient: {
-          readDiff: vi.fn().mockResolvedValue([{ path: "src/a.ts", hunks: [] }]),
+          readDiff: vi.fn().mockResolvedValue([
+            { path: "src/a.ts", isNew: false, isDeleted: false, isBinary: false, insertions: 0, deletions: 0, hunks: [] }
+          ]),
           readFileAtRef: vi.fn().mockResolvedValue("export const a = 1;\n"),
-          readWorkspaceDiff: vi.fn().mockResolvedValue([])
+          readWorkspaceDiff: vi.fn().mockResolvedValue([]),
+          lsFiles: vi.fn().mockResolvedValue([]),
+          grep: vi.fn().mockResolvedValue([])
         },
         sessionStore: {
           createSession: vi.fn().mockResolvedValue({ sessionId: "s_1" }),

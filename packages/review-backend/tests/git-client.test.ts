@@ -76,4 +76,105 @@ describe("GitClient", () => {
     const fileNames = diff.map((f) => f.path);
     expect(fileNames).toContain("file.txt");
   });
+
+  it("lsFiles returns tracked files", async () => {
+    const repo = await mkdtemp(join(tmpdir(), "review-backend-"));
+    await execa("git", ["init", "-b", "main"], { cwd: repo });
+    await mkdir(join(repo, "src"), { recursive: true });
+    await writeFile(join(repo, "src", "a.ts"), "export const a = 1;\n");
+    await writeFile(join(repo, "src", "b.ts"), "export const b = 2;\n");
+    await writeFile(join(repo, "README.md"), "# Test\n");
+    await execa("git", ["add", "."], { cwd: repo });
+    await execa(
+      "git",
+      ["-c", "user.name=Test", "-c", "user.email=test@example.com", "commit", "-m", "init"],
+      { cwd: repo }
+    );
+
+    const client = new GitClient(repo);
+    const files = await client.lsFiles();
+
+    expect(files).toContain("src/a.ts");
+    expect(files).toContain("src/b.ts");
+    expect(files).toContain("README.md");
+  });
+
+  it("lsFiles with glob filter returns only matching files", async () => {
+    const repo = await mkdtemp(join(tmpdir(), "review-backend-"));
+    await execa("git", ["init", "-b", "main"], { cwd: repo });
+    await mkdir(join(repo, "src"), { recursive: true });
+    await writeFile(join(repo, "src", "a.ts"), "export const a = 1;\n");
+    await writeFile(join(repo, "src", "b.js"), "export const b = 2;\n");
+    await writeFile(join(repo, "README.md"), "# Test\n");
+    await execa("git", ["add", "."], { cwd: repo });
+    await execa(
+      "git",
+      ["-c", "user.name=Test", "-c", "user.email=test@example.com", "commit", "-m", "init"],
+      { cwd: repo }
+    );
+
+    const client = new GitClient(repo);
+    const files = await client.lsFiles("*.ts");
+
+    expect(files).toContain("src/a.ts");
+    expect(files).not.toContain("src/b.js");
+    expect(files).not.toContain("README.md");
+  });
+
+  it("grep finds text matches", async () => {
+    const repo = await mkdtemp(join(tmpdir(), "review-backend-"));
+    await execa("git", ["init", "-b", "main"], { cwd: repo });
+    await mkdir(join(repo, "src"), { recursive: true });
+    await writeFile(join(repo, "src", "a.ts"), "export const foo = 1;\nexport const bar = 2;\n");
+    await writeFile(join(repo, "src", "b.ts"), "export const baz = 3;\n");
+    await execa("git", ["add", "."], { cwd: repo });
+    await execa(
+      "git",
+      ["-c", "user.name=Test", "-c", "user.email=test@example.com", "commit", "-m", "init"],
+      { cwd: repo }
+    );
+
+    const client = new GitClient(repo);
+    const results = await client.grep("foo");
+
+    expect(results.length).toBeGreaterThan(0);
+    expect(results[0]).toContain("src/a.ts");
+    expect(results[0]).toContain("foo");
+  });
+
+  it("grep with regex mode works", async () => {
+    const repo = await mkdtemp(join(tmpdir(), "review-backend-"));
+    await execa("git", ["init", "-b", "main"], { cwd: repo });
+    await mkdir(join(repo, "src"), { recursive: true });
+    await writeFile(join(repo, "src", "a.ts"), "const foo = 1;\nconst bar = 2;\nconst foobar = 3;\n");
+    await execa("git", ["add", "."], { cwd: repo });
+    await execa(
+      "git",
+      ["-c", "user.name=Test", "-c", "user.email=test@example.com", "commit", "-m", "init"],
+      { cwd: repo }
+    );
+
+    const client = new GitClient(repo);
+    const results = await client.grep("^const foo =", { regex: true });
+
+    expect(results.length).toBe(1);
+    expect(results[0]).toContain("const foo = 1;");
+  });
+
+  it("grep returns empty array when no matches", async () => {
+    const repo = await mkdtemp(join(tmpdir(), "review-backend-"));
+    await execa("git", ["init", "-b", "main"], { cwd: repo });
+    await writeFile(join(repo, "file.txt"), "hello world\n");
+    await execa("git", ["add", "."], { cwd: repo });
+    await execa(
+      "git",
+      ["-c", "user.name=Test", "-c", "user.email=test@example.com", "commit", "-m", "init"],
+      { cwd: repo }
+    );
+
+    const client = new GitClient(repo);
+    const results = await client.grep("nonexistent");
+
+    expect(results).toEqual([]);
+  });
 });

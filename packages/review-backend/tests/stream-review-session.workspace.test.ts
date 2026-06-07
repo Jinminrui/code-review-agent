@@ -4,7 +4,7 @@ import { streamReviewSession } from "../src/application/stream-review-session.js
 describe("streamReviewSession WORKSPACE mode", () => {
   it("uses readWorkspaceDiff when targetRef is WORKSPACE", async () => {
     const readWorkspaceDiff = vi.fn().mockResolvedValue([
-      { path: "src/file.ts", hunks: [] }
+      { path: "src/file.ts", isNew: false, isDeleted: false, isBinary: false, insertions: 0, deletions: 0, hunks: [] }
     ]);
     const readDiff = vi.fn();
 
@@ -27,7 +27,9 @@ describe("streamReviewSession WORKSPACE mode", () => {
         gitClient: {
           readDiff,
           readFileAtRef: vi.fn().mockResolvedValue("export const value = 1;\n"),
-          readWorkspaceDiff
+          readWorkspaceDiff,
+          lsFiles: vi.fn().mockResolvedValue([]),
+          grep: vi.fn().mockResolvedValue([])
         },
         sessionStore: {
           createSession: vi.fn().mockResolvedValue({ sessionId: "s_1" }),
@@ -51,7 +53,7 @@ describe("streamReviewSession WORKSPACE mode", () => {
   it("uses readDiff when targetRef is not WORKSPACE", async () => {
     const readWorkspaceDiff = vi.fn();
     const readDiff = vi.fn().mockResolvedValue([
-      { path: "src/file.ts", hunks: [] }
+      { path: "src/file.ts", isNew: false, isDeleted: false, isBinary: false, insertions: 0, deletions: 0, hunks: [] }
     ]);
 
     const provider = {
@@ -73,7 +75,9 @@ describe("streamReviewSession WORKSPACE mode", () => {
         gitClient: {
           readDiff,
           readFileAtRef: vi.fn().mockResolvedValue("export const value = 1;\n"),
-          readWorkspaceDiff
+          readWorkspaceDiff,
+          lsFiles: vi.fn().mockResolvedValue([]),
+          grep: vi.fn().mockResolvedValue([])
         },
         sessionStore: {
           createSession: vi.fn().mockResolvedValue({ sessionId: "s_1" }),
