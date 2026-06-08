@@ -66,4 +66,31 @@ describe("FileSessionStore", () => {
     });
     await expect(store.listSessions()).resolves.toHaveLength(1);
   });
+
+  it("deletes a session and its directory", async () => {
+    const rootDir = await mkdtemp(join(tmpdir(), "review-store-"));
+    const store = new FileSessionStore(rootDir);
+
+    const session = await store.createSession({
+      repositoryPath: "/repo",
+      baseRef: "main",
+      targetRef: "feature"
+    });
+
+    // 确认会话存在
+    await expect(store.getSession(session.sessionId)).resolves.toBeDefined();
+
+    // 删除会话
+    await store.deleteSession(session.sessionId);
+
+    // 确认会话已删除
+    await expect(store.getSession(session.sessionId)).rejects.toThrow();
+  });
+
+  it("throws error when deleting non-existent session", async () => {
+    const rootDir = await mkdtemp(join(tmpdir(), "review-store-"));
+    const store = new FileSessionStore(rootDir);
+
+    await expect(store.deleteSession("non-existent-id")).rejects.toThrow();
+  });
 });

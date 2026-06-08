@@ -1,4 +1,4 @@
-import { appendFile, mkdir, readFile, readdir, writeFile } from "node:fs/promises";
+import { appendFile, mkdir, readFile, readdir, rm, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import { randomUUID } from "node:crypto";
 
@@ -70,5 +70,22 @@ export class FileSessionStore {
     const names = await readdir(this.rootDir);
     const sessions = await Promise.all(names.map((name) => this.getSession(name).catch(() => null)));
     return sessions.filter((session): session is NonNullable<typeof session> => session !== null);
+  }
+
+  async deleteSession(sessionId: string): Promise<void> {
+    const sessionDir = join(this.rootDir, sessionId);
+
+    // 检查目录是否存在
+    try {
+      await readFile(join(sessionDir, "session.json"), "utf8");
+    } catch (error) {
+      if ((error as NodeJS.ErrnoException).code === "ENOENT") {
+        throw new Error(`Session ${sessionId} not found`);
+      }
+      throw error;
+    }
+
+    // 删除整个会话目录
+    await rm(sessionDir, { recursive: true, force: true });
   }
 }
