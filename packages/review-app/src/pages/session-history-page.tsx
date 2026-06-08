@@ -1,36 +1,75 @@
-import { Link } from 'react-router-dom'
-import { cn } from '@/lib/utils'
+import { useEffect, useState } from 'react'
+import { useSessionHistoryStore } from '@/store/session-history-store'
+import { SessionCard } from '@/components/session/session-card'
+import { DeleteConfirmDialog } from '@/components/session/delete-confirm-dialog'
 import { Icon } from '@/components/ui/icon'
-import { SectionLabel } from '@/components/ui/section-label'
-import { StatusBadge } from '@/components/ui/status-badge'
-import { Clock, GitBranch, Folder, FileText, AlertTriangle } from 'lucide-react'
-
-interface Session {
-  id: string
-  baseRef: string
-  targetRef: string
-  repoPath: string
-  status: 'finished' | 'failed' | 'running'
-  changedFiles: number
-  findings: number
-  highRisk: number
-  createdAt: string
-}
+import { Clock } from 'lucide-react'
 
 export function SessionHistoryPage() {
-  // TODO: 从后端获取会话列表
-  const sessions: Session[] = []
+  const {
+    sessions,
+    isLoading,
+    error,
+    fetchSessions,
+    deleteSession,
+    exportSession,
+    clearError
+  } = useSessionHistoryStore();
+
+  const [deleteTarget, setDeleteTarget] = useState<string | null>(null);
+
+  useEffect(() => {
+    fetchSessions();
+  }, [fetchSessions]);
+
+  const handleDelete = (sessionId: string) => {
+    setDeleteTarget(sessionId);
+  };
+
+  const handleConfirmDelete = async () => {
+    if (deleteTarget) {
+      await deleteSession(deleteTarget);
+      setDeleteTarget(null);
+    }
+  };
+
+  const handleExport = (sessionId: string) => {
+    exportSession(sessionId);
+  };
 
   return (
     <div className="min-h-screen bg-bg-base p-8">
       <div className="max-w-3xl mx-auto">
         {/* 标题 */}
         <div className="mb-8">
-          <SectionLabel command="review-history" />
+          <h1 className="text-2xl font-bold text-text-primary mb-2">审查历史</h1>
+          <p className="text-text-secondary">
+            共 {sessions.length} 条记录
+          </p>
         </div>
 
+        {/* 错误提示 */}
+        {error && (
+          <div className="mb-4 p-4 bg-accent-red/10 border border-accent-red/20 rounded-lg">
+            <p className="text-accent-red text-sm">{error}</p>
+            <button
+              onClick={clearError}
+              className="text-xs text-accent-red/70 hover:text-accent-red mt-1"
+            >
+              关闭
+            </button>
+          </div>
+        )}
+
+        {/* 加载状态 */}
+        {isLoading && (
+          <div className="text-center py-12">
+            <p className="text-text-tertiary">加载中...</p>
+          </div>
+        )}
+
         {/* 会话列表 */}
-        {sessions.length === 0 ? (
+        {!isLoading && sessions.length === 0 ? (
           <div className="empty-state-terminal">
             <div className="text-center">
               <Icon icon={Clock} size="xl" variant="muted" className="mx-auto mb-4" />
@@ -39,70 +78,25 @@ export function SessionHistoryPage() {
           </div>
         ) : (
           <div className="space-y-3">
-            <SectionLabel command="recent-sessions" count={sessions.length} />
-
             {sessions.map((session) => (
-              <Link
-                key={session.id}
-                to={`/sessions/${session.id}`}
-                className={cn(
-                  'block p-4 rounded-lg border border-border-default bg-bg-surface',
-                  'hover:bg-bg-elevated hover:border-border-accent hover:shadow-glow-cyan',
-                  'transition-all duration-150'
-                )}
-              >
-                {/* 分支信息 */}
-                <div className="flex items-center gap-2 mb-2">
-                  <Icon icon={GitBranch} size="sm" variant="accent" />
-                  <span className="font-mono text-sm text-text-primary">
-                    {session.baseRef} → {session.targetRef}
-                  </span>
-                </div>
-
-                {/* 仓库路径 */}
-                <div className="flex items-center gap-2 mb-2">
-                  <Icon icon={Folder} size="sm" variant="muted" />
-                  <span className="font-mono text-xs text-text-tertiary">
-                    {session.repoPath}
-                  </span>
-                </div>
-
-                {/* 时间和状态 */}
-                <div className="flex items-center justify-between mb-3">
-                  <div className="flex items-center gap-2">
-                    <Icon icon={Clock} size="sm" variant="muted" />
-                    <span className="text-xs text-text-tertiary">
-                      {session.createdAt}
-                    </span>
-                  </div>
-                  <StatusBadge status={session.status} label={session.status.toUpperCase()} />
-                </div>
-
-                {/* 分隔线 */}
-                <div className="h-px bg-border-muted mb-3" />
-
-                {/* 统计信息 */}
-                <div className="flex items-center gap-4 text-xs">
-                  <div className="flex items-center gap-1.5">
-                    <Icon icon={FileText} size="xs" variant="muted" />
-                    <span className="text-text-secondary">{session.changedFiles} files</span>
-                  </div>
-                  <div className="flex items-center gap-1.5">
-                    <Icon icon={AlertTriangle} size="xs" variant="warning" />
-                    <span className="text-text-secondary">{session.findings} findings</span>
-                  </div>
-                  {session.highRisk > 0 && (
-                    <div className="flex items-center gap-1.5">
-                      <Icon icon={AlertTriangle} size="xs" variant="danger" />
-                      <span className="text-accent-red">{session.highRisk} high</span>
-                    </div>
-                  )}
-                </div>
-              </Link>
+              <SessionCard
+                key={session.sessionId}
+                session={session}
+                onDelete={handleDelete}
+                onExport={handleExport}
+              />
             ))}
           </div>
         )}
       </div>
+
+      {/* 删除确认对话框 */}
+      <DeleteConfirmDialog
+        isOpen={deleteTarget !== null}
+        sessionId={deleteTarget ?? ''}
+        onConfirm={handleConfirmDelete}
+        onCancel={() => setDeleteTarget(null)}
+      />
     </div>
-  )
+  );
 }
