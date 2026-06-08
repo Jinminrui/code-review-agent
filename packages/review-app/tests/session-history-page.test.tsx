@@ -64,7 +64,7 @@ describe("SessionHistoryPage", () => {
 
     // 使用 getAllByTitle 获取所有删除按钮，取第一个（SessionCard 中的按钮）
     const deleteButtons = screen.getAllByTitle("删除");
-    fireEvent.click(deleteButtons[0]);
+    fireEvent.click(deleteButtons[0]!);
 
     // 确认对话框出现
     expect(screen.getByText("确认删除")).toBeInTheDocument();
@@ -91,7 +91,7 @@ describe("SessionHistoryPage", () => {
 
     // 使用 getAllByTitle 获取导出按钮
     const exportButtons = screen.getAllByTitle("导出");
-    fireEvent.click(exportButtons[0]);
+    fireEvent.click(exportButtons[0]!);
 
     await waitFor(() => {
       expect(mockExportSession).toHaveBeenCalledWith("s_1");
