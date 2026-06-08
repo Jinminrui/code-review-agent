@@ -79,18 +79,33 @@ describe("FileSessionStore", () => {
 
     // 确认会话存在
     await expect(store.getSession(session.sessionId)).resolves.toBeDefined();
+    await expect(store.listSessions()).resolves.toHaveLength(1);
 
     // 删除会话
     await store.deleteSession(session.sessionId);
 
     // 确认会话已删除
     await expect(store.getSession(session.sessionId)).rejects.toThrow();
+    await expect(store.listSessions()).resolves.toHaveLength(0);
   });
 
   it("throws error when deleting non-existent session", async () => {
     const rootDir = await mkdtemp(join(tmpdir(), "review-store-"));
     const store = new FileSessionStore(rootDir);
 
-    await expect(store.deleteSession("non-existent-id")).rejects.toThrow();
+    await expect(store.deleteSession("non-existent-id"))
+      .rejects.toThrow("Session non-existent-id not found");
+  });
+
+  it("rejects sessionId with path traversal characters", async () => {
+    const rootDir = await mkdtemp(join(tmpdir(), "review-store-"));
+    const store = new FileSessionStore(rootDir);
+
+    await expect(store.deleteSession("../etc/passwd"))
+      .rejects.toThrow("Invalid sessionId");
+    await expect(store.deleteSession("foo/bar"))
+      .rejects.toThrow("Invalid sessionId");
+    await expect(store.deleteSession("foo\\bar"))
+      .rejects.toThrow("Invalid sessionId");
   });
 });

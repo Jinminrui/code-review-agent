@@ -73,6 +73,10 @@ export class FileSessionStore {
   }
 
   async deleteSession(sessionId: string): Promise<void> {
+    if (sessionId.includes("/") || sessionId.includes("\\")) {
+      throw new Error("Invalid sessionId");
+    }
+
     const sessionDir = join(this.rootDir, sessionId);
 
     // 检查目录是否存在
