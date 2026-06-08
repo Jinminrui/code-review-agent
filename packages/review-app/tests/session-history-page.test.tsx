@@ -22,16 +22,11 @@ describe("SessionHistoryPage", () => {
             findingsCount: 2,
             highSeverityCount: 1,
             files: ["src/a.ts"]
-          },
-          diffByFile: {
-            "src/a.ts": {
-              original: "",
-              modified: ""
-            }
-          },
-          findings: []
+          }
         }
       ]),
+      deleteSession: vi.fn(),
+      exportSession: vi.fn(),
       subscribeSession: vi.fn()
     };
 

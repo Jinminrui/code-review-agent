@@ -11,6 +11,8 @@ describe("ReviewLaunchPage", () => {
       createSession: vi.fn().mockResolvedValue({ sessionId: "s_1" }),
       getSession: vi.fn(),
       listSessions: vi.fn().mockResolvedValue([]),
+      deleteSession: vi.fn(),
+      exportSession: vi.fn(),
       subscribeSession: vi.fn()
     };
 
@@ -45,6 +47,8 @@ describe("ReviewLaunchPage", () => {
       createSession: vi.fn().mockResolvedValue({ sessionId: "s_2" }),
       getSession: vi.fn(),
       listSessions: vi.fn().mockResolvedValue([]),
+      deleteSession: vi.fn(),
+      exportSession: vi.fn(),
       subscribeSession: vi.fn()
     };
 
@@ -66,6 +70,8 @@ describe("ReviewLaunchPage", () => {
       createSession: vi.fn().mockResolvedValue({ sessionId: "s_3" }),
       getSession: vi.fn(),
       listSessions: vi.fn().mockResolvedValue([]),
+      deleteSession: vi.fn(),
+      exportSession: vi.fn(),
       subscribeSession: vi.fn()
     };
 

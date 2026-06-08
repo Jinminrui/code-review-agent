@@ -1,4 +1,4 @@
-import type { ReviewSessionDetail } from "./review-model";
+import type { ReviewSessionDetail, SessionSummary } from "./review-model";
 
 export type CreateSessionInput = {
   repositoryPath: string;
@@ -11,7 +11,9 @@ export type ReviewWorkbenchApi = {
   listBranches(repositoryPath: string): Promise<string[]>;
   createSession(input: CreateSessionInput): Promise<{ sessionId: string }>;
   getSession(sessionId: string): Promise<ReviewSessionDetail>;
-  listSessions(): Promise<ReviewSessionDetail[]>;
+  listSessions(): Promise<SessionSummary[]>;
+  deleteSession(sessionId: string): Promise<void>;
+  exportSession(sessionId: string): Promise<{ markdown: string; filename: string }>;
   subscribeSession(sessionId: string, onEvent: (event: unknown) => void): () => void;
 };
 
@@ -27,6 +29,8 @@ export const ipcClient = {
   createSession: (input: CreateSessionInput) => window.reviewWorkbenchApi.createSession(input),
   getSession: (sessionId: string) => window.reviewWorkbenchApi.getSession(sessionId),
   listSessions: () => window.reviewWorkbenchApi.listSessions(),
+  deleteSession: (sessionId: string) => window.reviewWorkbenchApi.deleteSession(sessionId),
+  exportSession: (sessionId: string) => window.reviewWorkbenchApi.exportSession(sessionId),
   subscribeSession: (sessionId: string, onEvent: (event: unknown) => void) =>
     window.reviewWorkbenchApi.subscribeSession(sessionId, onEvent)
 };

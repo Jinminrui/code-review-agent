@@ -36,5 +36,20 @@ export const reviewSessionDetailSchema = z.object({
   findings: z.array(reviewFindingSchema)
 });
 
+export const sessionSummarySchema = z.object({
+  sessionId: z.string(),
+  repositoryPath: z.string(),
+  baseRef: z.string(),
+  targetRef: z.string(),
+  status: z.enum(["running", "finished", "failed"]),
+  summary: z.object({
+    changedFilesCount: z.number(),
+    findingsCount: z.number(),
+    highSeverityCount: z.number(),
+    files: z.array(z.string())
+  })
+});
+
 export type ReviewFinding = z.infer<typeof reviewFindingSchema>;
 export type ReviewSessionDetail = z.infer<typeof reviewSessionDetailSchema>;
+export type SessionSummary = z.infer<typeof sessionSummarySchema>;

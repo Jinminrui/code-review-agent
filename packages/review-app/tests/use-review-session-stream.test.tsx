@@ -19,6 +19,8 @@ describe("useReviewSessionStream", () => {
         findings: []
       }),
       listSessions: vi.fn(),
+      deleteSession: vi.fn(),
+      exportSession: vi.fn(),
       subscribeSession: vi.fn().mockReturnValue(unsubscribe)
     };
 

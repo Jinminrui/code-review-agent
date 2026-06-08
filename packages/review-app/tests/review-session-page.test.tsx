@@ -51,6 +51,8 @@ describe("ReviewSessionPage", () => {
         ]
       }),
       listSessions: vi.fn(),
+      deleteSession: vi.fn(),
+      exportSession: vi.fn(),
       subscribeSession: vi.fn().mockReturnValue(() => {})
     };
 
