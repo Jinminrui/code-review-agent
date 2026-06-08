@@ -69,7 +69,10 @@ async function createWindow() {
         return { sessionId: first.value.sessionId };
       },
       getSession: async (sessionId: string) => getReviewSession({ sessionId, sessionStore }),
-      listSessions: async () => listReviewSessions({ sessionStore })
+      listSessions: async () => listReviewSessions({ sessionStore }),
+      deleteSession: async (sessionId: string) => sessionStore.deleteSession(sessionId),
+      exportSessionToMarkdown: async (sessionId: string) =>
+        sessionStore.exportSessionToMarkdown(sessionId)
     }
   });
 
@@ -84,6 +87,12 @@ async function createWindow() {
     handlers.getSession(sessionId)
   );
   ipcMain.handle("review:listSessions", handlers.listSessions);
+  ipcMain.handle("review:deleteSession", (_event, sessionId: string) =>
+    handlers.deleteSession(sessionId)
+  );
+  ipcMain.handle("review:exportSession", (_event, sessionId: string) =>
+    handlers.exportSession(sessionId)
+  );
 
   await window.loadURL(getRendererUrl(process.env));
 }
