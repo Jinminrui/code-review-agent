@@ -3,6 +3,7 @@ import { useParams } from 'react-router-dom'
 import { useReviewSessionStore } from '@/store/review-session-store'
 import { useReviewSessionStream } from '@/hooks/use-review-session-stream'
 import { useSelectedFinding } from '@/hooks/use-selected-finding'
+import { SidebarHeader } from '@/components/session/sidebar-header'
 import { SessionProgress } from '@/components/session/session-progress'
 import { ReviewSummaryPanel } from '@/components/session/review-summary-panel'
 import { RiskFileList } from '@/components/session/risk-file-list'
@@ -39,6 +40,9 @@ export function ReviewSessionPage() {
     <div className="h-screen flex overflow-hidden">
       {/* 侧边栏 */}
       <aside className="w-80 h-full bg-bg-surface border-r border-border-default flex flex-col overflow-hidden">
+        {/* 侧边栏头部 - 返回按钮和状态 */}
+        <SidebarHeader status={session?.status ?? 'idle'} />
+
         {/* 会话进度 */}
         <SessionProgress
           status={session?.status ?? 'idle'}
