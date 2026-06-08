@@ -92,4 +92,47 @@ export class FileSessionStore {
     // 删除整个会话目录
     await rm(sessionDir, { recursive: true, force: true });
   }
+
+  async exportSessionToMarkdown(sessionId: string): Promise<string> {
+    const session = await this.getSession(sessionId);
+
+    const lines: string[] = [];
+    lines.push("# 代码审查报告");
+    lines.push("");
+    lines.push("## 基本信息");
+    lines.push(`- **会话 ID**：${sessionId}`);
+    lines.push(`- **仓库路径**：${session.repositoryPath}`);
+    lines.push(`- **分支对比**：${session.baseRef} → ${session.targetRef}`);
+    lines.push(`- **状态**：${session.status}`);
+    lines.push("");
+    lines.push("## 审查摘要");
+    lines.push(`- **变更文件**：${session.summary.changedFilesCount} 个`);
+    lines.push(`- **发现问题**：${session.summary.findingsCount} 个`);
+    lines.push(`- **高风险**：${session.summary.highSeverityCount} 个`);
+    lines.push("");
+    lines.push("## 问题列表");
+
+    if (session.findings.length === 0) {
+      lines.push("");
+      lines.push("暂无问题");
+    } else {
+      for (const finding of session.findings) {
+        lines.push("");
+        lines.push(`### ${finding.summary}`);
+        lines.push("");
+        lines.push(`- **文件**：${finding.file}`);
+        if (finding.startLine) {
+          lines.push(`- **行号**：${finding.startLine}${finding.endLine ? `-${finding.endLine}` : ""}`);
+        }
+        lines.push(`- **严重程度**：${finding.severity}`);
+        lines.push(`- **类别**：${finding.category}`);
+        lines.push(`- **说明**：${finding.explanation}`);
+        if (finding.suggestion) {
+          lines.push(`- **建议**：${finding.suggestion}`);
+        }
+      }
+    }
+
+    return lines.join("\n");
+  }
 }
