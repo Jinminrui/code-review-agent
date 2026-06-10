@@ -1,11 +1,10 @@
 {
   "compilerOptions": {
-    "baseUrl": ".",
     "target": "ES2022",
     "module": "NodeNext",
     "moduleResolution": "NodeNext",
     "paths": {
-      "@app/review-backend": ["packages/review-backend/src/index.ts"]
+      "@app/review-backend": ["./packages/review-backend/src/index.ts"],
     },
     "strict": true,
     "declaration": true,

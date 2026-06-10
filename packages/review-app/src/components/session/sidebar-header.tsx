@@ -1,17 +1,19 @@
 import { useNavigate } from "react-router-dom";
 import { ArrowLeft } from "lucide-react";
-import { StatusBadge } from "@/components/ui/status-badge";
+import { StatusBadge, type Status } from "@/components/ui/status-badge";
 
 interface SidebarHeaderProps {
-  status: "idle" | "running" | "partial" | "finished" | "failed";
+  status: Status;
 }
 
-const statusConfig = {
+const statusConfig: Record<string, { label: string; status: Status } | null> = {
   idle: null,
-  running: { label: "审查中...", status: "running" as const },
-  partial: { label: "部分完成", status: "running" as const },
-  finished: { label: "已完成", status: "finished" as const },
-  failed: { label: "失败", status: "failed" as const }
+  running: { label: "审查中...", status: "running" },
+  streaming: { label: "审查中...", status: "streaming" },
+  partial: { label: "部分完成", status: "partial" },
+  finished: { label: "已完成", status: "finished" },
+  failed: { label: "失败", status: "failed" },
+  pending: { label: "等待中", status: "pending" }
 };
 
 export function SidebarHeader({ status }: SidebarHeaderProps) {

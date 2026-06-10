@@ -43,7 +43,7 @@ describe("SessionCard", () => {
       </MemoryRouter>
     );
 
-    const deleteButtons = screen.getAllByTitle("删除");
+    const deleteButtons = screen.getAllByLabelText("删除会话");
     const lastDeleteButton = deleteButtons[deleteButtons.length - 1];
     expect(lastDeleteButton).toBeDefined();
     await user.click(lastDeleteButton!);
@@ -61,7 +61,7 @@ describe("SessionCard", () => {
       </MemoryRouter>
     );
 
-    const exportButtons = screen.getAllByTitle("导出");
+    const exportButtons = screen.getAllByLabelText("导出会话");
     const lastExportButton = exportButtons[exportButtons.length - 1];
     expect(lastExportButton).toBeDefined();
     await user.click(lastExportButton!);

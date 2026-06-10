@@ -1,4 +1,4 @@
-import type { ReviewSessionDetail, SessionSummary } from "./review-model";
+import type { ReviewSessionDetail, ReviewSessionEvent, SessionSummary } from "./review-model";
 
 export type CreateSessionInput = {
   repositoryPath: string;
@@ -14,7 +14,7 @@ export type ReviewWorkbenchApi = {
   listSessions(): Promise<SessionSummary[]>;
   deleteSession(sessionId: string): Promise<void>;
   exportSession(sessionId: string): Promise<{ markdown: string; filename: string }>;
-  subscribeSession(sessionId: string, onEvent: (event: unknown) => void): () => void;
+  subscribeSession(sessionId: string, onEvent: (event: ReviewSessionEvent) => void): () => void;
 };
 
 declare global {
@@ -31,6 +31,6 @@ export const ipcClient = {
   listSessions: () => window.reviewWorkbenchApi.listSessions(),
   deleteSession: (sessionId: string) => window.reviewWorkbenchApi.deleteSession(sessionId),
   exportSession: (sessionId: string) => window.reviewWorkbenchApi.exportSession(sessionId),
-  subscribeSession: (sessionId: string, onEvent: (event: unknown) => void) =>
+  subscribeSession: (sessionId: string, onEvent: (event: ReviewSessionEvent) => void) =>
     window.reviewWorkbenchApi.subscribeSession(sessionId, onEvent)
 };

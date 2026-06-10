@@ -17,7 +17,8 @@ export const reviewSessionEventSchema = z.discriminatedUnion("type", [
     type: z.literal("unit-completed"),
     sessionId: z.string(),
     unitId: z.string(),
-    findingsCount: z.number().int().nonnegative()
+    findingsCount: z.number().int().nonnegative(),
+    findings: z.array(reviewFindingSchema)
   }),
   z.object({
     type: z.literal("unit-failed"),

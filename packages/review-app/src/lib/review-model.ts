@@ -15,6 +15,13 @@ export const reviewFindingSchema = z.object({
   status: z.enum(["line-level", "file-level"])
 });
 
+// 流式事件类型定义
+export type ReviewSessionEvent =
+  | { type: "session-started"; sessionId: string }
+  | { type: "unit-completed"; sessionId: string; unitId: string; findingsCount: number; findings: ReviewFinding[] }
+  | { type: "unit-failed"; sessionId: string; unitId: string; reason: string }
+  | { type: "session-finished"; sessionId: string; totalFindings: number; status: "finished" | "partial" };
+
 export const reviewSessionDetailSchema = z.object({
   sessionId: z.string(),
   status: z.enum(["idle", "running", "partial", "finished", "failed"]),

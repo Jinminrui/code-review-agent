@@ -2,8 +2,8 @@ import { cn } from '@/lib/utils'
 import { Icon } from './icon'
 import { type LucideIcon, CheckCircle2, XCircle, AlertTriangle, Info, Loader2, Circle } from 'lucide-react'
 
-type Severity = 'high' | 'medium' | 'low'
-type Status = 'finished' | 'failed' | 'running' | 'pending'
+export type Severity = 'high' | 'medium' | 'low'
+export type Status = 'finished' | 'failed' | 'running' | 'pending' | 'idle' | 'streaming' | 'partial'
 
 interface StatusBadgeProps {
   severity?: Severity
@@ -52,12 +52,30 @@ const statusConfig = {
     text: 'text-text-disabled',
     icon: Circle as LucideIcon,
   },
+  idle: {
+    background: 'bg-[rgba(110,118,129,0.1)]',
+    text: 'text-text-tertiary',
+    icon: Circle as LucideIcon,
+  },
+  streaming: {
+    background: 'bg-[rgba(86,212,221,0.1)]',
+    text: 'text-accent-cyan',
+    icon: Loader2 as LucideIcon,
+    spin: true,
+  },
+  partial: {
+    background: 'bg-[rgba(210,153,34,0.1)]',
+    text: 'text-accent-amber',
+    icon: AlertTriangle as LucideIcon,
+  },
 }
 
 export function StatusBadge({ severity, status, label, className }: StatusBadgeProps) {
   const config = severity ? severityConfig[severity] : status ? statusConfig[status] : null
 
   if (!config) return null
+
+  const shouldSpin = 'spin' in config && (config as { spin?: boolean }).spin === true
 
   return (
     <span
@@ -71,7 +89,7 @@ export function StatusBadge({ severity, status, label, className }: StatusBadgeP
       <Icon
         icon={config.icon}
         size="xs"
-        className={cn(status === 'running' && 'icon-spin')}
+        className={cn(shouldSpin && 'icon-spin')}
       />
       {label}
     </span>

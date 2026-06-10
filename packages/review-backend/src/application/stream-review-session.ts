@@ -165,7 +165,8 @@ export async function* streamReviewSession(
         type: "unit-completed" as const,
         sessionId: session.sessionId,
         unitId: unit.id,
-        findingsCount: unitFindings.length
+        findingsCount: unitFindings.length,
+        findings: unitFindings
       };
       await input.dependencies.sessionStore.appendEvent(session.sessionId, unitCompletedEvent);
       yield unitCompletedEvent;

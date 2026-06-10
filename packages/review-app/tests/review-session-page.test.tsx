@@ -65,14 +65,26 @@ describe("ReviewSessionPage", () => {
     );
 
     await waitFor(() => {
-      expect(screen.getByText("当前状态：In Progress")).toBeInTheDocument();
+      expect(screen.getByText("审查中...")).toBeInTheDocument();
     });
 
-    expect(screen.getAllByText("Code Review 工作台")[0]).toBeInTheDocument();
-    expect(screen.getByText("Code Review 摘要")).toBeInTheDocument();
-    expect(screen.getByText("High-Risk Files")).toBeInTheDocument();
-    expect(screen.getByText("证据摘要")).toBeInTheDocument();
-    expect(screen.getByText("行级定位")).toBeInTheDocument();
+    // 侧边栏头部
+    expect(screen.getByRole("button", { name: /返回首页/ })).toBeInTheDocument();
+
+    // 会话进度区域
+    expect(screen.getByText("session-status")).toBeInTheDocument();
+
+    // 审查摘要区域
+    expect(screen.getByText("session-summary")).toBeInTheDocument();
+    expect(screen.getByText("files")).toBeInTheDocument();
+    expect(screen.getAllByText("findings").length).toBeGreaterThan(0);
+    expect(screen.getByText("high")).toBeInTheDocument();
+
+    // 风险文件列表
+    expect(screen.getByText("risk-files")).toBeInTheDocument();
+    expect(screen.getAllByText("src/a.ts").length).toBeGreaterThan(0);
+
+    // Finding 列表
     expect(screen.getByRole("button", { name: /空值保护缺失/ })).toBeInTheDocument();
   });
 });

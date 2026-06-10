@@ -4,7 +4,7 @@ import { cn } from '@/lib/utils'
 import { Icon } from '@/components/ui/icon'
 import { RepositoryPicker } from './repository-picker'
 import { BranchSelector } from './branch-selector'
-import { Play, RefreshCw, Folder, GitBranch } from 'lucide-react'
+import { Play, RefreshCw, Folder, GitBranch, AlertTriangle } from 'lucide-react'
 import { ipcClient } from '@/lib/ipc-client'
 
 export function LaunchReviewForm() {
@@ -15,10 +15,13 @@ export function LaunchReviewForm() {
   const [baseRef, setBaseRef] = useState('')
   const [targetRef, setTargetRef] = useState('')
   const [isSubmitting, setIsSubmitting] = useState(false)
+  const [error, setError] = useState<string | null>(null)
 
   // 获取仓库列表
   useEffect(() => {
-    void ipcClient.listRepositories().then(setRepositories)
+    void ipcClient.listRepositories().then(setRepositories, (err) => {
+      console.error("Failed to list repositories:", err)
+    })
   }, [])
 
   // 获取分支列表
@@ -30,11 +33,16 @@ export function LaunchReviewForm() {
       return
     }
 
-    void ipcClient.listBranches(repositoryPath).then((nextBranches) => {
-      setBranches(nextBranches)
-      setBaseRef((current) => (nextBranches.includes(current) ? current : ''))
-      setTargetRef((current) => (nextBranches.includes(current) ? current : ''))
-    })
+    void ipcClient.listBranches(repositoryPath).then(
+      (nextBranches) => {
+        setBranches(nextBranches)
+        setBaseRef((current) => (nextBranches.includes(current) ? current : ''))
+        setTargetRef((current) => (nextBranches.includes(current) ? current : ''))
+      },
+      (err) => {
+        console.error("Failed to list branches:", err)
+      }
+    )
   }, [repositoryPath])
 
   async function handleSubmit(e: React.FormEvent) {
@@ -44,6 +52,7 @@ export function LaunchReviewForm() {
     }
 
     setIsSubmitting(true)
+    setError(null)
 
     try {
       const session = await ipcClient.createSession({
@@ -55,6 +64,9 @@ export function LaunchReviewForm() {
       startTransition(() => {
         navigate(`/sessions/${session.sessionId}`)
       })
+    } catch (err) {
+      console.error("Failed to create session:", err)
+      setError(err instanceof Error ? err.message : "创建审查会话失败")
     } finally {
       setIsSubmitting(false)
     }
@@ -66,6 +78,7 @@ export function LaunchReviewForm() {
     }
 
     setIsSubmitting(true)
+    setError(null)
 
     try {
       const session = await ipcClient.createSession({
@@ -77,6 +90,9 @@ export function LaunchReviewForm() {
       startTransition(() => {
         navigate(`/sessions/${session.sessionId}`)
       })
+    } catch (err) {
+      console.error("Failed to create workspace session:", err)
+      setError(err instanceof Error ? err.message : "创建审查会话失败")
     } finally {
       setIsSubmitting(false)
     }
@@ -97,6 +113,14 @@ export function LaunchReviewForm() {
           选择仓库和分支，开始审查代码变更
         </p>
       </div>
+
+      {/* 错误提示 */}
+      {error && (
+        <div className="mb-4 p-3 rounded-md bg-[rgba(248,81,73,0.1)] border border-[rgba(248,81,73,0.3)] flex items-center gap-2">
+          <AlertTriangle size={14} className="text-accent-red flex-shrink-0" />
+          <span className="text-sm text-accent-red">{error}</span>
+        </div>
+      )}
 
       {/* 表单 */}
       <form onSubmit={handleSubmit} className="space-y-4">

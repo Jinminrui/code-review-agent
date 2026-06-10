@@ -1,9 +1,10 @@
 import { Link } from 'react-router-dom'
 import { cn } from '@/lib/utils'
 import { Icon } from '@/components/ui/icon'
-import { StatusBadge } from '@/components/ui/status-badge'
+import { StatusBadge, type Status } from '@/components/ui/status-badge'
 import { GitBranch, Folder, FileText, AlertTriangle, Trash2, Download } from 'lucide-react'
 import type { SessionSummary } from '@/lib/review-model'
+import { sessionStatusLabel } from '@/lib/review-copy'
 
 interface SessionCardProps {
   session: SessionSummary;
@@ -11,7 +12,19 @@ interface SessionCardProps {
   onExport: (sessionId: string) => void;
 }
 
+function getStatusBadgeStatus(status: string): Status {
+  switch (status) {
+    case 'running': return 'running'
+    case 'finished': return 'finished'
+    case 'failed': return 'failed'
+    case 'partial': return 'partial'
+    default: return 'failed'
+  }
+}
+
 export function SessionCard({ session, onDelete, onExport }: SessionCardProps) {
+  const statusLabel = sessionStatusLabel[session.status as keyof typeof sessionStatusLabel] ?? session.status
+
   return (
     <div
       className={cn(
@@ -42,8 +55,8 @@ export function SessionCard({ session, onDelete, onExport }: SessionCardProps) {
       {/* 状态 */}
       <div className="flex items-center justify-between mb-3">
         <StatusBadge
-          status={session.status === 'running' ? 'running' : session.status === 'finished' ? 'finished' : 'failed'}
-          label={session.status.toUpperCase()}
+          status={getStatusBadgeStatus(session.status)}
+          label={statusLabel}
         />
       </div>
 
@@ -73,17 +86,17 @@ export function SessionCard({ session, onDelete, onExport }: SessionCardProps) {
         <div className="flex items-center gap-2">
           <button
             onClick={() => onExport(session.sessionId)}
+            aria-label="导出会话"
             className="p-1.5 text-text-tertiary hover:text-text-secondary hover:bg-bg-elevated rounded transition-colors"
-            title="导出"
           >
-            <Download size={14} />
+            <Icon icon={Download} size="sm" />
           </button>
           <button
             onClick={() => onDelete(session.sessionId)}
+            aria-label="删除会话"
             className="p-1.5 text-text-tertiary hover:text-accent-red hover:bg-bg-elevated rounded transition-colors"
-            title="删除"
           >
-            <Trash2 size={14} />
+            <Icon icon={Trash2} size="sm" />
           </button>
         </div>
       </div>

@@ -10,12 +10,14 @@ import { RiskFileList } from '@/components/session/risk-file-list'
 import { FindingList } from '@/components/session/finding-list'
 import { MonacoDiffViewer } from '@/components/diff/monaco-diff-viewer'
 import { DiffEmptyState } from '@/components/session/diff-empty-state'
+import { AlertTriangle } from 'lucide-react'
 
 export function ReviewSessionPage() {
   const { sessionId = '' } = useParams()
   useReviewSessionStream(sessionId)
 
   const session = useReviewSessionStore((state) => state.session)
+  const error = useReviewSessionStore((state) => state.error)
   const selectedFindingId = useReviewSessionStore((state) => state.selectedFindingId)
   const setSelectedFinding = useReviewSessionStore((state) => state.setSelectedFinding)
   const selectedFinding = useSelectedFinding()
@@ -42,6 +44,14 @@ export function ReviewSessionPage() {
       <aside className="w-80 h-full bg-bg-surface border-r border-border-default flex flex-col overflow-hidden">
         {/* 侧边栏头部 - 返回按钮和状态 */}
         <SidebarHeader status={session?.status ?? 'idle'} />
+
+        {/* 错误提示 */}
+        {error && (
+          <div className="p-3 bg-[rgba(248,81,73,0.1)] border-b border-border-muted flex items-center gap-2">
+            <AlertTriangle size={14} className="text-accent-red flex-shrink-0" />
+            <span className="text-xs text-accent-red">{error}</span>
+          </div>
+        )}
 
         {/* 会话进度 */}
         <SessionProgress

@@ -29,8 +29,7 @@ export function FindingCard({ finding, isSelected, onClick }: FindingCardProps) 
         'bg-bg-surface border-border-default',
         isSelected
           ? 'border-accent-cyan bg-bg-elevated shadow-[inset_0_0_0_1px_var(--border-accent)]'
-          : 'hover:bg-bg-elevated hover:border-border-accent hover:shadow-glow-cyan hover:-translate-y-px',
-        finding.severity === 'high' && 'animate-pulse-border'
+          : 'hover:bg-bg-elevated hover:border-border-accent hover:shadow-glow-cyan hover:-translate-y-px'
       )}
       style={{
         borderLeftWidth: '3px',
@@ -63,7 +62,7 @@ export function FindingCard({ finding, isSelected, onClick }: FindingCardProps) 
       <div className="flex items-center gap-1.5 mb-2 ml-6">
         <Icon icon={FileText} size="xs" variant="muted" />
         <span className="text-xs font-mono text-text-tertiary truncate">
-          {finding.file}:{finding.startLine}-{finding.endLine}
+          {finding.file}{finding.startLine != null ? `:${finding.startLine}-${finding.endLine}` : ''}
         </span>
       </div>
 

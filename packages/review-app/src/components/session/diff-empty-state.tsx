@@ -11,7 +11,7 @@ export function DiffEmptyState() {
         </div>
         <div className="flex items-start gap-2">
           <span className="text-accent-cyan">&gt;</span>
-          <span>Choose a finding from the sidebar to start review</span>
+          <span>从侧边栏选择一个问题开始审查</span>
         </div>
         <div className="mt-4 flex items-center gap-2">
           <Icon icon={Search} size="lg" variant="muted" className="mx-auto" />

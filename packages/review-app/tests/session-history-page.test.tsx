@@ -62,17 +62,16 @@ describe("SessionHistoryPage", () => {
       </MemoryRouter>
     );
 
-    // 使用 getAllByTitle 获取所有删除按钮，取第一个（SessionCard 中的按钮）
-    const deleteButtons = screen.getAllByTitle("删除");
+    // 使用 getAllByLabelText 获取所有删除按钮，取第一个（SessionCard 中的按钮）
+    const deleteButtons = screen.getAllByLabelText("删除会话");
     fireEvent.click(deleteButtons[0]!);
 
     // 确认对话框出现
     expect(screen.getByText("确认删除")).toBeInTheDocument();
 
-    // 点击确认删除 - 对话框中的删除按钮
-    // 使用 querySelectorAll 来找到对话框中的删除按钮
-    const dialog = document.querySelector('[class*="fixed inset-0 z-50"]');
-    const confirmButton = dialog?.querySelector('button:last-child') as HTMLElement;
+    // 点击确认删除 - 对话框中的删除按钮（使用 role="dialog" 定位）
+    const dialog = screen.getByRole("dialog");
+    const confirmButton = dialog.querySelector('button:last-child') as HTMLElement;
     fireEvent.click(confirmButton);
 
     await waitFor(() => {
@@ -89,8 +88,8 @@ describe("SessionHistoryPage", () => {
       </MemoryRouter>
     );
 
-    // 使用 getAllByTitle 获取导出按钮
-    const exportButtons = screen.getAllByTitle("导出");
+    // 使用 getAllByLabelText 获取导出按钮
+    const exportButtons = screen.getAllByLabelText("导出会话");
     fireEvent.click(exportButtons[0]!);
 
     await waitFor(() => {

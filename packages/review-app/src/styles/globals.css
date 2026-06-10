@@ -227,6 +227,10 @@ code, pre, .font-mono {
   }
 }
 
+.animate-high-risk-pulse {
+  animation: high-risk-pulse 2s ease-in-out infinite;
+}
+
 /* ===== 进度条发光动画 ===== */
 @keyframes progress-glow {
   0%, 100% {
@@ -235,6 +239,10 @@ code, pre, .font-mono {
   50% {
     box-shadow: 0 0 16px rgba(86, 212, 221, 0.5);
   }
+}
+
+.animate-progress-glow {
+  animation: progress-glow 2s ease-in-out infinite;
 }
 
 /* ===== 终端光标闪烁 ===== */

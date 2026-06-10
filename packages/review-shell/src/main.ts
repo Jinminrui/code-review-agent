@@ -16,7 +16,7 @@ function createProvider() {
   return new OpenAiCompatibleProvider({
     id: "default",
     baseUrl: process.env.OPENAI_BASE_URL ?? "https://token-plan-cn.xiaomimimo.com/v1",
-    apiKey: process.env.OPENAI_API_KEY ?? "tp-cev7060igk6y4mifiobfaeo83p3sbh2on3z6eensw9r4zwnv",
+    apiKey: process.env.OPENAI_API_KEY ?? "tp-ci5mnu4qjlucxx7c5wy92pc5m1934clxyc7j65buukig1leh",
     model: process.env.OPENAI_MODEL ?? "mimo-v2.5-pro"
   });
 }

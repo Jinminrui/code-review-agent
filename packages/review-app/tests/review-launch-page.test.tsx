@@ -1,9 +1,12 @@
-import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor, cleanup } from "@testing-library/react";
 import { MemoryRouter } from "react-router-dom";
-import { describe, expect, it, vi } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import { ReviewLaunchPage } from "../src/pages/review-launch-page";
 
 describe("ReviewLaunchPage", () => {
+  afterEach(() => {
+    cleanup();
+  });
   it("submits repository and branch selection", async () => {
     window.reviewWorkbenchApi = {
       listRepositories: vi.fn().mockResolvedValue(["/repo"]),
@@ -22,14 +25,20 @@ describe("ReviewLaunchPage", () => {
       </MemoryRouter>
     );
 
-    expect(await screen.findByText("Code Review Intake")).toBeInTheDocument();
-    expect(screen.getByText("发起一次 Code Review")).toBeInTheDocument();
-    expect(screen.getByText("改动摘要")).toBeInTheDocument();
+    expect(await screen.findByText("启动代码审查")).toBeInTheDocument();
+    expect(screen.getByText("选择仓库和分支，开始审查代码变更")).toBeInTheDocument();
 
-    fireEvent.change(await screen.findByLabelText("仓库"), { target: { value: "/repo" } });
-    fireEvent.change(await screen.findByLabelText("基线分支"), { target: { value: "main" } });
-    fireEvent.change(await screen.findByLabelText("目标分支"), { target: { value: "feature" } });
-    fireEvent.click(screen.getByRole("button", { name: "开始 Code Review" }));
+    const selects = await screen.findAllByRole("combobox");
+    fireEvent.change(selects[0]!, { target: { value: "/repo" } });
+
+    // 等待分支列表加载（通过检查第二个 select 的选项数量）
+    await waitFor(() => {
+      expect(selects[1]!.querySelectorAll("option").length).toBeGreaterThan(1);
+    });
+
+    fireEvent.change(selects[1]!, { target: { value: "main" } });
+    fireEvent.change(selects[2]!, { target: { value: "feature" } });
+    fireEvent.click(screen.getByRole("button", { name: /start-review/ }));
 
     await waitFor(() => {
       expect(window.reviewWorkbenchApi.createSession).toHaveBeenCalledWith({
@@ -58,8 +67,8 @@ describe("ReviewLaunchPage", () => {
       </MemoryRouter>
     );
 
-    expect(await screen.findAllByText("Code Review Intake")).toHaveLength(2);
-    const workspaceButtons = screen.getAllByRole("button", { name: "审查当前工作区改动" });
+    expect(await screen.findAllByText("启动代码审查")).toHaveLength(1);
+    const workspaceButtons = screen.getAllByRole("button", { name: /review-workspace/ });
     expect(workspaceButtons.length).toBeGreaterThan(0);
   });
 
@@ -81,11 +90,17 @@ describe("ReviewLaunchPage", () => {
       </MemoryRouter>
     );
 
-    await screen.findAllByText("Code Review Intake");
+    await screen.findByText("启动代码审查");
 
-    const repoSelects = screen.getAllByLabelText("仓库");
-    fireEvent.change(repoSelects[0]!, { target: { value: "/repo" } });
-    const workspaceButtons = screen.getAllByRole("button", { name: "审查当前工作区改动" });
+    const selects = screen.getAllByRole("combobox");
+    fireEvent.change(selects[0]!, { target: { value: "/repo" } });
+
+    // 等待仓库选择生效
+    await waitFor(() => {
+      expect(selects[0]).toHaveValue("/repo");
+    });
+
+    const workspaceButtons = screen.getAllByRole("button", { name: /review-workspace/ });
     fireEvent.click(workspaceButtons[0]!);
 
     await waitFor(() => {

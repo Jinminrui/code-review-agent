@@ -1,3 +1,4 @@
+import { useEffect, useRef } from 'react'
 import { cn } from '@/lib/utils'
 
 interface DeleteConfirmDialogProps {
@@ -8,14 +9,43 @@ interface DeleteConfirmDialogProps {
 }
 
 export function DeleteConfirmDialog({ isOpen, sessionId, onConfirm, onCancel }: DeleteConfirmDialogProps) {
+  const cancelButtonRef = useRef<HTMLButtonElement>(null)
+
+  // Escape 键关闭
+  useEffect(() => {
+    if (!isOpen) return
+
+    function handleKeyDown(e: KeyboardEvent) {
+      if (e.key === 'Escape') {
+        onCancel()
+      }
+    }
+
+    document.addEventListener('keydown', handleKeyDown)
+    return () => document.removeEventListener('keydown', handleKeyDown)
+  }, [isOpen, onCancel])
+
+  // 打开时聚焦到取消按钮
+  useEffect(() => {
+    if (isOpen) {
+      cancelButtonRef.current?.focus()
+    }
+  }, [isOpen])
+
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center">
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="delete-dialog-title"
+    >
       {/* 背景遮罩 */}
       <div
         className="absolute inset-0 bg-black/50 backdrop-blur-sm"
         onClick={onCancel}
+        aria-hidden="true"
       />
 
       {/* 对话框 */}
@@ -25,7 +55,7 @@ export function DeleteConfirmDialog({ isOpen, sessionId, onConfirm, onCancel }: 
           'bg-bg-surface border border-border-default shadow-xl'
         )}
       >
-        <h3 className="text-lg font-semibold text-text-primary mb-2">
+        <h3 id="delete-dialog-title" className="text-lg font-semibold text-text-primary mb-2">
           确认删除
         </h3>
         <p className="text-text-secondary mb-1">
@@ -40,6 +70,7 @@ export function DeleteConfirmDialog({ isOpen, sessionId, onConfirm, onCancel }: 
 
         <div className="flex justify-end gap-3">
           <button
+            ref={cancelButtonRef}
             onClick={onCancel}
             className={cn(
               'px-4 py-2 rounded-lg text-sm font-medium',
@@ -52,6 +83,7 @@ export function DeleteConfirmDialog({ isOpen, sessionId, onConfirm, onCancel }: 
           </button>
           <button
             onClick={onConfirm}
+            aria-label="确认删除"
             className={cn(
               'px-4 py-2 rounded-lg text-sm font-medium',
               'bg-accent-red text-white',
