@@ -1,3 +1,5 @@
+import { join } from "node:path";
+
 export interface RendererUrlOptions {
   isPackaged?: boolean;
   appPath?: string;
@@ -12,7 +14,7 @@ export function getRendererUrl(
   }
 
   if (options?.isPackaged && options.appPath) {
-    return `file://${options.appPath}/renderer/index.html`;
+    return `file://${join(options.appPath, "renderer", "index.html")}`;
   }
 
   return "http://127.0.0.1:5173";
