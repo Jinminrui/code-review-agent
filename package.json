@@ -1,6 +1,7 @@
 {
   "name": "code-review-agent",
   "private": true,
+  "main": "dist/src/main.js",
   "packageManager": "pnpm@11.5.2",
   "engines": {
     "node": ">=22 <23"

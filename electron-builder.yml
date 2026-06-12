@@ -5,12 +5,17 @@ directories:
   output: release
 
 files:
-  - package.json
-  - packages/review-shell/dist/**/*
-  - packages/review-backend/dist/**/*
-  - packages/review-shell/renderer/**/*
+  - "package.json"
+  - from: "packages/review-shell/dist"
+    to: "dist"
+  - from: "packages/review-backend/dist"
+    to: "node_modules/@app/review-backend/dist"
+  - from: "packages/review-shell/renderer"
+    to: "renderer"
 
 extraResources: []
+
+asar: true
 
 mac:
   target: dmg

@@ -67,4 +67,4 @@
 | `packages/review-shell/src/runtime-config.ts` | 修改 | 精简为仅保留 `getPreloadFilename` |
 | `packages/review-shell/tests/paths.test.ts` | 新增 | renderer 路径解析测试 |
 | `packages/review-shell/renderer/` | 新增目录 | 存放 `review-app` 构建产物（由 `build:desktop` 脚本生成） |
-| `scripts/smoke-test-packaged.mjs` | 新增 | 桌面打包冒烟测试脚本 |
+| `scripts/smoke-test-desktop.sh` | 新增 | 桌面打包冒烟测试脚本 |
