@@ -9,7 +9,6 @@ files:
   - packages/review-shell/dist/**/*
   - packages/review-backend/dist/**/*
   - packages/review-shell/renderer/**/*
-  - node_modules/**/*
 
 extraResources: []
 
