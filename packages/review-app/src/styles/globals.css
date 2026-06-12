@@ -185,12 +185,31 @@ code, pre, .font-mono {
   color: var(--text-disabled) !important;
 }
 
-.monaco-editor .inline-added {
+.monaco-editor .line-insert,
+.monaco-editor .char-insert,
+.monaco-editor .inline-added,
+.monaco-editor .inline-added-margin-view-zone,
+.monaco-editor .gutter-insert {
   background: rgba(46, 160, 67, 0.12) !important;
 }
 
-.monaco-editor .inline-removed {
+.monaco-editor .line-insert,
+.monaco-editor .char-insert {
+  border-color: rgba(46, 160, 67, 0.35) !important;
+}
+
+.monaco-editor .line-delete,
+.monaco-editor .char-delete,
+.monaco-editor .inline-removed,
+.monaco-editor .inline-deleted-text,
+.monaco-editor .inline-deleted-margin-view-zone,
+.monaco-editor .gutter-delete {
   background: rgba(210, 153, 34, 0.08) !important;
+}
+
+.monaco-editor .line-delete,
+.monaco-editor .char-delete {
+  border-color: rgba(210, 153, 34, 0.28) !important;
 }
 
 .review-finding-line {
