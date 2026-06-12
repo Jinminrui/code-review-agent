@@ -1,4 +1,4 @@
-import { describe, expect, it, vi } from "vitest";
+import { describe, expect, it } from "vitest";
 import { getRendererEntryPath } from "../src/paths.js";
 
 function createMockApp(options: { isPackaged: boolean; appPath: string }) {

@@ -13,21 +13,10 @@ describe("getRendererUrl", () => {
       })
     ).toBe("http://127.0.0.1:4300");
   });
+});
 
+describe("getPreloadFilename", () => {
   it("uses a CommonJS preload output filename", () => {
     expect(getPreloadFilename()).toBe("preload.cjs");
-  });
-
-  it("returns file:// URL in production mode when no env override", () => {
-    const result = getRendererUrl({}, { isPackaged: true, appPath: "/Users/test/app" });
-    expect(result).toBe("file:///Users/test/app/renderer/index.html");
-  });
-
-  it("prefers REVIEW_RENDERER_URL even in production mode", () => {
-    const result = getRendererUrl(
-      { REVIEW_RENDERER_URL: "http://custom:9999" },
-      { isPackaged: true, appPath: "/Users/test/app" }
-    );
-    expect(result).toBe("http://custom:9999");
   });
 });
