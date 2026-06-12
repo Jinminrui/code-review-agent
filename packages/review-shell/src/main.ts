@@ -103,7 +103,7 @@ async function createWindow() {
   }
 }
 
-// Initialize userData path before any code that uses app.getPath("userData")
+// Explicitly set userData path (matches Electron default) for clarity and future customization
 app.setPath("userData", join(app.getPath("appData"), app.getName()));
 
 app.whenReady().then(createWindow);
