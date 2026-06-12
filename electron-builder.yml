@@ -1,0 +1,20 @@
+appId: com.code-review-agent.app
+productName: Code Review Agent
+
+directories:
+  output: release
+
+files:
+  - package.json
+  - packages/review-shell/dist/**/*
+  - packages/review-backend/dist/**/*
+  - packages/review-shell/renderer/**/*
+  - node_modules/**/*
+
+extraResources: []
+
+mac:
+  target: dmg
+
+win:
+  target: nsis
