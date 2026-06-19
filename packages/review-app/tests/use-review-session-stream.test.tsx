@@ -1,6 +1,7 @@
 import { renderHook, waitFor } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 import { useReviewSessionStream } from "../src/hooks/use-review-session-stream";
+import { useReviewSessionStore } from "../src/store/review-session-store";
 import type { ReviewSessionEvent } from "../src/lib/review-model";
 
 describe("useReviewSessionStream", () => {
@@ -93,6 +94,11 @@ describe("useReviewSessionStream", () => {
 
     await waitFor(() => {
       expect(window.reviewWorkbenchApi.getSession).toHaveBeenCalledTimes(2);
+    });
+
+    await waitFor(() => {
+      const store = useReviewSessionStore.getState();
+      expect(store.session?.status).toBe("cancelled");
     });
   });
 });
