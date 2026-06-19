@@ -5,6 +5,7 @@ describe("createReviewWorkbenchHandlers", () => {
   it("creates session and forwards follow-up reads", async () => {
     const backend = {
       listRepositories: vi.fn().mockResolvedValue(["/repo"]),
+      selectRepository: vi.fn(),
       listBranches: vi.fn().mockResolvedValue(["main", "feature"]),
       createSession: vi.fn().mockResolvedValue({ sessionId: "s_1" }),
       getSession: vi.fn().mockResolvedValue({ sessionId: "s_1", status: "running" }),
@@ -27,9 +28,28 @@ describe("createReviewWorkbenchHandlers", () => {
     await expect(handlers.getSession("s_1")).resolves.toMatchObject({ sessionId: "s_1" });
   });
 
+  it("delegates selectRepository to backend", async () => {
+    const backend = {
+      listRepositories: vi.fn(),
+      selectRepository: vi.fn().mockResolvedValue("/Users/test/repo"),
+      listBranches: vi.fn(),
+      createSession: vi.fn(),
+      getSession: vi.fn(),
+      listSessions: vi.fn(),
+      deleteSession: vi.fn(),
+      exportSessionToMarkdown: vi.fn()
+    };
+
+    const handlers = createReviewWorkbenchHandlers({ backend });
+
+    await expect(handlers.selectRepository()).resolves.toBe("/Users/test/repo");
+    expect(backend.selectRepository).toHaveBeenCalledTimes(1);
+  });
+
   it("delegates deleteSession to backend", async () => {
     const backend = {
       listRepositories: vi.fn(),
+      selectRepository: vi.fn(),
       listBranches: vi.fn(),
       createSession: vi.fn(),
       getSession: vi.fn(),
@@ -48,6 +68,7 @@ describe("createReviewWorkbenchHandlers", () => {
   it("delegates exportSession to backend", async () => {
     const backend = {
       listRepositories: vi.fn(),
+      selectRepository: vi.fn(),
       listBranches: vi.fn(),
       createSession: vi.fn(),
       getSession: vi.fn(),

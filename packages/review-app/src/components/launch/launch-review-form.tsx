@@ -15,6 +15,7 @@ export function LaunchReviewForm() {
   const [baseRef, setBaseRef] = useState('')
   const [targetRef, setTargetRef] = useState('')
   const [isSubmitting, setIsSubmitting] = useState(false)
+  const [isSelectingRepository, setIsSelectingRepository] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
   // 获取仓库列表
@@ -44,6 +45,32 @@ export function LaunchReviewForm() {
       }
     )
   }, [repositoryPath])
+
+  async function handleSelectRepository() {
+    if (isSelectingRepository) {
+      return
+    }
+
+    setIsSelectingRepository(true)
+    setError(null)
+
+    try {
+      const selectedRepository = await ipcClient.selectRepository()
+      if (!selectedRepository) {
+        return
+      }
+
+      setRepositories((current) =>
+        current.includes(selectedRepository) ? current : [...current, selectedRepository]
+      )
+      setRepositoryPath(selectedRepository)
+    } catch (err) {
+      console.error("Failed to select repository:", err)
+      setError(err instanceof Error ? err.message : "选择仓库失败")
+    } finally {
+      setIsSelectingRepository(false)
+    }
+  }
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
@@ -135,6 +162,8 @@ export function LaunchReviewForm() {
             repositories={repositories}
             value={repositoryPath}
             onChange={setRepositoryPath}
+            onBrowse={handleSelectRepository}
+            isBrowsing={isSelectingRepository}
           />
         </div>
 

@@ -1,3 +1,5 @@
+import { readFile } from "node:fs/promises";
+import { resolve, sep } from "node:path";
 import { execa } from "execa";
 import { parseUnifiedDiff } from "./parse-unified-diff.js";
 
@@ -33,6 +35,15 @@ export class GitClient {
   }
 
   async readFileAtRef(ref: string, filePath: string): Promise<string> {
+    if (ref === "WORKSPACE") {
+      const repositoryRoot = resolve(this.repositoryPath);
+      const absolutePath = resolve(repositoryRoot, filePath);
+      if (absolutePath !== repositoryRoot && !absolutePath.startsWith(repositoryRoot + sep)) {
+        throw new Error(`File path escapes repository: ${filePath}`);
+      }
+      return readFile(absolutePath, "utf8");
+    }
+
     const { stdout } = await execa("git", ["show", `${ref}:${filePath}`], {
       cwd: this.repositoryPath
     });

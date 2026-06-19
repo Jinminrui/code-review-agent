@@ -1,12 +1,14 @@
 import type { ToolCall, ToolResult, ToolName } from "../../domain/tool.js";
 import type { GitClient } from "../git/git-client.js";
+import type { ParsedDiffFile } from "../git/parse-unified-diff.js";
 import { logger } from "../logging/logger.js";
 
 export type ToolExecutorContext = {
-  gitClient: Pick<GitClient, "readFileAtRef" | "lsFiles" | "grep" | "readDiff">;
+  gitClient: Pick<GitClient, "readFileAtRef" | "lsFiles" | "grep" | "readDiff" | "readWorkspaceDiff">;
   baseRef: string;
   targetRef: string;
   repositoryPath: string;
+  diffFiles?: ParsedDiffFile[];
 };
 
 export type ToolExecutor = (
@@ -21,8 +23,7 @@ const fileReadExecutor: ToolExecutor = async (args, context) => {
   if (!path) return { toolCallId: "", content: "Error: 'path' parameter is required", isError: true };
 
   try {
-    const ref = context.targetRef === "WORKSPACE" ? "HEAD" : context.targetRef;
-    let content = await context.gitClient.readFileAtRef(ref, path);
+    let content = await context.gitClient.readFileAtRef(context.targetRef, path);
 
     const startLine = args.start_line as number | undefined;
     const endLine = args.end_line as number | undefined;
@@ -87,22 +88,15 @@ const fileReadDiffExecutor: ToolExecutor = async (args, context) => {
   const path = args.path as string | undefined;
 
   try {
-    const diffFiles = await context.gitClient.readDiff(context.baseRef, context.targetRef);
+    const diffFiles = context.diffFiles ?? (context.targetRef === "WORKSPACE"
+      ? await context.gitClient.readWorkspaceDiff()
+      : await context.gitClient.readDiff(context.baseRef, context.targetRef));
 
     if (path) {
       const file = diffFiles.find((f) => f.path === path);
       if (!file) return { toolCallId: "", content: `No diff found for file: ${path}` };
-      const diffText = file.hunks
-        .map((h) => {
-          const lines = h.lines.map((l) => {
-            const prefix = l.type === "added" ? "+" : l.type === "deleted" ? "-" : " ";
-            return prefix + l.content;
-          });
-          return `@@ -${h.oldStart},${h.oldCount} +${h.newStart},${h.newCount} @@\n${lines.join("\n")}`;
-        })
-        .join("\n");
       log.debug(`读取 diff: ${path}`);
-      return { toolCallId: "", content: `--- a/${file.path}\n+++ b/${file.path}\n${diffText}` };
+      return { toolCallId: "", content: formatDiffFile(file) };
     }
 
     const summary = diffFiles.map((f) => `${f.path} (+${f.insertions}, -${f.deletions})`).join("\n");
@@ -113,6 +107,20 @@ const fileReadDiffExecutor: ToolExecutor = async (args, context) => {
     return { toolCallId: "", content: `Error reading diff: ${error instanceof Error ? error.message : "unknown error"}`, isError: true };
   }
 };
+
+function formatDiffFile(file: ParsedDiffFile): string {
+  const diffText = file.hunks
+    .map((h) => {
+      const lines = h.lines.map((l) => {
+        const prefix = l.type === "added" ? "+" : l.type === "deleted" ? "-" : " ";
+        return prefix + l.content;
+      });
+      return `@@ -${h.oldStart},${h.oldCount} +${h.newStart},${h.newCount} @@\n${lines.join("\n")}`;
+    })
+    .join("\n");
+
+  return `--- a/${file.path}\n+++ b/${file.path}\n${diffText}`;
+}
 
 const taskDoneExecutor: ToolExecutor = async () => {
   return { toolCallId: "", content: "Review task completed." };

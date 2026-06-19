@@ -1,4 +1,4 @@
-import { app, BrowserWindow, ipcMain } from "electron";
+import { app, BrowserWindow, dialog, ipcMain } from "electron";
 import { join } from "node:path";
 import {
   FileSessionStore,
@@ -38,6 +38,18 @@ async function createWindow() {
   const handlers = createReviewWorkbenchHandlers({
     backend: {
       listRepositories: async () => [process.cwd()],
+      selectRepository: async () => {
+        const result = await dialog.showOpenDialog(window, {
+          title: "选择本地 Git 仓库",
+          properties: ["openDirectory"]
+        });
+
+        if (result.canceled || !result.filePaths[0]) {
+          return null;
+        }
+
+        return result.filePaths[0];
+      },
       listBranches: async (repositoryPath: string) => new GitClient(repositoryPath).listBranches(),
       createSession: async (request) => {
         const gitClient = new GitClient(request.repositoryPath);
@@ -75,6 +87,7 @@ async function createWindow() {
   });
 
   ipcMain.handle("review:listRepositories", handlers.listRepositories);
+  ipcMain.handle("review:selectRepository", handlers.selectRepository);
   ipcMain.handle("review:listBranches", (_event, repositoryPath: string) =>
     handlers.listBranches(repositoryPath)
   );

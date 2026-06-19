@@ -7,6 +7,7 @@ describe("useReviewSessionStream", () => {
     const unsubscribe = vi.fn();
     window.reviewWorkbenchApi = {
       listRepositories: vi.fn(),
+      selectRepository: vi.fn(),
       listBranches: vi.fn(),
       createSession: vi.fn(),
       getSession: vi.fn().mockResolvedValue({

@@ -34,9 +34,6 @@ export function SessionProgress({ status, completedUnits = 0, totalUnits = 0 }: 
       <div className="space-y-3">
         {/* 状态标签 */}
         <div className="flex items-center gap-2">
-          {isRunning ? (
-            <Icon icon={Loader2} size="sm" variant="accent" spin />
-          ) : null}
           <StatusBadge
             status={status}
             label={statusLabel}

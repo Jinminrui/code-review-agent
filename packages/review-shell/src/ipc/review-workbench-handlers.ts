@@ -3,6 +3,7 @@ import { createReviewSessionRequestSchema } from "@app/review-backend";
 
 type ReviewWorkbenchBackend = {
   listRepositories(): Promise<string[]>;
+  selectRepository(): Promise<string | null>;
   listBranches(repositoryPath: string): Promise<string[]>;
   createSession(request: CreateReviewSessionRequest): Promise<{ sessionId: string }>;
   getSession(sessionId: string): Promise<unknown>;
@@ -16,6 +17,7 @@ export function createReviewWorkbenchHandlers(input: {
 }) {
   return {
     listRepositories: () => input.backend.listRepositories(),
+    selectRepository: () => input.backend.selectRepository(),
     listBranches: (repositoryPath: string) => input.backend.listBranches(repositoryPath),
     createSession: (request: unknown) =>
       input.backend.createSession(createReviewSessionRequestSchema.parse(request)),

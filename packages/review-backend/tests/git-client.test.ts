@@ -77,6 +77,24 @@ describe("GitClient", () => {
     expect(fileNames).toContain("file.txt");
   });
 
+  it("reads working tree file content for the WORKSPACE ref", async () => {
+    const repo = await mkdtemp(join(tmpdir(), "review-backend-"));
+    await execa("git", ["init", "-b", "main"], { cwd: repo });
+    await writeFile(join(repo, "file.txt"), "committed content\n");
+    await execa("git", ["add", "."], { cwd: repo });
+    await execa(
+      "git",
+      ["-c", "user.name=Test", "-c", "user.email=test@example.com", "commit", "-m", "init"],
+      { cwd: repo }
+    );
+    await writeFile(join(repo, "file.txt"), "workspace content\n");
+
+    const client = new GitClient(repo);
+    const content = await client.readFileAtRef("WORKSPACE", "file.txt");
+
+    expect(content).toBe("workspace content\n");
+  });
+
   it("lsFiles returns tracked files", async () => {
     const repo = await mkdtemp(join(tmpdir(), "review-backend-"));
     await execa("git", ["init", "-b", "main"], { cwd: repo });

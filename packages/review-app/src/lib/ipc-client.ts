@@ -8,6 +8,7 @@ export type CreateSessionInput = {
 
 export type ReviewWorkbenchApi = {
   listRepositories(): Promise<string[]>;
+  selectRepository(): Promise<string | null>;
   listBranches(repositoryPath: string): Promise<string[]>;
   createSession(input: CreateSessionInput): Promise<{ sessionId: string }>;
   getSession(sessionId: string): Promise<ReviewSessionDetail>;
@@ -25,6 +26,7 @@ declare global {
 
 export const ipcClient = {
   listRepositories: () => window.reviewWorkbenchApi.listRepositories(),
+  selectRepository: () => window.reviewWorkbenchApi.selectRepository(),
   listBranches: (repositoryPath: string) => window.reviewWorkbenchApi.listBranches(repositoryPath),
   createSession: (input: CreateSessionInput) => window.reviewWorkbenchApi.createSession(input),
   getSession: (sessionId: string) => window.reviewWorkbenchApi.getSession(sessionId),

@@ -15,6 +15,7 @@ describe("ReviewSessionPage", () => {
   it("renders review workbench regions in Chinese after loading session detail", async () => {
     window.reviewWorkbenchApi = {
       listRepositories: vi.fn(),
+      selectRepository: vi.fn(),
       listBranches: vi.fn(),
       createSession: vi.fn(),
       getSession: vi.fn().mockResolvedValue({

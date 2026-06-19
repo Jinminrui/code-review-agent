@@ -3,6 +3,7 @@ import type { ReviewWorkbenchApi } from "@/lib/ipc-client";
 function createMockReviewWorkbenchApi(): ReviewWorkbenchApi {
   return {
     listRepositories: async () => ["/repo"],
+    selectRepository: async () => "/repo",
     listBranches: async () => ["main", "feature"],
     createSession: async () => ({ sessionId: "s_1" }),
     getSession: async () => ({

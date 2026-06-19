@@ -10,6 +10,7 @@ describe("ReviewLaunchPage", () => {
   it("submits repository and branch selection", async () => {
     window.reviewWorkbenchApi = {
       listRepositories: vi.fn().mockResolvedValue(["/repo"]),
+      selectRepository: vi.fn(),
       listBranches: vi.fn().mockResolvedValue(["main", "feature"]),
       createSession: vi.fn().mockResolvedValue({ sessionId: "s_1" }),
       getSession: vi.fn(),
@@ -49,9 +50,42 @@ describe("ReviewLaunchPage", () => {
     });
   });
 
+  it("selects a local repository folder and loads its branches", async () => {
+    window.reviewWorkbenchApi = {
+      listRepositories: vi.fn().mockResolvedValue(["/repo"]),
+      selectRepository: vi.fn().mockResolvedValue("/Users/test/another-repo"),
+      listBranches: vi.fn().mockResolvedValue(["main", "feature"]),
+      createSession: vi.fn().mockResolvedValue({ sessionId: "s_4" }),
+      getSession: vi.fn(),
+      listSessions: vi.fn().mockResolvedValue([]),
+      deleteSession: vi.fn(),
+      exportSession: vi.fn(),
+      subscribeSession: vi.fn()
+    };
+
+    render(
+      <MemoryRouter>
+        <ReviewLaunchPage />
+      </MemoryRouter>
+    );
+
+    await screen.findByText("启动代码审查");
+
+    fireEvent.click(screen.getByRole("button", { name: "选择仓库" }));
+
+    const repositorySelect = screen.getAllByRole("combobox")[0]!;
+    await waitFor(() => {
+      expect(repositorySelect).toHaveValue("/Users/test/another-repo");
+    });
+
+    expect(window.reviewWorkbenchApi.selectRepository).toHaveBeenCalledTimes(1);
+    expect(window.reviewWorkbenchApi.listBranches).toHaveBeenCalledWith("/Users/test/another-repo");
+  });
+
   it("renders workspace review button", async () => {
     window.reviewWorkbenchApi = {
       listRepositories: vi.fn().mockResolvedValue(["/repo"]),
+      selectRepository: vi.fn(),
       listBranches: vi.fn().mockResolvedValue(["main", "feature"]),
       createSession: vi.fn().mockResolvedValue({ sessionId: "s_2" }),
       getSession: vi.fn(),
@@ -75,6 +109,7 @@ describe("ReviewLaunchPage", () => {
   it("submits workspace review with WORKSPACE targetRef", async () => {
     window.reviewWorkbenchApi = {
       listRepositories: vi.fn().mockResolvedValue(["/repo"]),
+      selectRepository: vi.fn(),
       listBranches: vi.fn().mockResolvedValue(["main", "feature"]),
       createSession: vi.fn().mockResolvedValue({ sessionId: "s_3" }),
       getSession: vi.fn(),

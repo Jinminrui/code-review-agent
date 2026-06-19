@@ -2,6 +2,7 @@ const { contextBridge, ipcRenderer } = require("electron");
 
 contextBridge.exposeInMainWorld("reviewWorkbenchApi", {
   listRepositories: () => ipcRenderer.invoke("review:listRepositories"),
+  selectRepository: () => ipcRenderer.invoke("review:selectRepository"),
   listBranches: (repositoryPath: string) =>
     ipcRenderer.invoke("review:listBranches", repositoryPath),
   createSession: (input: unknown) => ipcRenderer.invoke("review:createSession", input),

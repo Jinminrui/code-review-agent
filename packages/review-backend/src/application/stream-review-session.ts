@@ -133,7 +133,8 @@ export async function* streamReviewSession(
             gitClient: input.dependencies.gitClient,
             baseRef,
             targetRef,
-            repositoryPath
+            repositoryPath,
+            diffFiles
           }
         });
         unitFindings = loopResult.findings;
