@@ -18,6 +18,7 @@ function getStatusBadgeStatus(status: string): Status {
     case 'finished': return 'finished'
     case 'failed': return 'failed'
     case 'partial': return 'partial'
+    case 'cancelled': return 'cancelled'
     default: return 'failed'
   }
 }

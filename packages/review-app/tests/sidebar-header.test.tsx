@@ -53,4 +53,31 @@ describe("SidebarHeader", () => {
     expect(screen.queryByText("审查中...")).not.toBeInTheDocument();
     expect(screen.queryByText("已完成")).not.toBeInTheDocument();
   });
+
+  it("shows cancel action instead of back button while running", () => {
+    const onCancel = vi.fn();
+
+    render(
+      <MemoryRouter>
+        <SidebarHeader status="running" onCancel={onCancel} isCancelling={false} />
+      </MemoryRouter>
+    );
+
+    expect(screen.queryByRole("button", { name: /返回首页/i })).not.toBeInTheDocument();
+
+    const cancelButton = screen.getByRole("button", { name: /中止审查/i });
+    fireEvent.click(cancelButton);
+
+    expect(onCancel).toHaveBeenCalledTimes(1);
+  });
+
+  it("shows cancelling transition label", () => {
+    render(
+      <MemoryRouter>
+        <SidebarHeader status="running" onCancel={vi.fn()} isCancelling />
+      </MemoryRouter>
+    );
+
+    expect(screen.getByRole("button", { name: /正在中止/i })).toBeDisabled();
+  });
 });

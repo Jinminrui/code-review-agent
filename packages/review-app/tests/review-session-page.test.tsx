@@ -70,8 +70,8 @@ describe("ReviewSessionPage", () => {
       expect(screen.getByText("审查中...")).toBeInTheDocument();
     });
 
-    // 侧边栏头部
-    expect(screen.getByRole("button", { name: /返回首页/ })).toBeInTheDocument();
+    // 侧边栏头部 - running 状态显示中止按钮
+    expect(screen.getByRole("button", { name: /中止审查/ })).toBeInTheDocument();
 
     // 会话进度区域
     expect(screen.getByText("session-status")).toBeInTheDocument();
