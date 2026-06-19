@@ -286,5 +286,9 @@ describe("FileSessionStore", () => {
       sessionId: session.sessionId,
       status: "cancelled"
     });
+
+    const sessions = await store.listSessions();
+    expect(sessions).toHaveLength(1);
+    expect(sessions[0]!.status).toBe("cancelled");
   });
 });
