@@ -1,6 +1,8 @@
 {
+  "version": "1.0.0",
   "name": "code-review-agent",
   "private": true,
+  "main": "dist/src/main.js",
   "packageManager": "pnpm@11.5.2",
   "engines": {
     "node": ">=22 <23"
@@ -11,13 +13,17 @@
   },
   "scripts": {
     "build": "pnpm --filter @app/review-backend build && pnpm --filter @app/review-app build && pnpm --filter @app/review-shell build",
-    "dev:web": "VITE_USE_MOCK_API=true pnpm --filter @app/review-app dev -- --host 127.0.0.1 --port 5173",
+    "build:desktop": "pnpm build && cp -r packages/review-app/dist/ packages/review-shell/renderer/",
+    "dist:mac": "pnpm build:desktop && electron-builder --mac --config electron-builder.yml",
+    "dev:web": "VITE_USE_MOCK_API=true pnpm --filter @app/review-app exec vite --host 127.0.0.1 --port 5173",
     "dev:desktop": "node scripts/dev-desktop.mjs",
     "test": "pnpm --filter @app/review-backend test && pnpm --filter @app/review-app test && pnpm --filter @app/review-shell test",
     "test:watch": "pnpm --filter @app/review-app test",
     "typecheck": "tsc -b packages/review-backend packages/review-app packages/review-shell"
   },
   "devDependencies": {
+    "electron": "^36.4.0",
+    "electron-builder": "^26.15.3",
     "typescript": "^5.8.3",
     "vitest": "^3.1.4"
   }

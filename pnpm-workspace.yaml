@@ -2,4 +2,7 @@ packages:
   - "packages/*"
 allowBuilds:
   electron: true
+  electron-winstaller: true
   esbuild: false
+overrides:
+  "@electron/get": "^4.0.0"

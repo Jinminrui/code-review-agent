@@ -36,7 +36,7 @@ async function waitForRenderer(url, timeoutMs = 20_000) {
 
 const renderer = spawnCommand(
   "pnpm",
-  ["--filter", "@app/review-app", "dev", "--", "--host", "127.0.0.1", "--port", "5173"],
+  ["--filter", "@app/review-app", "exec", "vite", "--host", "127.0.0.1", "--port", "5173"],
   {
     env: {
       ...process.env,

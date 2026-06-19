@@ -10,7 +10,8 @@ import {
   streamReviewSession
 } from "@app/review-backend";
 import { createReviewWorkbenchHandlers } from "./ipc/review-workbench-handlers.js";
-import { getPreloadFilename, getRendererUrl } from "./runtime-config.js";
+import { getRendererFilePath } from "./paths.js";
+import { getPreloadFilename } from "./runtime-config.js";
 
 function createProvider() {
   return new OpenAiCompatibleProvider({
@@ -36,10 +37,7 @@ async function createWindow() {
 
   const handlers = createReviewWorkbenchHandlers({
     backend: {
-      listRepositories: async () => [
-        process.cwd(),
-        "/Users/jinminrui/Desktop/test-repo"
-      ],
+      listRepositories: async () => [process.cwd()],
       listBranches: async (repositoryPath: string) => new GitClient(repositoryPath).listBranches(),
       createSession: async (request) => {
         const gitClient = new GitClient(request.repositoryPath);
@@ -94,7 +92,15 @@ async function createWindow() {
     handlers.exportSession(sessionId)
   );
 
-  await window.loadURL(getRendererUrl(process.env));
+  const rendererEntry = getRendererFilePath(app);
+  if (app.isPackaged) {
+    await window.loadFile(rendererEntry);
+  } else {
+    await window.loadURL(rendererEntry);
+  }
 }
+
+// Explicitly set userData path (matches Electron default) for clarity and future customization
+app.setPath("userData", join(app.getPath("appData"), app.getName()));
 
 app.whenReady().then(createWindow);
