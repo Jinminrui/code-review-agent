@@ -258,4 +258,33 @@ describe("FileSessionStore", () => {
 
     await expect(store.exportSessionToMarkdown("non-existent-id")).rejects.toThrow();
   });
+
+  it("persists and reads back a cancelled session", async () => {
+    const rootDir = await mkdtemp(join(tmpdir(), "review-store-"));
+    const store = new FileSessionStore(rootDir);
+
+    const session = await store.createSession({
+      repositoryPath: "/repo",
+      baseRef: "main",
+      targetRef: "feature"
+    });
+
+    await store.completeSession(session.sessionId, {
+      sessionId: session.sessionId,
+      status: "cancelled",
+      summary: {
+        changedFilesCount: 0,
+        findingsCount: 0,
+        highSeverityCount: 0,
+        files: []
+      },
+      findings: [],
+      diffByFile: {}
+    });
+
+    await expect(store.getSession(session.sessionId)).resolves.toMatchObject({
+      sessionId: session.sessionId,
+      status: "cancelled"
+    });
+  });
 });

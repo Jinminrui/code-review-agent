@@ -1,6 +1,6 @@
-import { render, screen, fireEvent, waitFor } from "@testing-library/react";
+import { render, screen, fireEvent, waitFor, cleanup } from "@testing-library/react";
 import { MemoryRouter, Route, Routes } from "react-router-dom";
-import { describe, expect, it, vi, beforeEach } from "vitest";
+import { describe, expect, it, vi, beforeEach, afterEach } from "vitest";
 import { SessionHistoryPage } from "../src/pages/session-history-page";
 
 const mockDeleteSession = vi.fn();
@@ -22,6 +22,20 @@ vi.mock("@/store/session-history-store", () => ({
           highSeverityCount: 1,
           files: ["src/a.ts"]
         }
+      },
+      {
+        sessionId: "s_2",
+        status: "cancelled",
+        createdAt: "2026-06-19T00:00:00.000Z",
+        repositoryPath: "/repo",
+        baseRef: "main",
+        targetRef: "workspace",
+        summary: {
+          changedFilesCount: 0,
+          findingsCount: 0,
+          highSeverityCount: 0,
+          files: []
+        }
       }
     ],
     isLoading: false,
@@ -36,6 +50,10 @@ vi.mock("@/store/session-history-store", () => ({
 describe("SessionHistoryPage", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+  });
+
+  afterEach(() => {
+    cleanup();
   });
 
   it("renders session cards", async () => {
@@ -95,5 +113,17 @@ describe("SessionHistoryPage", () => {
     await waitFor(() => {
       expect(mockExportSession).toHaveBeenCalledWith("s_1");
     });
+  });
+
+  it("renders cancelled session status", () => {
+    render(
+      <MemoryRouter initialEntries={["/sessions"]}>
+        <Routes>
+          <Route path="/sessions" element={<SessionHistoryPage />} />
+        </Routes>
+      </MemoryRouter>
+    );
+
+    expect(screen.getByText("已中止")).toBeInTheDocument();
   });
 });
