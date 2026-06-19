@@ -77,3 +77,17 @@ pnpm test:watch
 ## Mock 模式
 
 前端开发可使用 mock API（无需 Electron）：`pnpm dev:web` 自动设置 `VITE_USE_MOCK_API=true`。Mock 实现在 `packages/review-app/src/test/mock-review-workbench-api.ts`。
+
+## Agent skills
+
+### Issue tracker
+
+本仓库的 issue 追踪使用 GitHub Issues；外部 PR 不作为 triage 入口。详见 `docs/agents/issue-tracker.md`。
+
+### Triage labels
+
+本仓库使用默认 triage 标签词汇：`needs-triage`、`needs-info`、`ready-for-agent`、`ready-for-human`、`wontfix`。详见 `docs/agents/triage-labels.md`。
+
+### Domain docs
+
+本仓库使用 single-context 的领域文档布局。详见 `docs/agents/domain.md`。

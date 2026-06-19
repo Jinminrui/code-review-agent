@@ -242,3 +242,17 @@ pnpm --filter @app/review-app test:e2e
 3. [docs/superpowers/plans/2026-06-06-review-frontend-workbench.md](/Users/jinminrui/Desktop/code-review-agent/docs/superpowers/plans/2026-06-06-review-frontend-workbench.md)
 
 若实现和文档发生冲突，优先先更新文档，再继续编码，避免架构漂移。
+
+## 11. Agent skills
+
+### Issue tracker
+
+本仓库的 issue 追踪使用 GitHub Issues；外部 PR 不作为 triage 入口。详见 `docs/agents/issue-tracker.md`。
+
+### Triage labels
+
+本仓库使用默认 triage 标签词汇：`needs-triage`、`needs-info`、`ready-for-agent`、`ready-for-human`、`wontfix`。详见 `docs/agents/triage-labels.md`。
+
+### Domain docs
+
+本仓库使用 single-context 的领域文档布局。详见 `docs/agents/domain.md`。
