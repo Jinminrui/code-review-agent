@@ -16,6 +16,7 @@ describe("ReviewLaunchPage", () => {
       getSession: vi.fn(),
       listSessions: vi.fn().mockResolvedValue([]),
       deleteSession: vi.fn(),
+      cancelSession: vi.fn(),
       exportSession: vi.fn(),
       subscribeSession: vi.fn()
     };
@@ -59,6 +60,7 @@ describe("ReviewLaunchPage", () => {
       getSession: vi.fn(),
       listSessions: vi.fn().mockResolvedValue([]),
       deleteSession: vi.fn(),
+      cancelSession: vi.fn(),
       exportSession: vi.fn(),
       subscribeSession: vi.fn()
     };
@@ -91,6 +93,7 @@ describe("ReviewLaunchPage", () => {
       getSession: vi.fn(),
       listSessions: vi.fn().mockResolvedValue([]),
       deleteSession: vi.fn(),
+      cancelSession: vi.fn(),
       exportSession: vi.fn(),
       subscribeSession: vi.fn()
     };
@@ -115,6 +118,7 @@ describe("ReviewLaunchPage", () => {
       getSession: vi.fn(),
       listSessions: vi.fn().mockResolvedValue([]),
       deleteSession: vi.fn(),
+      cancelSession: vi.fn(),
       exportSession: vi.fn(),
       subscribeSession: vi.fn()
     };

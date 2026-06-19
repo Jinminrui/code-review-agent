@@ -3,7 +3,7 @@ import { Icon } from './icon'
 import { type LucideIcon, CheckCircle2, XCircle, AlertTriangle, Info, Loader2, Circle } from 'lucide-react'
 
 export type Severity = 'high' | 'medium' | 'low'
-export type Status = 'finished' | 'failed' | 'running' | 'pending' | 'idle' | 'streaming' | 'partial'
+export type Status = 'finished' | 'failed' | 'running' | 'pending' | 'idle' | 'streaming' | 'partial' | 'cancelled'
 
 interface StatusBadgeProps {
   severity?: Severity
@@ -67,6 +67,11 @@ const statusConfig = {
     background: 'bg-[rgba(210,153,34,0.1)]',
     text: 'text-accent-amber',
     icon: AlertTriangle as LucideIcon,
+  },
+  cancelled: {
+    background: 'bg-[rgba(110,118,129,0.1)]',
+    text: 'text-text-tertiary',
+    icon: XCircle as LucideIcon,
   },
 }
 

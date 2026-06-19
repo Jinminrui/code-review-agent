@@ -55,6 +55,7 @@ function createMockReviewWorkbenchApi(): ReviewWorkbenchApi {
       }
     ],
     deleteSession: async () => {},
+    cancelSession: async () => {},
     exportSession: async () => ({ markdown: "# Review", filename: "review.md" }),
     subscribeSession: () => () => {}
   };

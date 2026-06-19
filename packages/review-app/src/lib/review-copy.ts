@@ -14,5 +14,6 @@ export const sessionStatusLabel = {
   running: "In Progress",
   partial: "Partially Complete",
   finished: "Completed",
-  failed: "Failed"
+  failed: "Failed",
+  cancelled: "已中止"
 } as const;

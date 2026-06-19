@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { reviewSessionDetailSchema } from "../src/lib/review-model";
+import { reviewSessionDetailSchema, sessionSummarySchema } from "../src/lib/review-model";
 
 describe("reviewSessionDetailSchema", () => {
   it("accepts a minimal session detail payload", () => {
@@ -25,5 +25,44 @@ describe("reviewSessionDetailSchema", () => {
     });
 
     expect(result.summary.changedFilesCount).toBe(1);
+  });
+});
+
+describe("review model cancellation", () => {
+  it("accepts cancelled sessions and createdAt", () => {
+    const detail = reviewSessionDetailSchema.parse({
+      sessionId: "s_1",
+      status: "cancelled",
+      createdAt: "2026-06-19T00:00:00.000Z",
+      repositoryPath: "/repo",
+      baseRef: "main",
+      targetRef: "feature",
+      summary: {
+        changedFilesCount: 1,
+        findingsCount: 0,
+        highSeverityCount: 0,
+        files: ["src/a.ts"]
+      },
+      diffByFile: {},
+      findings: []
+    });
+
+    const summary = sessionSummarySchema.parse({
+      sessionId: "s_1",
+      status: "cancelled",
+      createdAt: "2026-06-19T00:00:00.000Z",
+      repositoryPath: "/repo",
+      baseRef: "main",
+      targetRef: "feature",
+      summary: {
+        changedFilesCount: 1,
+        findingsCount: 0,
+        highSeverityCount: 0,
+        files: ["src/a.ts"]
+      }
+    });
+
+    expect(detail.status).toBe("cancelled");
+    expect(summary.createdAt).toBe("2026-06-19T00:00:00.000Z");
   });
 });

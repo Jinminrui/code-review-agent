@@ -60,6 +60,22 @@ export function useReviewSessionStream(sessionId: string) {
             }
           );
           break;
+
+        case "session-cancelled":
+          updateSessionStatus("cancelled");
+          void ipcClient.getSession(sessionId).then(
+            (nextSession) => {
+              if (active) {
+                setSession(nextSession);
+              }
+            },
+            (err) => {
+              if (active) {
+                console.error("Failed to refresh cancelled session:", err);
+              }
+            }
+          );
+          break;
       }
     });
 

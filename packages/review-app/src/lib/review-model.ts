@@ -20,11 +20,13 @@ export type ReviewSessionEvent =
   | { type: "session-started"; sessionId: string }
   | { type: "unit-completed"; sessionId: string; unitId: string; findingsCount: number; findings: ReviewFinding[] }
   | { type: "unit-failed"; sessionId: string; unitId: string; reason: string }
-  | { type: "session-finished"; sessionId: string; totalFindings: number; status: "finished" | "partial" };
+  | { type: "session-finished"; sessionId: string; totalFindings: number; status: "finished" | "partial" }
+  | { type: "session-cancelled"; sessionId: string; totalFindings: number };
 
 export const reviewSessionDetailSchema = z.object({
   sessionId: z.string(),
-  status: z.enum(["idle", "running", "partial", "finished", "failed"]),
+  status: z.enum(["idle", "running", "partial", "finished", "failed", "cancelled"]),
+  createdAt: z.string().optional(),
   repositoryPath: z.string(),
   baseRef: z.string(),
   targetRef: z.string(),
@@ -48,7 +50,8 @@ export const sessionSummarySchema = z.object({
   repositoryPath: z.string(),
   baseRef: z.string(),
   targetRef: z.string(),
-  status: z.enum(["running", "finished", "failed"]),
+  status: z.enum(["running", "finished", "failed", "partial", "cancelled"]),
+  createdAt: z.string().optional(),
   summary: z.object({
     changedFilesCount: z.number(),
     findingsCount: z.number(),

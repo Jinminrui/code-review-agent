@@ -18,7 +18,8 @@ const statusLabels: Record<Status, string> = {
   partial: '部分完成',
   finished: '已完成',
   failed: '失败',
-  pending: '等待中'
+  pending: '等待中',
+  cancelled: '已中止'
 }
 
 export function SessionProgress({ status, completedUnits = 0, totalUnits = 0 }: SessionProgressProps) {

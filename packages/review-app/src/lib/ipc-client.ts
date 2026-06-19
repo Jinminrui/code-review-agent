@@ -14,6 +14,7 @@ export type ReviewWorkbenchApi = {
   getSession(sessionId: string): Promise<ReviewSessionDetail>;
   listSessions(): Promise<SessionSummary[]>;
   deleteSession(sessionId: string): Promise<void>;
+  cancelSession(sessionId: string): Promise<void>;
   exportSession(sessionId: string): Promise<{ markdown: string; filename: string }>;
   subscribeSession(sessionId: string, onEvent: (event: ReviewSessionEvent) => void): () => void;
 };
@@ -32,6 +33,7 @@ export const ipcClient = {
   getSession: (sessionId: string) => window.reviewWorkbenchApi.getSession(sessionId),
   listSessions: () => window.reviewWorkbenchApi.listSessions(),
   deleteSession: (sessionId: string) => window.reviewWorkbenchApi.deleteSession(sessionId),
+  cancelSession: (sessionId: string) => window.reviewWorkbenchApi.cancelSession(sessionId),
   exportSession: (sessionId: string) => window.reviewWorkbenchApi.exportSession(sessionId),
   subscribeSession: (sessionId: string, onEvent: (event: ReviewSessionEvent) => void) =>
     window.reviewWorkbenchApi.subscribeSession(sessionId, onEvent)
