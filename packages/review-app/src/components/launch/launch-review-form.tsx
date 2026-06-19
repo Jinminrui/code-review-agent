@@ -9,7 +9,6 @@ import { ipcClient } from '@/lib/ipc-client'
 
 export function LaunchReviewForm() {
   const navigate = useNavigate()
-  const [repositories, setRepositories] = useState<string[]>([])
   const [branches, setBranches] = useState<string[]>([])
   const [repositoryPath, setRepositoryPath] = useState('')
   const [baseRef, setBaseRef] = useState('')
@@ -17,13 +16,6 @@ export function LaunchReviewForm() {
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [isSelectingRepository, setIsSelectingRepository] = useState(false)
   const [error, setError] = useState<string | null>(null)
-
-  // 获取仓库列表
-  useEffect(() => {
-    void ipcClient.listRepositories().then(setRepositories, (err) => {
-      console.error("Failed to list repositories:", err)
-    })
-  }, [])
 
   // 获取分支列表
   useEffect(() => {
@@ -60,9 +52,6 @@ export function LaunchReviewForm() {
         return
       }
 
-      setRepositories((current) =>
-        current.includes(selectedRepository) ? current : [...current, selectedRepository]
-      )
       setRepositoryPath(selectedRepository)
     } catch (err) {
       console.error("Failed to select repository:", err)
@@ -159,9 +148,7 @@ export function LaunchReviewForm() {
             <span className="command">repository</span>
           </label>
           <RepositoryPicker
-            repositories={repositories}
             value={repositoryPath}
-            onChange={setRepositoryPath}
             onBrowse={handleSelectRepository}
             isBrowsing={isSelectingRepository}
           />

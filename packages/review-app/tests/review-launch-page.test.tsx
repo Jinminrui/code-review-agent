@@ -7,10 +7,11 @@ describe("ReviewLaunchPage", () => {
   afterEach(() => {
     cleanup();
   });
+
   it("submits repository and branch selection", async () => {
     window.reviewWorkbenchApi = {
       listRepositories: vi.fn().mockResolvedValue(["/repo"]),
-      selectRepository: vi.fn(),
+      selectRepository: vi.fn().mockResolvedValue("/repo"),
       listBranches: vi.fn().mockResolvedValue(["main", "feature"]),
       createSession: vi.fn().mockResolvedValue({ sessionId: "s_1" }),
       getSession: vi.fn(),
@@ -30,16 +31,26 @@ describe("ReviewLaunchPage", () => {
     expect(await screen.findByText("启动代码审查")).toBeInTheDocument();
     expect(screen.getByText("选择仓库和分支，开始审查代码变更")).toBeInTheDocument();
 
-    const selects = await screen.findAllByRole("combobox");
-    fireEvent.change(selects[0]!, { target: { value: "/repo" } });
+    // 点击选择仓库按钮
+    fireEvent.click(screen.getByRole("button", { name: "选择仓库" }));
 
-    // 等待分支列表加载（通过检查第二个 select 的选项数量）
+    // 等待仓库选择生效
     await waitFor(() => {
-      expect(selects[1]!.querySelectorAll("option").length).toBeGreaterThan(1);
+      expect(screen.getByText("/repo")).toBeInTheDocument();
     });
 
-    fireEvent.change(selects[1]!, { target: { value: "main" } });
-    fireEvent.change(selects[2]!, { target: { value: "feature" } });
+    // 等待分支列表加载
+    await waitFor(() => {
+      const selects = screen.getAllByRole("combobox");
+      expect(selects[0]!.querySelectorAll("option").length).toBeGreaterThan(1);
+    });
+
+    // 选择分支
+    const selects = screen.getAllByRole("combobox");
+    fireEvent.change(selects[0]!, { target: { value: "main" } });
+    fireEvent.change(selects[1]!, { target: { value: "feature" } });
+
+    // 提交表单
     fireEvent.click(screen.getByRole("button", { name: /start-review/ }));
 
     await waitFor(() => {
@@ -75,9 +86,8 @@ describe("ReviewLaunchPage", () => {
 
     fireEvent.click(screen.getByRole("button", { name: "选择仓库" }));
 
-    const repositorySelect = screen.getAllByRole("combobox")[0]!;
     await waitFor(() => {
-      expect(repositorySelect).toHaveValue("/Users/test/another-repo");
+      expect(screen.getByText("/Users/test/another-repo")).toBeInTheDocument();
     });
 
     expect(window.reviewWorkbenchApi.selectRepository).toHaveBeenCalledTimes(1);
@@ -112,7 +122,7 @@ describe("ReviewLaunchPage", () => {
   it("submits workspace review with WORKSPACE targetRef", async () => {
     window.reviewWorkbenchApi = {
       listRepositories: vi.fn().mockResolvedValue(["/repo"]),
-      selectRepository: vi.fn(),
+      selectRepository: vi.fn().mockResolvedValue("/repo"),
       listBranches: vi.fn().mockResolvedValue(["main", "feature"]),
       createSession: vi.fn().mockResolvedValue({ sessionId: "s_3" }),
       getSession: vi.fn(),
@@ -131,14 +141,15 @@ describe("ReviewLaunchPage", () => {
 
     await screen.findByText("启动代码审查");
 
-    const selects = screen.getAllByRole("combobox");
-    fireEvent.change(selects[0]!, { target: { value: "/repo" } });
+    // 点击选择仓库按钮
+    fireEvent.click(screen.getByRole("button", { name: "选择仓库" }));
 
     // 等待仓库选择生效
     await waitFor(() => {
-      expect(selects[0]).toHaveValue("/repo");
+      expect(screen.getByText("/repo")).toBeInTheDocument();
     });
 
+    // 提交工作区审查
     const workspaceButtons = screen.getAllByRole("button", { name: /review-workspace/ });
     fireEvent.click(workspaceButtons[0]!);
 
