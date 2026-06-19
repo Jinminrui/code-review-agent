@@ -88,6 +88,30 @@ describe("createReviewWorkbenchHandlers", () => {
     expect(backend.cancelSession).toHaveBeenCalledWith("session-123");
   });
 
+  it("cancelSession is idempotent for non-existent sessionId", async () => {
+    const backend = {
+      listRepositories: vi.fn(),
+      selectRepository: vi.fn(),
+      listBranches: vi.fn(),
+      createSession: vi.fn(),
+      getSession: vi.fn(),
+      listSessions: vi.fn(),
+      deleteSession: vi.fn(),
+      cancelSession: vi.fn().mockResolvedValue(undefined),
+      exportSessionToMarkdown: vi.fn()
+    };
+
+    const handlers = createReviewWorkbenchHandlers({ backend });
+
+    // 对不存在的 sessionId 调用 cancelSession 应该幂等成功（不抛异常）
+    await expect(handlers.cancelSession("non-existent-session")).resolves.toBeUndefined();
+    expect(backend.cancelSession).toHaveBeenCalledWith("non-existent-session");
+
+    // 连续调用也应幂等成功
+    await expect(handlers.cancelSession("non-existent-session")).resolves.toBeUndefined();
+    expect(backend.cancelSession).toHaveBeenCalledTimes(2);
+  });
+
   it("delegates exportSession to backend", async () => {
     const backend = {
       listRepositories: vi.fn(),

@@ -75,6 +75,9 @@ async function createWindow() {
 
         void (async () => {
           try {
+            // first.value 是 session-started 事件，需要单独发送一次。
+            // iterator.next() 已经消费了它，for await 循环只会从第二个事件开始迭代，
+            // 因此必须在此处显式发送，否则前端会丢失该事件。
             BrowserWindow.getAllWindows().forEach((nextWindow) => {
               nextWindow.webContents.send(`review:session:${first.value.sessionId}`, first.value);
             });
