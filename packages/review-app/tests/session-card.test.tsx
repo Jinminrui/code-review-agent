@@ -69,6 +69,21 @@ describe("SessionCard", () => {
     expect(onExport).toHaveBeenCalledWith("s_1");
   });
 
+  it("renders cancelled status with badge", () => {
+    const cancelledSession = {
+      ...mockSession,
+      status: "cancelled" as const
+    };
+
+    render(
+      <MemoryRouter>
+        <SessionCard session={cancelledSession} onDelete={vi.fn()} onExport={vi.fn()} />
+      </MemoryRouter>
+    );
+
+    expect(screen.getByText("已中止")).toBeInTheDocument();
+  });
+
   it("links to session detail page", () => {
     render(
       <MemoryRouter>
