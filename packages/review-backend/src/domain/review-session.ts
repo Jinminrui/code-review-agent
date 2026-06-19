@@ -31,12 +31,18 @@ export const reviewSessionEventSchema = z.discriminatedUnion("type", [
     sessionId: z.string(),
     totalFindings: z.number().int().nonnegative(),
     status: z.enum(["finished", "partial"])
+  }),
+  z.object({
+    type: z.literal("session-cancelled"),
+    sessionId: z.string(),
+    totalFindings: z.number().int().nonnegative()
   })
 ]);
 
 export const reviewSessionDetailSchema = z.object({
   sessionId: z.string(),
-  status: z.enum(["idle", "running", "partial", "finished", "failed"]),
+  status: z.enum(["idle", "running", "partial", "finished", "failed", "cancelled"]),
+  createdAt: z.string().optional(),
   repositoryPath: z.string(),
   baseRef: z.string(),
   targetRef: z.string(),

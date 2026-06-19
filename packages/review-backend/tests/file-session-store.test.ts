@@ -67,6 +67,32 @@ describe("FileSessionStore", () => {
     await expect(store.listSessions()).resolves.toHaveLength(1);
   });
 
+  it("stores createdAt and lists newest sessions first", async () => {
+    const rootDir = await mkdtemp(join(tmpdir(), "review-store-"));
+    const store = new FileSessionStore(rootDir);
+
+    const first = await store.createSession({
+      repositoryPath: "/repo",
+      baseRef: "main",
+      targetRef: "feature-a"
+    });
+    await new Promise((resolve) => setTimeout(resolve, 5));
+    const second = await store.createSession({
+      repositoryPath: "/repo",
+      baseRef: "main",
+      targetRef: "feature-b"
+    });
+
+    const firstDetail = await store.getSession(first.sessionId);
+    const sessions = await store.listSessions();
+
+    expect(firstDetail.createdAt).toEqual(expect.any(String));
+    expect(sessions.map((session) => session.sessionId)).toEqual([
+      second.sessionId,
+      first.sessionId
+    ]);
+  });
+
   it("deletes a session and its directory", async () => {
     const rootDir = await mkdtemp(join(tmpdir(), "review-store-"));
     const store = new FileSessionStore(rootDir);

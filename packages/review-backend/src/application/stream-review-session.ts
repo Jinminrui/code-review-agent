@@ -26,6 +26,7 @@ type SessionStore = {
 export async function* streamReviewSession(
   input: {
     input: ReviewSessionInput;
+    signal?: AbortSignal;
     dependencies: {
       provider: Pick<LlmProvider, "id" | "review" | "chat">;
       gitClient: Pick<GitClient, "readDiff" | "readFileAtRef" | "readWorkspaceDiff" | "lsFiles" | "grep">;
@@ -34,6 +35,7 @@ export async function* streamReviewSession(
   }
 ): AsyncGenerator<ReviewSessionEvent, void, void> {
   const { repositoryPath, baseRef, targetRef, contextBudgetTokens } = input.input;
+  const signal = input.signal;
 
   const session = await input.dependencies.sessionStore.createSession({
     repositoryPath,
@@ -50,6 +52,27 @@ export async function* streamReviewSession(
   await input.dependencies.sessionStore.appendEvent(session.sessionId, startedEvent);
   yield startedEvent;
 
+  let diffFiles: ParsedDiffFile[] = [];
+  const findings: ReviewFinding[] = [];
+  const diffByFile: Record<string, { original: string; modified: string }> = {};
+  const cancelSession = async () =>
+    completeCancelledSession({
+      sessionId: session.sessionId,
+      sessionStore: input.dependencies.sessionStore,
+      repositoryPath,
+      baseRef,
+      targetRef,
+      findings,
+      diffByFile,
+      changedFiles: diffFiles.map((file) => file.path)
+    });
+
+  if (signal?.aborted) {
+    const cancelledEvent = await cancelSession();
+    yield cancelledEvent;
+    return;
+  }
+
   // Read diff
   const diffStartTime = Date.now();
   const allDiffFiles = targetRef === "WORKSPACE"
@@ -58,7 +81,7 @@ export async function* streamReviewSession(
   log.info(`读取 diff 完成: ${allDiffFiles.length} 个文件, ${Date.now() - diffStartTime}ms`);
 
   // Filter files
-  const diffFiles = filterReviewFiles({
+  diffFiles = filterReviewFiles({
     files: allDiffFiles as ParsedDiffFile[],
     config: {
       extensionAllowlist: [
@@ -78,11 +101,15 @@ export async function* streamReviewSession(
   });
 
   const units = buildReviewUnits(diffFiles);
-  const findings: ReviewFinding[] = [];
-  const diffByFile: Record<string, { original: string; modified: string }> = {};
   let hasUnitFailure = false;
 
   for (const unit of units) {
+    if (signal?.aborted) {
+      const cancelledEvent = await cancelSession();
+      yield cancelledEvent;
+      return;
+    }
+
     const unitLog = log.child({ file: unit.primaryFile });
     try {
       const context = await collectUnitContext({
@@ -109,7 +136,8 @@ export async function* streamReviewSession(
           const plan = await generateReviewPlan({
             provider: input.dependencies.provider,
             diff: diffText,
-            fileContent: context.afterContent
+            fileContent: context.afterContent,
+            signal
           });
           planGuidance = `\n\nReview plan:\n- Risk points: ${plan.riskPoints.map((r) => `${r.area} (${r.riskLevel})`).join(", ") || "none identified"}\n- Strategy: ${plan.reviewStrategy}\n- Complexity: ${plan.estimatedComplexity}`;
           unitLog.info(`计划生成: ${plan.riskPoints.length} 个风险点, 复杂度=${plan.estimatedComplexity}`);
@@ -129,6 +157,7 @@ export async function* streamReviewSession(
           provider: input.dependencies.provider,
           systemPrompt,
           initialUserMessage,
+          signal,
           toolExecutorContext: {
             gitClient: input.dependencies.gitClient,
             baseRef,
@@ -142,7 +171,7 @@ export async function* streamReviewSession(
       } else {
         // Single-shot path
         const prompt = JSON.stringify({ task: "review", contextBudgetTokens, unit, context });
-        const result = await input.dependencies.provider.review({ prompt });
+        const result = await input.dependencies.provider.review({ prompt, signal });
         unitFindings = normalizeProviderOutput({ content: result.content, fallbackFile: unit.primaryFile });
         unitLog.info(`审查完成: ${unitFindings.length} 个问题, ${Date.now() - t0}ms`);
       }
@@ -155,10 +184,17 @@ export async function* streamReviewSession(
             : relocateFinding({
                 provider: input.dependencies.provider,
                 finding,
-                fileContent: context.afterContent
+                fileContent: context.afterContent,
+                signal
               })
         )
       );
+
+      if (signal?.aborted) {
+        const cancelledEvent = await cancelSession();
+        yield cancelledEvent;
+        return;
+      }
 
       findings.push(...unitFindings);
 
@@ -172,6 +208,12 @@ export async function* streamReviewSession(
       await input.dependencies.sessionStore.appendEvent(session.sessionId, unitCompletedEvent);
       yield unitCompletedEvent;
     } catch (error) {
+      if (signal?.aborted) {
+        const cancelledEvent = await cancelSession();
+        yield cancelledEvent;
+        return;
+      }
+
       hasUnitFailure = true;
       unitLog.warn(`审查失败: ${error instanceof Error ? error.message : "未知错误"}`);
       const unitFailedEvent = {
@@ -183,6 +225,12 @@ export async function* streamReviewSession(
       await input.dependencies.sessionStore.appendEvent(session.sessionId, unitFailedEvent);
       yield unitFailedEvent;
     }
+  }
+
+  if (signal?.aborted) {
+    const cancelledEvent = await cancelSession();
+    yield cancelledEvent;
+    return;
   }
 
   const finishedEvent = {
@@ -209,6 +257,41 @@ export async function* streamReviewSession(
 
   log.info(`审查结束: ${finishedEvent.status}, ${findings.length} 个问题, ${summary.highSeverityCount} 个高风险`);
   yield finishedEvent;
+}
+
+async function completeCancelledSession(input: {
+  sessionId: string;
+  sessionStore: SessionStore;
+  repositoryPath: string;
+  baseRef: string;
+  targetRef: string;
+  findings: ReviewFinding[];
+  diffByFile: Record<string, { original: string; modified: string }>;
+  changedFiles: string[];
+}): Promise<ReviewSessionEvent> {
+  const cancelledEvent = {
+    type: "session-cancelled" as const,
+    sessionId: input.sessionId,
+    totalFindings: input.findings.length
+  };
+  const summary = buildReviewSummary({
+    findings: input.findings,
+    changedFiles: input.changedFiles
+  });
+
+  await input.sessionStore.appendEvent(input.sessionId, cancelledEvent);
+  await input.sessionStore.completeSession(input.sessionId, {
+    sessionId: input.sessionId,
+    status: "cancelled",
+    repositoryPath: input.repositoryPath,
+    baseRef: input.baseRef,
+    targetRef: input.targetRef,
+    summary,
+    findings: input.findings,
+    diffByFile: input.diffByFile
+  });
+
+  return cancelledEvent;
 }
 
 function buildSystemPrompt(filePath: string): string {

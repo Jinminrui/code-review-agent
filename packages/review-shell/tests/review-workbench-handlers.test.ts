@@ -11,6 +11,7 @@ describe("createReviewWorkbenchHandlers", () => {
       getSession: vi.fn().mockResolvedValue({ sessionId: "s_1", status: "running" }),
       listSessions: vi.fn().mockResolvedValue([]),
       deleteSession: vi.fn().mockResolvedValue(undefined),
+      cancelSession: vi.fn().mockResolvedValue(undefined),
       exportSessionToMarkdown: vi.fn()
     };
 
@@ -37,6 +38,7 @@ describe("createReviewWorkbenchHandlers", () => {
       getSession: vi.fn(),
       listSessions: vi.fn(),
       deleteSession: vi.fn(),
+      cancelSession: vi.fn(),
       exportSessionToMarkdown: vi.fn()
     };
 
@@ -55,6 +57,7 @@ describe("createReviewWorkbenchHandlers", () => {
       getSession: vi.fn(),
       listSessions: vi.fn(),
       deleteSession: vi.fn().mockResolvedValue(undefined),
+      cancelSession: vi.fn(),
       exportSessionToMarkdown: vi.fn()
     };
 
@@ -63,6 +66,26 @@ describe("createReviewWorkbenchHandlers", () => {
     await handlers.deleteSession("session-123");
 
     expect(backend.deleteSession).toHaveBeenCalledWith("session-123");
+  });
+
+  it("delegates cancelSession to backend", async () => {
+    const backend = {
+      listRepositories: vi.fn(),
+      selectRepository: vi.fn(),
+      listBranches: vi.fn(),
+      createSession: vi.fn(),
+      getSession: vi.fn(),
+      listSessions: vi.fn(),
+      deleteSession: vi.fn(),
+      cancelSession: vi.fn().mockResolvedValue(undefined),
+      exportSessionToMarkdown: vi.fn()
+    };
+
+    const handlers = createReviewWorkbenchHandlers({ backend });
+
+    await handlers.cancelSession("session-123");
+
+    expect(backend.cancelSession).toHaveBeenCalledWith("session-123");
   });
 
   it("delegates exportSession to backend", async () => {
@@ -74,6 +97,7 @@ describe("createReviewWorkbenchHandlers", () => {
       getSession: vi.fn(),
       listSessions: vi.fn(),
       deleteSession: vi.fn(),
+      cancelSession: vi.fn(),
       exportSessionToMarkdown: vi.fn().mockResolvedValue("# Report")
     };
 

@@ -9,6 +9,7 @@ type ReviewWorkbenchBackend = {
   getSession(sessionId: string): Promise<unknown>;
   listSessions(): Promise<unknown[]>;
   deleteSession(sessionId: string): Promise<void>;
+  cancelSession(sessionId: string): Promise<void>;
   exportSessionToMarkdown(sessionId: string): Promise<string>;
 };
 
@@ -24,6 +25,7 @@ export function createReviewWorkbenchHandlers(input: {
     getSession: (sessionId: string) => input.backend.getSession(sessionId),
     listSessions: () => input.backend.listSessions(),
     deleteSession: (sessionId: string) => input.backend.deleteSession(sessionId),
+    cancelSession: (sessionId: string) => input.backend.cancelSession(sessionId),
     exportSession: async (sessionId: string) => {
       const markdown = await input.backend.exportSessionToMarkdown(sessionId);
       return {

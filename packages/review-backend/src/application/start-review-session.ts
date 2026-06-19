@@ -3,6 +3,7 @@ import { streamReviewSession } from "./stream-review-session.js";
 
 export async function startReviewSession(input: {
   input: ReviewSessionInput;
+  signal?: AbortSignal;
   dependencies: Parameters<typeof streamReviewSession>[0]["dependencies"];
 }) {
   const events: ReviewSessionEvent[] = [];

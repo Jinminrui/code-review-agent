@@ -14,11 +14,12 @@ export class FileSessionStore {
 
   async createSession(input: { repositoryPath: string; baseRef: string; targetRef: string }) {
     const sessionId = randomUUID();
+    const createdAt = new Date().toISOString();
     const sessionDir = join(this.rootDir, sessionId);
     await mkdir(sessionDir, { recursive: true });
     await writeFile(
       join(sessionDir, "session.json"),
-      JSON.stringify({ sessionId, ...input, status: "running" }, null, 2)
+      JSON.stringify({ sessionId, ...input, status: "running", createdAt }, null, 2)
     );
     await writeFile(join(sessionDir, "events.jsonl"), "");
     return { sessionId, sessionDir };
@@ -43,6 +44,7 @@ export class FileSessionStore {
       repositoryPath: string;
       baseRef: string;
       targetRef: string;
+      createdAt?: string;
     };
 
     try {
@@ -69,7 +71,16 @@ export class FileSessionStore {
   async listSessions() {
     const names = await readdir(this.rootDir);
     const sessions = await Promise.all(names.map((name) => this.getSession(name).catch(() => null)));
-    return sessions.filter((session): session is NonNullable<typeof session> => session !== null);
+    return sessions
+      .filter((session): session is NonNullable<typeof session> => session !== null)
+      .sort((a, b) => {
+        if (a.createdAt && b.createdAt) {
+          return b.createdAt.localeCompare(a.createdAt);
+        }
+        if (a.createdAt) return -1;
+        if (b.createdAt) return 1;
+        return 0;
+      });
   }
 
   async deleteSession(sessionId: string): Promise<void> {

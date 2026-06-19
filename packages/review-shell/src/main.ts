@@ -34,6 +34,7 @@ async function createWindow() {
   });
 
   const sessionStore = new FileSessionStore(resolveSessionsRoot(app.getPath("userData")));
+  const runningSessions = new Map<string, AbortController>();
 
   const handlers = createReviewWorkbenchHandlers({
     backend: {
@@ -54,8 +55,10 @@ async function createWindow() {
       createSession: async (request) => {
         const gitClient = new GitClient(request.repositoryPath);
         const provider = createProvider();
+        const abortController = new AbortController();
         const iterator = streamReviewSession({
           input: request,
+          signal: abortController.signal,
           dependencies: {
             provider,
             gitClient,
@@ -68,11 +71,21 @@ async function createWindow() {
           throw new Error("review session did not emit session-started");
         }
 
+        runningSessions.set(first.value.sessionId, abortController);
+
         void (async () => {
-          for await (const event of iterator) {
+          try {
             BrowserWindow.getAllWindows().forEach((nextWindow) => {
-              nextWindow.webContents.send(`review:session:${first.value.sessionId}`, event);
+              nextWindow.webContents.send(`review:session:${first.value.sessionId}`, first.value);
             });
+
+            for await (const event of iterator) {
+              BrowserWindow.getAllWindows().forEach((nextWindow) => {
+                nextWindow.webContents.send(`review:session:${first.value.sessionId}`, event);
+              });
+            }
+          } finally {
+            runningSessions.delete(first.value.sessionId);
           }
         })();
 
@@ -81,6 +94,9 @@ async function createWindow() {
       getSession: async (sessionId: string) => getReviewSession({ sessionId, sessionStore }),
       listSessions: async () => listReviewSessions({ sessionStore }),
       deleteSession: async (sessionId: string) => sessionStore.deleteSession(sessionId),
+      cancelSession: async (sessionId: string) => {
+        runningSessions.get(sessionId)?.abort();
+      },
       exportSessionToMarkdown: async (sessionId: string) =>
         sessionStore.exportSessionToMarkdown(sessionId)
     }
@@ -100,6 +116,9 @@ async function createWindow() {
   ipcMain.handle("review:listSessions", handlers.listSessions);
   ipcMain.handle("review:deleteSession", (_event, sessionId: string) =>
     handlers.deleteSession(sessionId)
+  );
+  ipcMain.handle("review:cancelSession", (_event, sessionId: string) =>
+    handlers.cancelSession(sessionId)
   );
   ipcMain.handle("review:exportSession", (_event, sessionId: string) =>
     handlers.exportSession(sessionId)
