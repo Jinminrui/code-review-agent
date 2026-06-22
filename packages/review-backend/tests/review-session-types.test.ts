@@ -67,3 +67,40 @@ describe("review session schemas cancellation", () => {
     });
   });
 });
+
+describe("review session event schemas", () => {
+  it("accepts unit-completed events with streaming diff content", () => {
+    const parsed = reviewSessionEventSchema.parse({
+      type: "unit-completed",
+      sessionId: "s_1",
+      unitId: "unit:src/file.ts",
+      findingsCount: 1,
+      findings: [
+        {
+          id: "f_1",
+          severity: "high",
+          category: "bug",
+          summary: "空值会导致崩溃",
+          explanation: "新增代码没有校验 null。",
+          file: "src/file.ts",
+          startLine: 2,
+          endLine: 2,
+          confidenceSignals: [],
+          status: "line-level"
+        }
+      ],
+      diffByFile: {
+        "src/file.ts": {
+          original: "export const value = 1;\n",
+          modified: "export const value = maybeNull.value;\n"
+        }
+      }
+    });
+
+    expect(parsed.type).toBe("unit-completed");
+    if (parsed.type !== "unit-completed") {
+      throw new Error("expected unit-completed event");
+    }
+    expect(parsed.diffByFile["src/file.ts"]?.modified).toContain("maybeNull");
+  });
+});

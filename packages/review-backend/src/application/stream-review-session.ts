@@ -118,10 +118,11 @@ export async function* streamReviewSession(
         targetRef,
         unit
       });
-      diffByFile[unit.primaryFile] = {
+      const unitDiff = {
         original: context.beforeContent,
         modified: context.afterContent
       };
+      diffByFile[unit.primaryFile] = unitDiff;
 
       let unitFindings: ReviewFinding[];
       const t0 = Date.now();
@@ -176,6 +177,13 @@ export async function* streamReviewSession(
         unitLog.info(`审查完成: ${unitFindings.length} 个问题, ${Date.now() - t0}ms`);
       }
 
+      unitFindings = normalizeFindingFiles({
+        findings: unitFindings,
+        primaryFile: unit.primaryFile,
+        diffFiles,
+        repositoryPath
+      });
+
       // Relocate findings without line numbers
       unitFindings = await Promise.all(
         unitFindings.map((finding) =>
@@ -203,7 +211,10 @@ export async function* streamReviewSession(
         sessionId: session.sessionId,
         unitId: unit.id,
         findingsCount: unitFindings.length,
-        findings: unitFindings
+        findings: unitFindings,
+        diffByFile: {
+          [unit.primaryFile]: unitDiff
+        }
       };
       await input.dependencies.sessionStore.appendEvent(session.sessionId, unitCompletedEvent);
       yield unitCompletedEvent;
@@ -292,6 +303,54 @@ async function completeCancelledSession(input: {
   });
 
   return cancelledEvent;
+}
+
+function normalizeFindingFiles(input: {
+  findings: ReviewFinding[];
+  primaryFile: string;
+  diffFiles: ParsedDiffFile[];
+  repositoryPath: string;
+}): ReviewFinding[] {
+  const knownFiles = new Set(input.diffFiles.map((file) => file.path));
+
+  return input.findings.map((finding) => {
+    const normalized = normalizeFindingFile({
+      file: finding.file,
+      primaryFile: input.primaryFile,
+      repositoryPath: input.repositoryPath,
+      knownFiles
+    });
+
+    return normalized === finding.file ? finding : { ...finding, file: normalized };
+  });
+}
+
+function normalizeFindingFile(input: {
+  file: string;
+  primaryFile: string;
+  repositoryPath: string;
+  knownFiles: Set<string>;
+}): string {
+  const candidates = [
+    input.file,
+    input.file.replace(/^\.\//, ""),
+    input.file.startsWith(`${input.repositoryPath}/`)
+      ? input.file.slice(input.repositoryPath.length + 1)
+      : input.file
+  ];
+
+  for (const candidate of candidates) {
+    const clean = candidate.replace(/^\.\//, "");
+    if (input.knownFiles.has(clean)) {
+      return clean;
+    }
+  }
+
+  if (!input.file || !input.knownFiles.has(input.file)) {
+    return input.primaryFile;
+  }
+
+  return input.file;
 }
 
 function buildSystemPrompt(filePath: string): string {

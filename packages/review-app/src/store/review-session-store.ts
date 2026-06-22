@@ -8,7 +8,7 @@ type ReviewSessionStore = {
   setSession(session: ReviewSessionDetail | null): void;
   setSelectedFinding(id: string | null): void;
   setError(error: string | null): void;
-  addFindings(findings: ReviewFinding[]): void;
+  addFindings(findings: ReviewFinding[], diffByFile?: ReviewSessionDetail["diffByFile"]): void;
   updateSessionStatus(status: ReviewSessionDetail["status"]): void;
 };
 
@@ -19,13 +19,17 @@ export const useReviewSessionStore = create<ReviewSessionStore>((set) => ({
   setSession: (session) => set({ session }),
   setSelectedFinding: (selectedFindingId) => set({ selectedFindingId }),
   setError: (error) => set({ error }),
-  addFindings: (findings) =>
+  addFindings: (findings, diffByFile = {}) =>
     set((state) => {
       if (!state.session) return state;
       return {
         session: {
           ...state.session,
           findings: [...state.session.findings, ...findings],
+          diffByFile: {
+            ...state.session.diffByFile,
+            ...diffByFile
+          },
           summary: {
             ...state.session.summary,
             findingsCount: state.session.summary.findingsCount + findings.length,

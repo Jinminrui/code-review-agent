@@ -38,7 +38,7 @@ export function useReviewSessionStream(sessionId: string) {
 
       switch (event.type) {
         case "unit-completed":
-          addFindings(event.findings);
+          addFindings(event.findings, event.diffByFile);
           break;
 
         case "unit-failed":

@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { reviewSessionDetailSchema, sessionSummarySchema } from "../src/lib/review-model";
+import type { ReviewSessionEvent } from "../src/lib/review-model";
 
 describe("reviewSessionDetailSchema", () => {
   it("accepts a minimal session detail payload", () => {
@@ -64,5 +65,25 @@ describe("review model cancellation", () => {
 
     expect(detail.status).toBe("cancelled");
     expect(summary.createdAt).toBe("2026-06-19T00:00:00.000Z");
+  });
+});
+
+describe("ReviewSessionEvent", () => {
+  it("types unit-completed events with streaming diff content", () => {
+    const event: ReviewSessionEvent = {
+      type: "unit-completed",
+      sessionId: "s_1",
+      unitId: "unit:src/file.ts",
+      findingsCount: 0,
+      findings: [],
+      diffByFile: {
+        "src/file.ts": {
+          original: "before\n",
+          modified: "after\n"
+        }
+      }
+    };
+
+    expect(event.diffByFile["src/file.ts"]?.modified).toBe("after\n");
   });
 });
