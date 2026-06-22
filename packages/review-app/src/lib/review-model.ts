@@ -18,7 +18,14 @@ export const reviewFindingSchema = z.object({
 // 流式事件类型定义
 export type ReviewSessionEvent =
   | { type: "session-started"; sessionId: string }
-  | { type: "unit-completed"; sessionId: string; unitId: string; findingsCount: number; findings: ReviewFinding[] }
+  | {
+      type: "unit-completed";
+      sessionId: string;
+      unitId: string;
+      findingsCount: number;
+      findings: ReviewFinding[];
+      diffByFile: Record<string, { original: string; modified: string }>;
+    }
   | { type: "unit-failed"; sessionId: string; unitId: string; reason: string }
   | { type: "session-finished"; sessionId: string; totalFindings: number; status: "finished" | "partial" }
   | { type: "session-cancelled"; sessionId: string; totalFindings: number };

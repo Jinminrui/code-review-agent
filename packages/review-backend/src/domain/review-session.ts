@@ -18,7 +18,13 @@ export const reviewSessionEventSchema = z.discriminatedUnion("type", [
     sessionId: z.string(),
     unitId: z.string(),
     findingsCount: z.number().int().nonnegative(),
-    findings: z.array(reviewFindingSchema)
+    findings: z.array(reviewFindingSchema),
+    diffByFile: z.record(
+      z.object({
+        original: z.string(),
+        modified: z.string()
+      })
+    )
   }),
   z.object({
     type: z.literal("unit-failed"),

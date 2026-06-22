@@ -101,4 +101,74 @@ describe("useReviewSessionStream", () => {
       expect(store.session?.status).toBe("cancelled");
     });
   });
+
+  it("merges diff content from unit-completed events so streamed findings can show diff", async () => {
+    let eventHandler: ((event: ReviewSessionEvent) => void) | undefined;
+
+    window.reviewWorkbenchApi = {
+      listRepositories: vi.fn(),
+      selectRepository: vi.fn(),
+      listBranches: vi.fn(),
+      createSession: vi.fn(),
+      getSession: vi.fn().mockResolvedValue({
+        sessionId: "s_1",
+        status: "running",
+        repositoryPath: "/repo",
+        baseRef: "main",
+        targetRef: "feature",
+        summary: {
+          changedFilesCount: 1,
+          findingsCount: 0,
+          highSeverityCount: 0,
+          files: ["src/file.ts"]
+        },
+        findings: [],
+        diffByFile: {}
+      }),
+      listSessions: vi.fn(),
+      deleteSession: vi.fn(),
+      cancelSession: vi.fn(),
+      exportSession: vi.fn(),
+      subscribeSession: vi.fn().mockImplementation((_sessionId: string, handler: (event: ReviewSessionEvent) => void) => {
+        eventHandler = handler;
+        return vi.fn();
+      })
+    };
+
+    renderHook(() => useReviewSessionStream("s_1"));
+
+    await waitFor(() => {
+      expect(useReviewSessionStore.getState().session?.sessionId).toBe("s_1");
+    });
+
+    eventHandler?.({
+      type: "unit-completed",
+      sessionId: "s_1",
+      unitId: "unit:src/file.ts",
+      findingsCount: 1,
+      findings: [
+        {
+          id: "f_1",
+          severity: "high",
+          category: "bug",
+          summary: "测试问题",
+          explanation: "测试说明",
+          file: "src/file.ts",
+          startLine: 1,
+          endLine: 1,
+          confidenceSignals: [],
+          status: "line-level"
+        }
+      ],
+      diffByFile: {
+        "src/file.ts": {
+          original: "before\n",
+          modified: "after\n"
+        }
+      }
+    });
+
+    expect(useReviewSessionStore.getState().session?.findings).toHaveLength(1);
+    expect(useReviewSessionStore.getState().session?.diffByFile["src/file.ts"]?.modified).toBe("after\n");
+  });
 });
