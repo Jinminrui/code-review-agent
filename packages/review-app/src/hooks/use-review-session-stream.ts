@@ -5,7 +5,7 @@ import type { ReviewSessionEvent } from "@/lib/review-model";
 
 export function useReviewSessionStream(sessionId: string) {
   const setSession = useReviewSessionStore((state) => state.setSession);
-  const addFindings = useReviewSessionStore((state) => state.addFindings);
+  const appendUnitResult = useReviewSessionStore((state) => state.appendUnitResult);
   const updateSessionStatus = useReviewSessionStore((state) => state.updateSessionStatus);
   const setError = useReviewSessionStore((state) => state.setError);
 
@@ -38,7 +38,7 @@ export function useReviewSessionStream(sessionId: string) {
 
       switch (event.type) {
         case "unit-completed":
-          addFindings(event.findings, event.diffByFile);
+          appendUnitResult(event.findings, event.diffByFile);
           break;
 
         case "unit-failed":
@@ -83,5 +83,5 @@ export function useReviewSessionStream(sessionId: string) {
       active = false;
       unsubscribe();
     };
-  }, [sessionId, setSession, addFindings, updateSessionStatus, setError]);
+  }, [sessionId, setSession, appendUnitResult, updateSessionStatus, setError]);
 }
