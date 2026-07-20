@@ -256,3 +256,11 @@ pnpm --filter @app/review-app test:e2e
 ### Domain docs
 
 本仓库使用 single-context 的领域文档布局。详见 `docs/agents/domain.md`。
+
+### TDD
+
+本仓库严格遵循测试驱动开发流程：先写失败测试，再写最小实现。详见 `docs/agents/tdd.md`。
+
+### IPC 边界
+
+前端不直接访问后端能力，一切通过 `window.reviewWorkbenchApi` IPC 桥接。详见 `docs/agents/ipc-boundary.md`。

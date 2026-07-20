@@ -1,5 +1,6 @@
 # 可视化代码审查 Agent 设计文档
 
+- **Status:** Active
 - 日期：2026-06-06
 - 目标：定义一个面向 reviewer 的桌面端可视化代码审查 Agent 的 MVP 设计
 - 参考：`/Users/jinminrui/open-code-review`

@@ -1,5 +1,6 @@
 # UI Polish And Chinese Copy
 
+- **Status:** Active
 - 日期：2026-06-07
 - 目标：在不改页面结构与数据流的前提下，完成导航态、hover、空状态与全站中文文案收口
 - 范围：`packages/review-app` 中主工作台、启动页、历史页、设置页及共享壳层的细节 polish

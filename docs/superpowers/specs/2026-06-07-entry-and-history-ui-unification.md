@@ -1,5 +1,6 @@
 # Entry And History UI Unification
 
+- **Status:** Active
 - 日期：2026-06-07
 - 目标：让启动页与历史页进入和主工作台一致的“审查编辑台”视觉体系
 - 范围：`packages/review-app` 中 `review-launch-page`、`session-history-page` 及其直接依赖的展示组件

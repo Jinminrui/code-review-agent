@@ -1,5 +1,6 @@
 # Review Workbench UI Design
 
+- **Status:** Active
 - 日期：2026-06-07
 - 目标：定义审查会话主工作台的高保真 UI 方案，并约束 renderer 侧实现边界
 - 范围：`packages/review-app` 中与 `review-session-page`、会话级布局、finding 列表、摘要面板、diff 阅读台直接相关的界面
