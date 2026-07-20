@@ -10,7 +10,6 @@ import { logger } from "../infrastructure/logging/logger.js";
 import { generateReviewPlan } from "../infrastructure/llm/plan-generator.js";
 import { relocateFinding } from "../infrastructure/llm/line-relocator.js";
 import { runToolUseLoop } from "../infrastructure/llm/tool-use-loop.js";
-import { buildReviewUnits } from "../infrastructure/planner/review-unit-planner.js";
 
 type SessionStore = {
   createSession(input: {
@@ -99,35 +98,34 @@ export async function* streamReviewSession(
     }
   });
 
-  const units = buildReviewUnits(diffFiles);
   let hasUnitFailure = false;
 
-  for (const unit of units) {
+  for (const diffFile of diffFiles) {
     if (signal?.aborted) {
       const cancelledEvent = await cancelSession();
       yield cancelledEvent;
       return;
     }
 
-    const unitLog = log.child({ file: unit.primaryFile });
+    const unitLog = log.child({ file: diffFile.path });
     try {
       const context = await collectUnitContext({
         gitClient: input.dependencies.gitClient,
         baseRef,
         targetRef,
-        unit
+        filePath: diffFile.path
       });
       const unitDiff = {
         original: context.beforeContent,
         modified: context.afterContent
       };
-      diffByFile[unit.primaryFile] = unitDiff;
+      diffByFile[diffFile.path] = unitDiff;
 
       let unitFindings: ReviewFinding[];
       const t0 = Date.now();
 
       // Generate plan for large changes
-      const diffText = buildDiffText(unit.primaryFile, diffFiles);
+      const diffText = buildDiffText(diffFile.path, diffFiles);
       const diffLineCount = diffText.split("\n").length;
       let planGuidance = "";
 
@@ -143,9 +141,9 @@ export async function* streamReviewSession(
       }
 
       // Tool-use loop
-      const systemPrompt = buildSystemPrompt(unit.primaryFile) + planGuidance;
+      const systemPrompt = buildSystemPrompt(diffFile.path) + planGuidance;
       const initialUserMessage = buildReviewPrompt({
-        filePath: unit.primaryFile,
+        filePath: diffFile.path,
         diff: diffText,
         beforeContent: context.beforeContent,
         afterContent: context.afterContent,
@@ -170,7 +168,7 @@ export async function* streamReviewSession(
 
       unitFindings = normalizeFindingFiles({
         findings: unitFindings,
-        primaryFile: unit.primaryFile,
+        primaryFile: diffFile.path,
         diffFiles,
         repositoryPath
       });
@@ -200,11 +198,11 @@ export async function* streamReviewSession(
       const unitCompletedEvent = {
         type: "unit-completed" as const,
         sessionId: session.sessionId,
-        unitId: unit.id,
+        unitId: diffFile.path,
         findingsCount: unitFindings.length,
         findings: unitFindings,
         diffByFile: {
-          [unit.primaryFile]: unitDiff
+          [diffFile.path]: unitDiff
         }
       };
       await input.dependencies.sessionStore.appendEvent(session.sessionId, unitCompletedEvent);
@@ -221,7 +219,7 @@ export async function* streamReviewSession(
       const unitFailedEvent = {
         type: "unit-failed" as const,
         sessionId: session.sessionId,
-        unitId: unit.id,
+        unitId: diffFile.path,
         reason: error instanceof Error ? error.message : "unknown error"
       };
       await input.dependencies.sessionStore.appendEvent(session.sessionId, unitFailedEvent);
@@ -243,7 +241,7 @@ export async function* streamReviewSession(
   };
   const summary = buildReviewSummary({
     findings,
-    changedFiles: units.map((unit) => unit.primaryFile)
+    changedFiles: diffFiles.map((f) => f.path)
   });
   await input.dependencies.sessionStore.appendEvent(session.sessionId, finishedEvent);
   await input.dependencies.sessionStore.completeSession(session.sessionId, {
