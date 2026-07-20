@@ -7,7 +7,8 @@ export default defineConfig({
   plugins: [react()],
   resolve: {
     alias: {
-      "@": resolve(__dirname, "src")
+      "@": resolve(__dirname, "src"),
+      "@app/review-backend": resolve(__dirname, "../review-backend/src/index.ts")
     }
   },
   test: {

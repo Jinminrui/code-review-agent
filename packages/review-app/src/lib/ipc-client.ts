@@ -1,4 +1,5 @@
-import type { ReviewSessionDetail, ReviewSessionEvent, SessionSummary } from "./review-model";
+import type { ReviewSessionEvent } from "@app/review-backend";
+import type { ReviewSessionDetail, SessionSummary } from "./review-model";
 
 export type CreateSessionInput = {
   repositoryPath: string;
