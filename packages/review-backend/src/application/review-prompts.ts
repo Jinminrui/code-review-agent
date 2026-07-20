@@ -22,7 +22,6 @@ export function buildReviewPrompt(input: {
   diff: string;
   beforeContent: string;
   afterContent: string;
-  contextBudgetTokens: number;
 }): string {
   return `请审查文件 "${input.filePath}" 的以下代码变更：
 

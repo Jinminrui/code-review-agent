@@ -36,7 +36,7 @@ export async function* streamReviewSession(
     };
   }
 ): AsyncGenerator<ReviewSessionEvent, void, void> {
-  const { repositoryPath, baseRef, targetRef, contextBudgetTokens } = input.input;
+  const { repositoryPath, baseRef, targetRef } = input.input;
   const signal = input.signal;
 
   const session = await input.dependencies.sessionStore.createSession({
@@ -134,8 +134,7 @@ export async function* streamReviewSession(
         filePath: diffFile.path,
         diff: diffText,
         beforeContent: context.beforeContent,
-        afterContent: context.afterContent,
-        contextBudgetTokens
+        afterContent: context.afterContent
       });
 
       const loopResult = await runToolUseLoop({
