@@ -35,7 +35,7 @@ Diff:
 \`\`\``;
 
 export async function generateReviewPlan(input: {
-  provider: Pick<LlmProvider, "id" | "review">;
+  provider: Pick<LlmProvider, "id" | "chat">;
   diff: string;
   fileContent: string;
   signal?: AbortSignal;
@@ -47,10 +47,14 @@ export async function generateReviewPlan(input: {
 
   try {
     const t0 = Date.now();
-    const result = await input.provider.review({ prompt, signal: input.signal });
+    const result = await input.provider.chat({
+      messages: [{ role: "user", content: prompt }],
+      jsonMode: true,
+      signal: input.signal
+    });
     log.info(`计划生成完成: ${Date.now() - t0}ms`);
 
-    const parsed = JSON.parse(result.content);
+    const parsed = JSON.parse(result.content ?? "{}");
     return reviewPlanSchema.parse(parsed);
   } catch (error) {
     log.warn(`计划生成失败，使用默认计划: ${error instanceof Error ? error.message : "未知错误"}`);

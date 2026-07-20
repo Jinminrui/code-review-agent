@@ -16,49 +16,10 @@ export class OpenAiCompatibleProvider implements LlmProvider {
     this.id = profile.id;
   }
 
-  async review(input: { prompt: string; signal?: AbortSignal }) {
-    const t0 = Date.now();
-    const response = await fetch(`${this.profile.baseUrl}/chat/completions`, {
-      method: "POST",
-      signal: input.signal,
-      headers: {
-        "content-type": "application/json",
-        authorization: `Bearer ${this.profile.apiKey}`
-      },
-      body: JSON.stringify({
-        model: this.profile.model,
-        messages: [{ role: "user", content: input.prompt }],
-        response_format: { type: "json_object" }
-      })
-    });
-
-    if (!response.ok) {
-      log.error(`LLM 请求失败: HTTP ${response.status}, ${Date.now() - t0}ms`);
-      throw new Error(`OpenAI-compatible provider request failed: ${response.status}`);
-    }
-
-    const payload = (await response.json()) as {
-      choices?: Array<{ message?: { content?: string } }>;
-      usage?: { prompt_tokens?: number; completion_tokens?: number };
-    };
-
-    const tokens = payload.usage ? `${payload.usage.prompt_tokens ?? 0}+${payload.usage.completion_tokens ?? 0}` : "-";
-    log.info(`LLM 调用完成: ${Date.now() - t0}ms, tokens=${tokens}`);
-
-    return {
-      content: payload.choices?.[0]?.message?.content ?? "{\"findings\":[]}",
-      usage: payload.usage
-        ? {
-            inputTokens: payload.usage.prompt_tokens ?? 0,
-            outputTokens: payload.usage.completion_tokens ?? 0
-          }
-        : undefined
-    };
-  }
-
   async chat(input: {
     messages: ChatMessage[];
     tools?: ToolDefinition[];
+    jsonMode?: boolean;
     signal?: AbortSignal;
   }): Promise<ChatResponse> {
     const messages = input.messages.map((msg) => {
@@ -80,6 +41,9 @@ export class OpenAiCompatibleProvider implements LlmProvider {
     });
 
     const body: Record<string, unknown> = { model: this.profile.model, messages };
+    if (input.jsonMode) {
+      body.response_format = { type: "json_object" };
+    }
     if (input.tools && input.tools.length > 0) {
       body.tools = input.tools.map((tool) => ({
         type: "function",
@@ -99,7 +63,7 @@ export class OpenAiCompatibleProvider implements LlmProvider {
     });
 
     if (!response.ok) {
-      log.error(`LLM chat 请求失败: HTTP ${response.status}, ${Date.now() - t0}ms`);
+      log.error(`LLM 请求失败: HTTP ${response.status}, ${Date.now() - t0}ms`);
       throw new Error(`OpenAI-compatible provider request failed: ${response.status}`);
     }
 
@@ -122,7 +86,7 @@ export class OpenAiCompatibleProvider implements LlmProvider {
 
     const tokens = payload.usage ? `${payload.usage.prompt_tokens ?? 0}+${payload.usage.completion_tokens ?? 0}` : "-";
     const tools = toolCalls.map((tc) => tc.name).join(",") || "无";
-    log.info(`LLM chat 完成: ${Date.now() - t0}ms, tools=[${tools}], tokens=${tokens}`);
+    log.info(`LLM 完成: ${Date.now() - t0}ms, tools=[${tools}], tokens=${tokens}`);
 
     return {
       content: choice?.content ?? null,

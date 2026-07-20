@@ -4,24 +4,32 @@ import { streamReviewSession } from "../src/application/stream-review-session.js
 describe("streamReviewSession cancellation", () => {
   it("cancels after the current unit and persists submitted findings", async () => {
     const controller = new AbortController();
-    const finding = {
-      id: "finding_1",
-      severity: "high" as const,
-      category: "bug" as const,
-      summary: "缺少空值保护",
-      explanation: "调用 trim 前没有确认 value 存在。",
-      file: "src/a.ts",
-      startLine: 2,
-      endLine: 2,
-      evidence: "value.trim()",
-      suggestion: "先判断 value 是否为空。",
-      confidenceSignals: ["unit-test"],
-      status: "located" as const
-    };
     const provider = {
       id: "mock",
-      review: vi.fn().mockResolvedValue({
-        content: JSON.stringify({ findings: [finding] })
+      chat: vi.fn().mockResolvedValue({
+        content: null,
+        toolCalls: [
+          {
+            id: "call_1",
+            name: "code_comment",
+            arguments: {
+              file: "src/a.ts",
+              start_line: 2,
+              end_line: 2,
+              severity: "high",
+              category: "bug",
+              summary: "缺少空值保护",
+              explanation: "调用 trim 前没有确认 value 存在。",
+              evidence: "value.trim()",
+              suggestion: "先判断 value 是否为空。"
+            }
+          },
+          {
+            id: "call_2",
+            name: "task_done",
+            arguments: {}
+          }
+        ]
       })
     };
     const sessionStore = {
@@ -104,7 +112,7 @@ describe("streamReviewSession cancellation", () => {
       "unit-completed",
       "session-cancelled"
     ]);
-    expect(provider.review).toHaveBeenCalledTimes(1);
+    expect(provider.chat).toHaveBeenCalledTimes(1);
     expect(sessionStore.completeSession).toHaveBeenCalledWith(
       "s_1",
       expect.objectContaining({
@@ -130,7 +138,7 @@ describe("streamReviewSession cancellation", () => {
             endLine: 2,
             evidence: "value.trim()",
             suggestion: "先判断 value 是否为空。",
-            confidenceSignals: ["unit-test"],
+            confidenceSignals: [],
             status: "line-level"
           })
         ],
@@ -168,8 +176,9 @@ describe("streamReviewSession cancellation", () => {
     const controller = new AbortController();
     const provider = {
       id: "mock",
-      review: vi.fn().mockResolvedValue({
-        content: JSON.stringify({ findings: [] })
+      chat: vi.fn().mockResolvedValue({
+        content: JSON.stringify({ findings: [] }),
+        toolCalls: []
       })
     };
     const sessionStore = {

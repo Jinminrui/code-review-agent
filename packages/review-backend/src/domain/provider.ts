@@ -14,16 +14,10 @@ export type ChatResponse = {
 
 export interface LlmProvider {
   readonly id: string;
-  review(input: {
-    prompt: string;
-    signal?: AbortSignal;
-  }): Promise<{
-    content: string;
-    usage?: { inputTokens: number; outputTokens: number };
-  }>;
-  chat?(input: {
+  chat(input: {
     messages: ChatMessage[];
     tools?: ToolDefinition[];
+    jsonMode?: boolean;
     signal?: AbortSignal;
   }): Promise<ChatResponse>;
 }

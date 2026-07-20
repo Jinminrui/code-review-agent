@@ -5,8 +5,9 @@ describe("streamReviewSession", () => {
   it("emits started and finished events", async () => {
     const provider = {
       id: "mock",
-      review: vi.fn().mockResolvedValue({
-        content: JSON.stringify({ findings: [] })
+      chat: vi.fn().mockResolvedValue({
+        content: JSON.stringify({ findings: [] }),
+        toolCalls: []
       })
     };
 

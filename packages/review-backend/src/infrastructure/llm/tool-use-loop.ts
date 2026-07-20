@@ -41,10 +41,6 @@ export async function runToolUseLoop(input: ToolUseLoopInput): Promise<ToolUseLo
 
   const log = logger.child({ provider: provider.id });
 
-  if (!provider.chat) {
-    throw new Error("Provider does not support chat() method required for tool-use loop");
-  }
-
   const messages: ChatMessage[] = [
     { role: "system", content: systemPrompt },
     { role: "user", content: initialUserMessage }

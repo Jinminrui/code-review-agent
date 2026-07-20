@@ -23,7 +23,7 @@ const RELOCATE_PROMPT = `你是一位代码行定位专家。根据审查发现�
 { "startLine": null, "endLine": null }`;
 
 export async function relocateFinding(input: {
-  provider: Pick<LlmProvider, "id" | "review">;
+  provider: Pick<LlmProvider, "id" | "chat">;
   finding: ReviewFinding;
   fileContent: string;
   signal?: AbortSignal;
@@ -47,8 +47,12 @@ export async function relocateFinding(input: {
       .replace("{{evidence}}", finding.evidence ?? finding.summary)
       .replace("{{fileContent}}", fileContent.slice(0, 50000));
 
-    const result = await input.provider.review({ prompt, signal: input.signal });
-    const parsed = JSON.parse(result.content);
+    const result = await input.provider.chat({
+      messages: [{ role: "user", content: prompt }],
+      jsonMode: true,
+      signal: input.signal
+    });
+    const parsed = JSON.parse(result.content ?? "{}");
 
     if (parsed.startLine && parsed.endLine) {
       log.info(`行号重定位成功: ${finding.file}:${parsed.startLine}-${parsed.endLine}, ${Date.now() - t0}ms`);

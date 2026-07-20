@@ -13,7 +13,7 @@ describe("streamReviewSession WORKSPACE mode", () => {
 
     const provider = {
       id: "mock",
-      review: vi.fn().mockResolvedValue({ content: JSON.stringify({ findings: [] }) })
+      chat: vi.fn().mockResolvedValue({ content: JSON.stringify({ findings: [] }), toolCalls: [] })
     };
 
     const events: Array<{ type: string }> = [];
@@ -61,7 +61,7 @@ describe("streamReviewSession WORKSPACE mode", () => {
 
     const provider = {
       id: "mock",
-      review: vi.fn().mockResolvedValue({ content: JSON.stringify({ findings: [] }) })
+      chat: vi.fn().mockResolvedValue({ content: JSON.stringify({ findings: [] }), toolCalls: [] })
     };
 
     const events: Array<{ type: string }> = [];
@@ -124,7 +124,7 @@ describe("streamReviewSession WORKSPACE mode", () => {
 
     const provider = {
       id: "mock",
-      review: vi.fn().mockResolvedValue({
+      chat: vi.fn().mockResolvedValue({
         content: JSON.stringify({
           findings: [
             {
@@ -138,7 +138,8 @@ describe("streamReviewSession WORKSPACE mode", () => {
               confidenceSignals: []
             }
           ]
-        })
+        }),
+        toolCalls: []
       })
     };
 
@@ -207,7 +208,6 @@ describe("streamReviewSession WORKSPACE mode", () => {
 
     const provider = {
       id: "mock",
-      review: vi.fn(),
       chat: vi.fn().mockResolvedValueOnce({
         content: null,
         toolCalls: [

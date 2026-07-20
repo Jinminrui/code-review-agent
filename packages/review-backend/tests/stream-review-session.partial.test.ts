@@ -5,10 +5,10 @@ describe("streamReviewSession partial mode", () => {
   it("keeps later units running when one unit fails", async () => {
     const provider = {
       id: "mock",
-      review: vi
+      chat: vi
         .fn()
         .mockRejectedValueOnce(new Error("provider timeout"))
-        .mockResolvedValueOnce({ content: JSON.stringify({ findings: [] }) })
+        .mockResolvedValueOnce({ content: JSON.stringify({ findings: [] }), toolCalls: [] })
     };
 
     const events: Array<{ type: string }> = [];

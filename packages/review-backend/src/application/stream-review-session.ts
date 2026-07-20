@@ -7,7 +7,6 @@ import { filterReviewFiles } from "../infrastructure/filter/file-filter.js";
 import type { GitClient } from "../infrastructure/git/git-client.js";
 import type { ParsedDiffFile } from "../infrastructure/git/parse-unified-diff.js";
 import { logger } from "../infrastructure/logging/logger.js";
-import { normalizeProviderOutput } from "../infrastructure/llm/normalize-provider-output.js";
 import { generateReviewPlan } from "../infrastructure/llm/plan-generator.js";
 import { relocateFinding } from "../infrastructure/llm/line-relocator.js";
 import { runToolUseLoop } from "../infrastructure/llm/tool-use-loop.js";
@@ -28,7 +27,7 @@ export async function* streamReviewSession(
     input: ReviewSessionInput;
     signal?: AbortSignal;
     dependencies: {
-      provider: Pick<LlmProvider, "id" | "review" | "chat">;
+      provider: Pick<LlmProvider, "id" | "chat">;
       gitClient: Pick<GitClient, "readDiff" | "readFileAtRef" | "readWorkspaceDiff" | "lsFiles" | "grep">;
       sessionStore: SessionStore;
     };
@@ -127,55 +126,47 @@ export async function* streamReviewSession(
       let unitFindings: ReviewFinding[];
       const t0 = Date.now();
 
-      if (input.dependencies.provider.chat) {
-        // Generate plan for large changes
-        const diffText = buildDiffText(unit.primaryFile, diffFiles);
-        const diffLineCount = diffText.split("\n").length;
-        let planGuidance = "";
+      // Generate plan for large changes
+      const diffText = buildDiffText(unit.primaryFile, diffFiles);
+      const diffLineCount = diffText.split("\n").length;
+      let planGuidance = "";
 
-        if (diffLineCount > 50) {
-          const plan = await generateReviewPlan({
-            provider: input.dependencies.provider,
-            diff: diffText,
-            fileContent: context.afterContent,
-            signal
-          });
-          planGuidance = `\n\nReview plan:\n- Risk points: ${plan.riskPoints.map((r) => `${r.area} (${r.riskLevel})`).join(", ") || "none identified"}\n- Strategy: ${plan.reviewStrategy}\n- Complexity: ${plan.estimatedComplexity}`;
-          unitLog.info(`计划生成: ${plan.riskPoints.length} 个风险点, 复杂度=${plan.estimatedComplexity}`);
-        }
-
-        // Tool-use loop
-        const systemPrompt = buildSystemPrompt(unit.primaryFile) + planGuidance;
-        const initialUserMessage = buildReviewPrompt({
-          filePath: unit.primaryFile,
-          diff: diffText,
-          beforeContent: context.beforeContent,
-          afterContent: context.afterContent,
-          contextBudgetTokens
-        });
-
-        const loopResult = await runToolUseLoop({
+      if (diffLineCount > 50) {
+        const plan = await generateReviewPlan({
           provider: input.dependencies.provider,
-          systemPrompt,
-          initialUserMessage,
-          signal,
-          toolExecutorContext: {
-            gitClient: input.dependencies.gitClient,
-            baseRef,
-            targetRef,
-            repositoryPath,
-            diffFiles
-          }
+          diff: diffText,
+          fileContent: context.afterContent,
+          signal
         });
-        unitFindings = loopResult.findings;
-        unitLog.info(`审查完成: ${unitFindings.length} 个问题, ${loopResult.totalRounds} 轮, ${Date.now() - t0}ms`);
-      } else {
-        // Single-shot path
-        const prompt = JSON.stringify({ task: "review", contextBudgetTokens, unit, context });
-        const result = await input.dependencies.provider.review({ prompt, signal });
-        unitFindings = normalizeProviderOutput({ content: result.content, fallbackFile: unit.primaryFile });
-        unitLog.info(`审查完成: ${unitFindings.length} 个问题, ${Date.now() - t0}ms`);
+        planGuidance = `\n\nReview plan:\n- Risk points: ${plan.riskPoints.map((r) => `${r.area} (${r.riskLevel})`).join(", ") || "none identified"}\n- Strategy: ${plan.reviewStrategy}\n- Complexity: ${plan.estimatedComplexity}`;
+        unitLog.info(`计划生成: ${plan.riskPoints.length} 个风险点, 复杂度=${plan.estimatedComplexity}`);
       }
+
+      // Tool-use loop
+      const systemPrompt = buildSystemPrompt(unit.primaryFile) + planGuidance;
+      const initialUserMessage = buildReviewPrompt({
+        filePath: unit.primaryFile,
+        diff: diffText,
+        beforeContent: context.beforeContent,
+        afterContent: context.afterContent,
+        contextBudgetTokens
+      });
+
+      const loopResult = await runToolUseLoop({
+        provider: input.dependencies.provider,
+        systemPrompt,
+        initialUserMessage,
+        signal,
+        toolExecutorContext: {
+          gitClient: input.dependencies.gitClient,
+          baseRef,
+          targetRef,
+          repositoryPath,
+          diffFiles
+        }
+      });
+      unitFindings = loopResult.findings;
+      unitLog.info(`审查完成: ${unitFindings.length} 个问题, ${loopResult.totalRounds} 轮, ${Date.now() - t0}ms`);
 
       unitFindings = normalizeFindingFiles({
         findings: unitFindings,
