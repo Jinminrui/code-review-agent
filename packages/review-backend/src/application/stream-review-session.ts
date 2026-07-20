@@ -1,4 +1,5 @@
 import { buildReviewSummary } from "./build-review-summary.js";
+import { DEFAULT_FILTER_CONFIG } from "../domain/review-rules.js";
 import type { ReviewFinding } from "../domain/review-finding.js";
 import type { LlmProvider } from "../domain/provider.js";
 import type { ReviewSessionEvent, ReviewSessionInput } from "../domain/review-session.js";
@@ -81,21 +82,7 @@ export async function* streamReviewSession(
   // Filter files
   diffFiles = filterReviewFiles({
     files: allDiffFiles as ParsedDiffFile[],
-    config: {
-      extensionAllowlist: [
-        ".ts", ".tsx", ".js", ".jsx", ".mjs", ".cjs",
-        ".go", ".py", ".java", ".kt", ".rs", ".c", ".cpp", ".h", ".hpp",
-        ".rb", ".php", ".swift", ".dart", ".lua", ".sh", ".bash",
-        ".sql", ".graphql", ".proto",
-        ".json", ".yaml", ".yml", ".toml", ".xml", ".html", ".css", ".scss",
-        ".md", ".txt"
-      ],
-      excludePatterns: [
-        "**/node_modules/**", "**/vendor/**", "**/*.lock",
-        "**/dist/**", "**/build/**", "**/*.min.js", "**/*.min.css"
-      ],
-      excludeTestFiles: false
-    }
+    config: DEFAULT_FILTER_CONFIG
   });
 
   let hasUnitFailure = false;
