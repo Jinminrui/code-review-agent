@@ -1,14 +1,16 @@
 import { app, BrowserWindow, dialog, ipcMain } from "electron";
 import { join } from "node:path";
 import {
+  getReviewSession,
+  listReviewSessions,
+  streamReviewSession
+} from "@app/review-backend";
+import {
   FileSessionStore,
   GitClient,
   OpenAiCompatibleProvider,
-  getReviewSession,
-  listReviewSessions,
-  resolveSessionsRoot,
-  streamReviewSession
-} from "@app/review-backend";
+  resolveSessionsRoot
+} from "@app/review-backend/infrastructure";
 import { createReviewWorkbenchHandlers } from "./ipc/review-workbench-handlers.js";
 import { getRendererFilePath } from "./paths.js";
 import { getPreloadFilename } from "./runtime-config.js";
