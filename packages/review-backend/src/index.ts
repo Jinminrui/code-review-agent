@@ -17,8 +17,10 @@ export * from "./domain/tool.js";
 export * from "./domain/review-plan.js";
 export * from "./domain/review-rules.js";
 
+import { logger } from "./infrastructure/logging/logger.js";
+
 export const backendVersion = "0.1.0";
 
 if (process.env.NODE_ENV !== "test") {
-  console.log(`[review-backend] ${backendVersion}`);
+  logger.info(`review-backend v${backendVersion}`);
 }
