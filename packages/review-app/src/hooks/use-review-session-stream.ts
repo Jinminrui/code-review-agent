@@ -18,6 +18,7 @@ export function useReviewSessionStream(sessionId: string) {
 
     let active = true;
 
+    // 先读取快照，再订阅增量事件：快照负责补齐历史数据，事件负责实时更新当前单元。
     void ipcClient.getSession(sessionId).then(
       (session) => {
         if (active) {
@@ -46,6 +47,7 @@ export function useReviewSessionStream(sessionId: string) {
           break;
 
         case "session-finished":
+          // 完成事件只携带状态；重新读取快照以获得最终摘要、finding 和 diff。
           updateSessionStatus(event.status);
           void ipcClient.getSession(sessionId).then(
             (nextSession) => {
@@ -80,6 +82,7 @@ export function useReviewSessionStream(sessionId: string) {
     });
 
     return () => {
+      // active 同时阻止已卸载页面的异步回调写入状态。
       active = false;
       unsubscribe();
     };

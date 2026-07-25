@@ -13,6 +13,7 @@ export class FileSessionStore {
   constructor(private readonly rootDir: string) {}
 
   async createSession(input: { repositoryPath: string; baseRef: string; targetRef: string }) {
+    // 一个会话一个目录，事件采用 JSONL 追加写入，适合流式审查过程中的增量落盘。
     const sessionId = randomUUID();
     const createdAt = new Date().toISOString();
     const sessionDir = join(this.rootDir, sessionId);
@@ -55,6 +56,7 @@ export class FileSessionStore {
         ...JSON.parse(summaryJson)
       };
     } catch (error) {
+      // 审查进行中可能尚未生成 summary，此时返回可渲染的空结果而不是让历史页崩溃。
       if ((error as NodeJS.ErrnoException).code !== "ENOENT") {
         throw error;
       }

@@ -15,6 +15,7 @@ import { ipcClient } from '@/lib/ipc-client'
 
 export function ReviewSessionPage() {
   const { sessionId = '' } = useParams()
+  // 页面挂载即建立快照加载和事件订阅，离开页面时由 hook 统一清理。
   useReviewSessionStream(sessionId)
 
   const session = useReviewSessionStore((state) => state.session)

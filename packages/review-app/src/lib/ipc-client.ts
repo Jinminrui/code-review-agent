@@ -26,6 +26,7 @@ declare global {
   }
 }
 
+// renderer 只依赖这一层，不直接接触 Electron ipcRenderer，便于测试和替换 mock API。
 export const ipcClient = {
   listRepositories: () => window.reviewWorkbenchApi.listRepositories(),
   selectRepository: () => window.reviewWorkbenchApi.selectRepository(),

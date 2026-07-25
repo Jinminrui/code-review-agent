@@ -50,6 +50,7 @@ export async function runToolUseLoop(input: ToolUseLoopInput): Promise<ToolUseLo
   let totalUsage: { inputTokens: number; outputTokens: number } | undefined;
   let round = 0;
 
+  // 模型通过工具逐步补齐上下文；限制最大轮次，避免异常响应导致会话无限运行。
   while (round < maxRounds) {
     if (signal?.aborted) break;
 
@@ -63,6 +64,7 @@ export async function runToolUseLoop(input: ToolUseLoopInput): Promise<ToolUseLo
     }
 
     if (!response.toolCalls || response.toolCalls.length === 0) {
+      // 没有工具调用表示模型已结束当前单元；保留文本消息便于审查轨迹回看。
       if (response.content) messages.push({ role: "assistant", content: response.content });
       break;
     }
@@ -74,6 +76,7 @@ export async function runToolUseLoop(input: ToolUseLoopInput): Promise<ToolUseLo
       onToolCall?.(toolCall);
 
       if (toolCall.name === "task_done") {
+        // task_done 是模型明确声明审查完成的信号，立即结束当前单元。
         log.info(`第 ${round + 1} 轮: 任务完成`);
         onRoundComplete?.(round, "task_done");
         return { findings, messages, totalRounds: round + 1, usage: totalUsage };
@@ -82,6 +85,7 @@ export async function runToolUseLoop(input: ToolUseLoopInput): Promise<ToolUseLo
       const result = await executeToolCall(toolCall, toolExecutorContext);
 
       if (toolCall.name === "code_comment") {
+        // 评论工具的参数是跨 provider 的中间格式，先转成稳定的 ReviewFinding。
         const finding = parseCodeComment(toolCall.arguments, toolExecutorContext);
         if (finding) {
           findings.push(finding);

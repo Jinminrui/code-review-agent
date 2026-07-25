@@ -30,12 +30,12 @@ export async function relocateFinding(input: {
 }): Promise<ReviewFinding> {
   const { finding, fileContent } = input;
 
-  // Already has line numbers, no need to relocate
+  // 已有可信行号的 finding 不重复请求模型，避免覆盖确定性结果。
   if (finding.startLine && finding.status === "line-level") {
     return finding;
   }
 
-  // No evidence to work with
+  // 没有证据就无法可靠定位，只能保留文件级问题，不能猜测行号。
   if (!finding.evidence && !finding.summary) {
     return { ...finding, status: "file-level" };
   }

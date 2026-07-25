@@ -28,6 +28,7 @@ export function useMonacoReveal(
     }
 
     const range = toLineRange(finding);
+    // 同时滚动和加高亮；清理函数确保切换 finding 时不会残留旧装饰。
     editor.revealLineInCenter(range.startLine);
 
     const decorations = editor.createDecorationsCollection(toFindingDecorations(monaco, finding));

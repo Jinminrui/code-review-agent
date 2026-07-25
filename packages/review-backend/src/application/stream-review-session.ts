@@ -36,6 +36,7 @@ export async function* streamReviewSession(
     };
   }
 ): AsyncGenerator<ReviewSessionEvent, void, void> {
+  // 审查以事件流为边界：每个阶段先持久化事件，再向 UI 推送，保证刷新后仍可恢复进度。
   const { repositoryPath, baseRef, targetRef } = input.input;
   const signal = input.signal;
 
@@ -97,6 +98,7 @@ export async function* streamReviewSession(
 
     const unitLog = log.child({ file: diffFile.path });
     try {
+      // 每个文件是相互隔离的审查单元；单元失败只产生失败事件，不中断整个会话。
       const context = await collectUnitContext({
         gitClient: input.dependencies.gitClient,
         baseRef,
@@ -118,6 +120,7 @@ export async function* streamReviewSession(
       let planGuidance = "";
 
       if (diffLineCount > 50) {
+        // 大 diff 先让模型生成风险导向，减少后续工具调用在无关代码上消耗轮次。
         const plan = await generateReviewPlan({
           provider: input.dependencies.provider,
           diff: diffText,
@@ -162,6 +165,7 @@ export async function* streamReviewSession(
 
       // Relocate findings without line numbers
       unitFindings = await Promise.all(
+        // 模型可能只知道问题文件和证据，缺少行号时再单独请求一次定位。
         unitFindings.map((finding) =>
           finding.startLine
             ? Promise.resolve(finding)

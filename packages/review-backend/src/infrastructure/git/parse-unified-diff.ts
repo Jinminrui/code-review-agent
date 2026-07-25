@@ -27,6 +27,7 @@ export type ParsedDiffFile = {
 const HUNK_RE = /^@@ -(\d+),?(\d*) \+(\d+),?(\d*) @@/;
 
 export function parseUnifiedDiff(input: string): ParsedDiffFile[] {
+  // Git diff 的文件元数据、hunk 头和行内容交错出现，因此用状态变量顺序解析。
   const lines = input.trimEnd().split("\n");
   const files: ParsedDiffFile[] = [];
   let currentFile: ParsedDiffFile | undefined;
@@ -34,7 +35,7 @@ export function parseUnifiedDiff(input: string): ParsedDiffFile[] {
   let oldLineNum = 0;
   let newLineNum = 0;
 
-  // Metadata collected before +++ b/ line
+  // `+++ b/` 之前的元数据要暂存，等目标路径出现后再创建文件对象。
   let pendingIsNew = false;
   let pendingIsDeleted = false;
   let pendingIsBinary = false;
@@ -76,7 +77,7 @@ export function parseUnifiedDiff(input: string): ParsedDiffFile[] {
   }
 
   for (const line of lines) {
-    // Detect new file mode (appears before --- /dev/null)
+    // 新文件标记出现在 `--- /dev/null` 之前。
     if (line.startsWith("new file mode ")) {
       pendingIsNew = true;
       continue;
@@ -180,7 +181,7 @@ export function parseUnifiedDiff(input: string): ParsedDiffFile[] {
     }
   }
 
-  // Flush any pending binary file at the end
+  // 二进制 diff 通常没有 hunk，循环结束时补齐暂存的文件元数据。
   flushPendingBinary();
 
   return files;

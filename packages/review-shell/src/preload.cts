@@ -12,6 +12,7 @@ contextBridge.exposeInMainWorld("reviewWorkbenchApi", {
   cancelSession: (sessionId: string) => ipcRenderer.invoke("review:cancelSession", sessionId),
   exportSession: (sessionId: string) => ipcRenderer.invoke("review:exportSession", sessionId),
   subscribeSession: (sessionId: string, onEvent: (event: unknown) => void) => {
+    // 每个会话使用独立频道；返回取消订阅函数，避免页面卸载后继续接收事件。
     const channel = `review:session:${sessionId}`;
     const listener = (_event: unknown, payload: unknown) => onEvent(payload);
     ipcRenderer.on(channel, listener);

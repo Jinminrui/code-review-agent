@@ -1,6 +1,7 @@
 import { z } from "zod";
 import { reviewFindingSchema } from "./review-finding.js";
 
+// 领域 schema 同时承担运行时校验和 TypeScript 类型推导，避免跨进程数据漂移。
 export const reviewSessionInputSchema = z.object({
   repositoryPath: z.string().min(1),
   baseRef: z.string().min(1),

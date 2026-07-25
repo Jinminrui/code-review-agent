@@ -21,6 +21,7 @@ export const useReviewSessionStore = create<ReviewSessionStore>((set) => ({
   setError: (error) => set({ error }),
   appendUnitResult: (findings, diffByFile = {}) =>
     set((state) => {
+      // 流式事件只追加当前单元结果，并合并对应文件 diff，避免覆盖已完成单元。
       if (!state.session) return state;
       return {
         session: {

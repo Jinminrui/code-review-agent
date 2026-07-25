@@ -36,6 +36,7 @@ export class GitClient {
 
   async readFileAtRef(ref: string, filePath: string): Promise<string> {
     if (ref === "WORKSPACE") {
+      // 工作区读取绕过 git show，但必须校验路径，防止工具调用访问仓库外文件。
       const repositoryRoot = resolve(this.repositoryPath);
       const absolutePath = resolve(repositoryRoot, filePath);
       if (absolutePath !== repositoryRoot && !absolutePath.startsWith(repositoryRoot + sep)) {

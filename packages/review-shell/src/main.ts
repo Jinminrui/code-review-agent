@@ -36,6 +36,7 @@ async function createWindow() {
   });
 
   const sessionStore = new FileSessionStore(resolveSessionsRoot(app.getPath("userData")));
+  // 运行中的 AbortController 按 sessionId 保存，取消操作只影响对应会话。
   const runningSessions = new Map<string, AbortController>();
 
   const handlers = createReviewWorkbenchHandlers({
@@ -55,6 +56,7 @@ async function createWindow() {
       },
       listBranches: async (repositoryPath: string) => new GitClient(repositoryPath).listBranches(),
       createSession: async (request) => {
+        // 先消费 session-started 拿到 ID，再后台继续消费异步事件，IPC 调用可以快速返回。
         const gitClient = new GitClient(request.repositoryPath);
         const provider = createProvider();
         const abortController = new AbortController();

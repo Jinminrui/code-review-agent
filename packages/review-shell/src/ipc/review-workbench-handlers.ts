@@ -16,6 +16,7 @@ type ReviewWorkbenchBackend = {
 export function createReviewWorkbenchHandlers(input: {
   backend: ReviewWorkbenchBackend;
 }) {
+  // handler 只做 IPC 入参校验和协议适配，具体业务继续留在 backend/application 层。
   return {
     listRepositories: () => input.backend.listRepositories(),
     selectRepository: () => input.backend.selectRepository(),

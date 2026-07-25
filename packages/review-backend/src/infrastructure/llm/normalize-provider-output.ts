@@ -25,6 +25,7 @@ export function normalizeProviderOutput(input: {
   content: string;
   fallbackFile: string;
 }) {
+  // provider 输出是不可信的外部数据：先解析结构，再通过 schema 生成统一 finding。
   let parsedJson: unknown;
 
   try {

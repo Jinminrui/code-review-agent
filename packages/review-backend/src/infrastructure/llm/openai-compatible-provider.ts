@@ -22,6 +22,7 @@ export class OpenAiCompatibleProvider implements LlmProvider {
     jsonMode?: boolean;
     signal?: AbortSignal;
   }): Promise<ChatResponse> {
+    // 内部消息模型与 OpenAI-compatible wire format 不完全相同，这里集中做协议转换。
     const messages = input.messages.map((msg) => {
       if (msg.role === "assistant" && msg.toolCalls) {
         return {
@@ -41,6 +42,7 @@ export class OpenAiCompatibleProvider implements LlmProvider {
     });
 
     const body: Record<string, unknown> = { model: this.profile.model, messages };
+    // 仅在调用方明确要求时启用 JSON 模式，普通工具调用仍保留模型的自然语言能力。
     if (input.jsonMode) {
       body.response_format = { type: "json_object" };
     }
