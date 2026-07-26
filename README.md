@@ -178,6 +178,27 @@ pnpm --filter @app/review-app test:e2e
 
 当前仓库还处在设计和计划落地阶段，所以部分命令要等代码骨架创建后才能真正运行。
 
+## 日志与 traceId 查询
+
+每次审查会话会生成一个 `traceId`，并贯穿 diff、LLM、工具调用和异常日志。日志同时输出到控制台和 JSONL 文件；Electron 运行时的文件日志目录使用应用的 `logs` 目录。
+
+可通过以下环境变量调整日志行为：
+
+1. `REVIEW_LOG_DIR`：非 Electron 环境的日志目录。
+2. `REVIEW_LOG_LEVEL`：日志级别；未设置时兼容 `LOG_LEVEL`。
+3. `REVIEW_LOG_FILE_SIZE`：单个日志文件大小上限，单位为字节。
+4. `REVIEW_LOG_RETENTION_DAYS`：日志保留天数。
+
+拿到日志中的 `traceId` 后，可以使用开发者命令查询完整关联记录：
+
+```bash
+pnpm logs:find -- --trace-id <traceId>
+pnpm logs:find -- --trace-id <traceId> --limit 100
+pnpm logs:find -- --trace-id <traceId> --directory <日志目录>
+```
+
+查询结果按 JSONL 输出，默认最多返回 1000 条记录；读取时会扫描当前和历史滚动日志，并跳过损坏行。
+
 ## 当前状态
 
 当前已经完成：
