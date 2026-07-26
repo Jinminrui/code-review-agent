@@ -1,4 +1,4 @@
-import type { ReviewSessionEvent } from "@app/review-backend";
+import type { ReviewSessionEvent } from "@app/review-backend/contracts";
 import type { ReviewSessionDetail, SessionSummary } from "./review-model";
 
 export type CreateSessionInput = {

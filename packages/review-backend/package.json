@@ -12,6 +12,10 @@
     "./infrastructure": {
       "types": "./dist/src/infrastructure/index.d.ts",
       "default": "./dist/src/infrastructure/index.js"
+    },
+    "./contracts": {
+      "types": "./dist/src/contracts/index.d.ts",
+      "default": "./dist/src/contracts/index.js"
     }
   },
   "scripts": {
