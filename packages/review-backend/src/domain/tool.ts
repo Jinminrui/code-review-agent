@@ -1,5 +1,12 @@
 import { z } from "zod";
 
+export const readOnlyToolNameSchema = z.enum([
+  "file_read",
+  "file_find",
+  "code_search",
+  "file_read_diff"
+]);
+
 export const toolNameSchema = z.enum([
   "file_read",
   "file_find",
@@ -18,7 +25,10 @@ export const toolCallSchema = z.object({
 export const toolResultSchema = z.object({
   toolCallId: z.string(),
   content: z.string(),
-  isError: z.boolean().optional()
+  isError: z.boolean().optional(),
+  // 旧 Tool-use 结果没有以下字段，因此保持可选；新执行路径始终写入。
+  contentHash: z.string().min(1).optional(),
+  auditArguments: z.record(z.unknown()).optional()
 });
 
 export const toolDefinitionSchema = z.object({
@@ -31,3 +41,4 @@ export type ToolCall = z.infer<typeof toolCallSchema>;
 export type ToolResult = z.infer<typeof toolResultSchema>;
 export type ToolDefinition = z.infer<typeof toolDefinitionSchema>;
 export type ToolName = z.infer<typeof toolNameSchema>;
+export type ReadOnlyToolName = z.infer<typeof readOnlyToolNameSchema>;

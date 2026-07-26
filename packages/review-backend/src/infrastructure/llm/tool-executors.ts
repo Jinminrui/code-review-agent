@@ -1,7 +1,9 @@
-import type { ToolCall, ToolResult, ToolName } from "../../domain/tool.js";
+import { createHash } from "node:crypto";
+import type { ToolCall, ToolDefinition, ToolResult, ToolName } from "../../domain/tool.js";
 import type { GitClient } from "../git/git-client.js";
 import type { ParsedDiffFile } from "../git/parse-unified-diff.js";
 import { logger } from "../logging/logger.js";
+import type { PlanAuthorizationDecision } from "./plan-authorizer.js";
 
 export type ToolExecutorContext = {
   gitClient: Pick<GitClient, "readFileAtRef" | "lsFiles" | "grep" | "readDiff" | "readWorkspaceDiff">;
@@ -9,6 +11,8 @@ export type ToolExecutorContext = {
   targetRef: string;
   repositoryPath: string;
   diffFiles?: ParsedDiffFile[];
+  allowedFiles?: readonly string[];
+  allowedFileSet?: ReadonlySet<string>;
 };
 
 export type ToolExecutor = (
@@ -17,6 +21,11 @@ export type ToolExecutor = (
 ) => Promise<ToolResult>;
 
 const log = logger.child({ component: "tool" });
+type RepositoryFileIndex = {
+  files: ReadonlySet<string>;
+};
+
+const repositoryFileIndexes = new WeakMap<object, Promise<RepositoryFileIndex>>();
 
 const fileReadExecutor: ToolExecutor = async (args, context) => {
   const path = args.path as string;
@@ -52,7 +61,13 @@ const fileFindExecutor: ToolExecutor = async (args, context) => {
   if (!keyword) return { toolCallId: "", content: "Error: 'keyword' parameter is required", isError: true };
 
   try {
-    const files = await context.gitClient.lsFiles(`*${keyword}*`);
+    const files = context.allowedFileSet
+      ? (context.allowedFileSet.size === 0
+        ? []
+        : [...(await getRepositoryFileIndex(context)).files].filter((file) =>
+            context.allowedFileSet!.has(file) && file.includes(keyword)
+          ))
+      : await context.gitClient.lsFiles(`*${keyword}*`);
     log.debug(`搜索文件: ${keyword} -> ${files.length} 个匹配`);
     return { toolCallId: "", content: files.length > 0 ? files.join("\n") : "No files found matching the keyword." };
   } catch (error) {
@@ -67,11 +82,25 @@ const codeSearchExecutor: ToolExecutor = async (args, context) => {
 
   try {
     const regex = args.regex as boolean | undefined;
-    const results = await context.gitClient.grep(pattern, { regex });
-    log.debug(`代码搜索: ${pattern} -> ${results.length} 个匹配`);
-    if (results.length === 0) return { toolCallId: "", content: "No matches found." };
-    const capped = results.slice(0, 100);
-    const extra = results.length > 100 ? `\n... (${results.length - 100} more matches truncated)` : "";
+    if (context.allowedFileSet?.size === 0) {
+      return { toolCallId: "", content: "No matches found." };
+    }
+    const results = await context.gitClient.grep(pattern, {
+      regex,
+      ...(context.allowedFiles ? { paths: context.allowedFiles } : {})
+    });
+    const repositoryFileIndex = context.allowedFileSet
+      ? await getRepositoryFileIndex(context)
+      : undefined;
+    const allowedResults = filterSearchResults(
+      results,
+      context.allowedFileSet,
+      repositoryFileIndex?.files
+    );
+    log.debug(`代码搜索: ${pattern} -> ${allowedResults.length} 个授权匹配`);
+    if (allowedResults.length === 0) return { toolCallId: "", content: "No matches found." };
+    const capped = allowedResults.slice(0, 100);
+    const extra = allowedResults.length > 100 ? `\n... (${allowedResults.length - 100} more matches truncated)` : "";
     return { toolCallId: "", content: capped.join("\n") + extra };
   } catch (error) {
     log.warn(`代码搜索失败: ${pattern}`);
@@ -91,16 +120,17 @@ const fileReadDiffExecutor: ToolExecutor = async (args, context) => {
     const diffFiles = context.diffFiles ?? (context.targetRef === "WORKSPACE"
       ? await context.gitClient.readWorkspaceDiff()
       : await context.gitClient.readDiff(context.baseRef, context.targetRef));
+    const allowedDiffFiles = filterDiffFiles(diffFiles, context.allowedFileSet);
 
     if (path) {
-      const file = diffFiles.find((f) => f.path === path);
+      const file = allowedDiffFiles.find((f) => f.path === path);
       if (!file) return { toolCallId: "", content: `No diff found for file: ${path}` };
       log.debug(`读取 diff: ${path}`);
       return { toolCallId: "", content: formatDiffFile(file) };
     }
 
-    const summary = diffFiles.map((f) => `${f.path} (+${f.insertions}, -${f.deletions})`).join("\n");
-    log.debug(`读取 diff 摘要: ${diffFiles.length} 个文件`);
+    const summary = allowedDiffFiles.map((f) => `${f.path} (+${f.insertions}, -${f.deletions})`).join("\n");
+    log.debug(`读取 diff 摘要: ${allowedDiffFiles.length} 个授权文件`);
     return { toolCallId: "", content: summary || "No changes found." };
   } catch (error) {
     log.warn(`读取 diff 失败`);
@@ -122,6 +152,68 @@ function formatDiffFile(file: ParsedDiffFile): string {
   return `--- a/${file.path}\n+++ b/${file.path}\n${diffText}`;
 }
 
+function filterSearchResults(
+  results: readonly string[],
+  allowedFileSet?: ReadonlySet<string>,
+  repositoryFiles?: ReadonlySet<string>
+): string[] {
+  if (!allowedFileSet) return [...results];
+  return results.filter((result) => {
+    const file = repositoryFiles
+      ? findUniqueSearchResultFile(result, repositoryFiles)
+      : undefined;
+    return file !== undefined && allowedFileSet.has(file);
+  });
+}
+
+function getRepositoryFileIndex(context: ToolExecutorContext): Promise<RepositoryFileIndex> {
+  const cacheKey = context.gitClient as object;
+  const cached = repositoryFileIndexes.get(cacheKey);
+  if (cached) return cached;
+
+  const indexPromise = context.gitClient.lsFiles().then((files) => ({
+    files: new Set(files)
+  }));
+  repositoryFileIndexes.set(cacheKey, indexPromise);
+  return indexPromise;
+}
+
+function findUniqueSearchResultFile(
+  result: string,
+  repositoryFiles: ReadonlySet<string>
+): string | undefined {
+  let match: string | undefined;
+
+  for (let index = 0; index < result.length; index += 1) {
+    if (result[index] === ":") {
+      let lineSeparator = index + 1;
+      while (/\d/.test(result[lineSeparator] ?? "")) {
+        lineSeparator += 1;
+      }
+      if (
+        lineSeparator > index + 1 &&
+        result[lineSeparator] === ":"
+      ) {
+        const candidate = result.slice(0, index);
+        if (repositoryFiles.has(candidate)) {
+          if (match !== undefined && match !== candidate) return undefined;
+          match = candidate;
+        }
+      }
+    }
+  }
+
+  return match;
+}
+
+function filterDiffFiles(
+  diffFiles: readonly ParsedDiffFile[],
+  allowedFileSet?: ReadonlySet<string>
+): ParsedDiffFile[] {
+  if (!allowedFileSet) return [...diffFiles];
+  return diffFiles.filter((file) => allowedFileSet.has(file.path));
+}
+
 const taskDoneExecutor: ToolExecutor = async () => {
   return { toolCallId: "", content: "Review task completed." };
 };
@@ -137,13 +229,69 @@ const executors: Record<ToolName, ToolExecutor> = {
 
 export function executeToolCall(
   toolCall: ToolCall,
-  context: ToolExecutorContext
+  context: ToolExecutorContext,
+  authorization?: PlanAuthorizationDecision
 ): Promise<ToolResult> {
+  if (authorization?.decision === "deny") {
+    return Promise.resolve(finalizeToolResult(toolCall, {
+      toolCallId: toolCall.id,
+      content: `Authorization denied: ${authorization.reason.code} - ${authorization.reason.message}`,
+      isError: true
+    }, authorization.auditArguments));
+  }
+
+  if (authorization && (
+    authorization.toolCallId !== toolCall.id || authorization.toolName !== toolCall.name
+  )) {
+    return Promise.resolve(finalizeToolResult(toolCall, {
+      toolCallId: toolCall.id,
+      content: "Authorization denied: authorization-mismatch",
+      isError: true
+    }));
+  }
+
+  if (authorization?.cachedResult) {
+    return Promise.resolve(finalizeToolResult(
+      toolCall,
+      authorization.cachedResult,
+      authorization.auditArguments
+    ));
+  }
+
   const executor = executors[toolCall.name];
   if (!executor) {
-    return Promise.resolve({ toolCallId: toolCall.id, content: `Unknown tool: ${toolCall.name}`, isError: true });
+    return Promise.resolve(finalizeToolResult(toolCall, {
+      toolCallId: toolCall.id,
+      content: `Unknown tool: ${toolCall.name}`,
+      isError: true
+    }));
   }
-  return executor(toolCall.arguments, context).then((result) => ({ ...result, toolCallId: toolCall.id }));
+  const executionArguments = authorization?.auditArguments ?? toolCall.arguments;
+  const executionContext = authorization
+    ? {
+      ...context,
+      allowedFiles: authorization.allowedFiles,
+      allowedFileSet: authorization.allowedFileSet
+    }
+    : context;
+  return executor(executionArguments, executionContext).then((result) => finalizeToolResult(
+    toolCall,
+    result,
+    authorization?.auditArguments
+  ));
+}
+
+function finalizeToolResult(
+  toolCall: ToolCall,
+  result: ToolResult,
+  auditArguments: Record<string, unknown> = toolCall.arguments
+): ToolResult {
+  return {
+    ...result,
+    toolCallId: toolCall.id,
+    contentHash: `sha256:${createHash("sha256").update(result.content).digest("hex")}`,
+    auditArguments: { ...auditArguments }
+  };
 }
 
 export const REVIEW_TOOL_DEFINITIONS = [
@@ -206,4 +354,15 @@ export const REVIEW_TOOL_DEFINITIONS = [
     description: "表示审查任务已完成。审查结束后调用此工具。",
     parameters: { type: "object", properties: {} }
   }
-];
+] satisfies ToolDefinition[];
+
+const READ_ONLY_TOOL_NAMES = new Set<ToolName>([
+  "file_read",
+  "file_find",
+  "code_search",
+  "file_read_diff"
+]);
+
+// 新运行时只使用此定义；旧 Tool-use loop 继续使用 REVIEW_TOOL_DEFINITIONS。
+export const READ_ONLY_REVIEW_TOOL_DEFINITIONS: ToolDefinition[] =
+  REVIEW_TOOL_DEFINITIONS.filter((tool) => READ_ONLY_TOOL_NAMES.has(tool.name));

@@ -81,7 +81,10 @@ export class GitClient {
       .filter(Boolean);
   }
 
-  async grep(pattern: string, options?: { regex?: boolean }): Promise<string[]> {
+  async grep(
+    pattern: string,
+    options?: { regex?: boolean; paths?: readonly string[] }
+  ): Promise<string[]> {
     const args = ["grep", "-n", "-H"];
     if (options?.regex) {
       args.push("-E");
@@ -89,6 +92,9 @@ export class GitClient {
       args.push("-F");
     }
     args.push("--", pattern);
+    if (options?.paths && options.paths.length > 0) {
+      args.push(...options.paths.map((path) => `:(literal)${path}`));
+    }
 
     try {
       const { stdout } = await execa("git", args, {
