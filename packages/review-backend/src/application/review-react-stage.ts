@@ -1,3 +1,8 @@
+/**
+ * 模块职责：承载本模块的稳定业务逻辑，并对外提供边界清晰的类型或函数。
+ * 边界约束：输入数据应在边界处校验；不要在本模块内绕过既定的分层和 IPC 约束。
+ * 维护提示：修改时优先保持现有契约和错误语义，并同步更新相关测试。
+ */
 import type { ChatMessage, LlmProvider } from "../domain/provider.js";
 import { evidenceBundleSchema, type EvidenceBundle, type EvidenceItem } from "../domain/review-evidence.js";
 import type { ReviewPlan } from "../domain/review-plan.js";
@@ -99,6 +104,8 @@ const REACT_TOOL_DEFINITIONS: ToolDefinition[] = READ_ONLY_REVIEW_TOOL_DEFINITIO
 export async function runReviewReactStage(
   input: ReviewReactStageInput
 ): Promise<ReviewReactStageResult> {
+  // ReAct 只收集证据，不生成 finding。模型可见的工具、文件范围和预算
+  // 都由当前 unit 的 PlanAuthorizer 决定，防止执行阶段退化为任意代理。
   const startedAt = Date.now();
   const items: EvidenceItem[] = [];
   const usage: RuntimeUsage = {
@@ -142,6 +149,7 @@ export async function runReviewReactStage(
     : durationController.signal;
 
   try {
+    // 每轮只发送当前 unit、已结构化的证据和工具结果，避免跨 unit 污染上下文。
     while (usage.modelCalls < input.unit.budget.modelCalls) {
       stageSignal.throwIfAborted();
       const response = await waitForAbortable(input.provider.chat({
@@ -192,6 +200,7 @@ export async function runReviewReactStage(
           : finish("completed");
       }
 
+      // 一个响应可能包含多个工具调用；每个调用都单独做授权、去重和预算检查。
       for (const toolCall of response.toolCalls) {
         stageSignal.throwIfAborted();
         if (usage.toolCalls >= input.unit.budget.toolCalls) {

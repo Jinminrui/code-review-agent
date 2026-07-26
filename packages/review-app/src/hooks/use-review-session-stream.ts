@@ -1,3 +1,8 @@
+/**
+ * 模块职责：承载本模块的稳定业务逻辑，并对外提供边界清晰的类型或函数。
+ * 边界约束：输入数据应在边界处校验；不要在本模块内绕过既定的分层和 IPC 约束。
+ * 维护提示：修改时优先保持现有契约和错误语义，并同步更新相关测试。
+ */
 import { useEffect, useState } from "react";
 import { ipcClient } from "@/lib/ipc-client";
 import { useReviewSessionStore } from "@/store/review-session-store";
@@ -11,6 +16,7 @@ export function useReviewSessionStream(sessionId: string) {
   const setError = useReviewSessionStore((state) => state.setError);
 
   useEffect(() => {
+    // sessionId 变化时重置阶段和轨迹，避免上一个 session 的状态短暂残留。
     setProgress(createInitialReviewProgress());
     if (!sessionId) {
       setSession(null);
@@ -36,6 +42,7 @@ export function useReviewSessionStream(sessionId: string) {
       }
     );
 
+    // 先读快照、后订阅增量：快照补齐历史，active 标记防止卸载后的异步回写。
     const unsubscribe = ipcClient.subscribeSession(sessionId, (event: ReviewSessionEvent) => {
       if (!active) return;
       setProgress((current) => reduceReviewProgress(current, event));

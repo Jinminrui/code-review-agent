@@ -1,3 +1,8 @@
+/**
+ * 模块职责：承载本模块的稳定业务逻辑，并对外提供边界清晰的类型或函数。
+ * 边界约束：输入数据应在边界处校验；不要在本模块内绕过既定的分层和 IPC 约束。
+ * 维护提示：修改时优先保持现有契约和错误语义，并同步更新相关测试。
+ */
 import { z } from "zod";
 import {
   reviewFindingSchema,
@@ -82,6 +87,8 @@ function planSummary(plan: NonNullable<Extract<ReviewSessionEvent, { type: "phas
 }
 
 export function reduceReviewProgress(previous: ReviewProgressState | undefined, event: ReviewSessionEvent): ReviewProgressState {
+  // 这是前端唯一的阶段事件 reducer：只消费后端明确提供的字段，缺失信息显示
+  // “不可用”，不在 renderer 里猜测工具调用或模型结论。
   const state = previous ?? createInitialReviewProgress();
   if (event.type !== "phase-transitioned") {
     return {

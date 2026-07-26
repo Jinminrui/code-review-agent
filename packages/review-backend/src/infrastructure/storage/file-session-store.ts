@@ -1,3 +1,8 @@
+/**
+ * 模块职责：承载本模块的稳定业务逻辑，并对外提供边界清晰的类型或函数。
+ * 边界约束：输入数据应在边界处校验；不要在本模块内绕过既定的分层和 IPC 约束。
+ * 维护提示：修改时优先保持现有契约和错误语义，并同步更新相关测试。
+ */
 import { appendFile, mkdir, readFile, readdir, rm, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import { randomUUID } from "node:crypto";
@@ -45,6 +50,7 @@ export class FileSessionStore {
   }
 
   async readEvents(sessionId: string): Promise<ReviewSessionEvent[]> {
+    // 读取前校验 sessionId，既保证路径安全，也避免把任意目录当作 session 解析。
     assertValidSessionId(sessionId);
     const sessionDir = join(this.rootDir, sessionId);
     const content = await readFile(join(sessionDir, "events.jsonl"), "utf8");
@@ -59,6 +65,7 @@ export class FileSessionStore {
     unitId?: string;
     resumable: boolean;
   }> {
+    // 执行中的 ReAct/Reflection 请求不可精确恢复，只能回退到安全的 unit 边界。
     assertValidSessionId(sessionId);
     const events = await this.readEvents(sessionId);
     const phaseEvent = [...events].reverse().find((event) => event.type === "phase-transitioned");
@@ -93,6 +100,7 @@ export class FileSessionStore {
   }
 
   async appendEvent(sessionId: string, event: unknown) {
+    // JSONL 不是任意 JSON 容器：先完成 schema 校验和旧事件迁移，再追加日志。
     assertValidSessionId(sessionId);
     const parsedEvent = parseReviewSessionEvent(event);
     if (parsedEvent.sessionId !== sessionId) throw new Error("Event sessionId does not match sessionId");

@@ -1,3 +1,8 @@
+/**
+ * 模块职责：承载本模块的稳定业务逻辑，并对外提供边界清晰的类型或函数。
+ * 边界约束：输入数据应在边界处校验；不要在本模块内绕过既定的分层和 IPC 约束。
+ * 维护提示：修改时优先保持现有契约和错误语义，并同步更新相关测试。
+ */
 import type { LlmProvider } from "../domain/provider.js";
 import {
   reflectionResultSchema,
@@ -75,6 +80,8 @@ const NO_BACKFILL: ReviewReflectionStageBackfill = {
 export async function runReviewReflectionStage(
   input: ReviewReflectionStageInput
 ): Promise<ReviewReflectionStageResult> {
+  // Reflection 是“证据到 finding”的唯一决策入口；输入先过 schema，输出再经过
+  // 确定性的文件、行号、证据引用、去重和状态校验。
   input.signal?.throwIfAborted();
   const parsedEvidenceResult = evidenceBundleSchema.safeParse(input.evidenceBundle);
   if (!parsedEvidenceResult.success) {
@@ -104,6 +111,7 @@ export async function runReviewReflectionStage(
     };
   }
 
+  // 每个 unit 最多一次补证请求，补证工具调用也有独立上限，避免模型无限追问。
   const firstRequest = await requestSafely(input, parsedEvidence);
   if ("error" in firstRequest) {
     return {

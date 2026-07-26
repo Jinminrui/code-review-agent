@@ -1,3 +1,8 @@
+/**
+ * 模块职责：承载本模块的稳定业务逻辑，并对外提供边界清晰的类型或函数。
+ * 边界约束：输入数据应在边界处校验；不要在本模块内绕过既定的分层和 IPC 约束。
+ * 维护提示：修改时优先保持现有契约和错误语义，并同步更新相关测试。
+ */
 import { buildReviewSummary } from "./build-review-summary.js";
 import { completeCancelledSession } from "./cancel-session.js";
 import { normalizeFindingFiles } from "./finding-normalize.js";
@@ -56,6 +61,7 @@ export async function* streamReviewSession(
     };
   }
 ): AsyncGenerator<ReviewSessionEvent, void, void> {
+  // legacy 与 hybrid 共用同一条 IPC 事件边界；mode 只选择内部编排器，便于灰度和回滚。
   if (input.mode === "hybrid") {
     const session = input.resumeSessionId
       ? { sessionId: input.resumeSessionId }
@@ -102,7 +108,8 @@ export async function* streamReviewSession(
     }
     return;
   }
-  // 审查以事件流为边界：每个阶段先持久化事件，再向 UI 推送，保证刷新后仍可恢复进度。
+  // legacy 路径保持原行为；新运行时不会把版本化事件混入旧循环。
+  // 每个阶段先持久化事件，再向 UI 推送，保证刷新后仍可恢复进度。
   const { repositoryPath, baseRef, targetRef } = input.input;
   const signal = input.signal;
 

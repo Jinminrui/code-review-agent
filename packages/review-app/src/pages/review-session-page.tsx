@@ -1,3 +1,8 @@
+/**
+ * 模块职责：承载本模块的稳定业务逻辑，并对外提供边界清晰的类型或函数。
+ * 边界约束：输入数据应在边界处校验；不要在本模块内绕过既定的分层和 IPC 约束。
+ * 维护提示：修改时优先保持现有契约和错误语义，并同步更新相关测试。
+ */
 import { useEffect, useState } from 'react'
 import { useParams } from 'react-router-dom'
 import { useReviewSessionStore } from '@/store/review-session-store'
@@ -16,7 +21,8 @@ import { ipcClient } from '@/lib/ipc-client'
 
 export function ReviewSessionPage() {
   const { sessionId = '' } = useParams()
-  // 页面挂载即建立快照加载和事件订阅，离开页面时由 hook 统一清理。
+  // 页面挂载即建立快照加载和事件订阅，离开页面时由 hook 统一清理；阶段轨迹
+  // 与持久化的 finding 快照分开管理，避免流式进度覆盖业务数据。
   const { progress } = useReviewSessionStream(sessionId)
 
   const session = useReviewSessionStore((state) => state.session)

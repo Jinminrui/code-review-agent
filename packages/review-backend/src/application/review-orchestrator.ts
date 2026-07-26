@@ -1,3 +1,8 @@
+/**
+ * 模块职责：承载本模块的稳定业务逻辑，并对外提供边界清晰的类型或函数。
+ * 边界约束：输入数据应在边界处校验；不要在本模块内绕过既定的分层和 IPC 约束。
+ * 维护提示：修改时优先保持现有契约和错误语义，并同步更新相关测试。
+ */
 import { buildReviewSummary } from "./build-review-summary.js";
 import { buildReviewPreAnalysis } from "./review-pre-analysis.js";
 import { generateReviewPlanStage } from "./review-plan-stage.js";
@@ -60,7 +65,10 @@ export type ReviewResumeState = {
 };
 
 export class ReviewOrchestrator {
+  // phase 是唯一的运行时游标；所有跳转都必须经过 transition，保证内存状态
+  // 与持久化的 phase-transitioned 事件遵守同一套合法转移表。
   private phase: ReviewRuntimePhase = "session-created";
+  // 保护正常完成和取消路径，避免重复写入终态事件或 summary。
   private completed = false;
 
   private readonly stages: ReviewOrchestratorStages;
@@ -89,6 +97,7 @@ export class ReviewOrchestrator {
 
   async *run(input: { sessionId: string; input: ReviewSessionInput; signal?: AbortSignal; resume?: ReviewResumeState }): AsyncGenerator<ReviewSessionEvent> {
     const { sessionId, input: sessionInput, signal } = input;
+    // 事件必须先落盘再 yield，避免 renderer 看到了无法在刷新后恢复的进度。
     const emit = async function* (event: ReviewSessionEvent, store: Store): AsyncGenerator<ReviewSessionEvent> {
       await store.appendEvent(sessionId, event);
       yield event;
@@ -103,6 +112,7 @@ export class ReviewOrchestrator {
       orchestrator.transition(previousPhase, phase);
       yield* emit({ type: "phase-transitioned", sessionId, schemaVersion: REVIEW_SCHEMA_VERSION, runtimeVersion: REVIEW_RUNTIME_VERSION, previousPhase, phase, ...(unitId ? { unitId } : {}), ...details }, orchestrator.dependencies.sessionStore);
     };
+    // diff 是后续所有阶段共享的确定性输入；读取失败或取消时不能进入 Plan。
     let allDiffFiles: ParsedDiffFile[];
     if (signal?.aborted) return yield* this.cancel(sessionId, sessionInput, []);
     try {
@@ -150,6 +160,7 @@ export class ReviewOrchestrator {
     const plan = planResult.plan;
     const planFingerprint = fingerprintReviewPlan(plan);
     const canReuseResults = Boolean(resume?.planVersion === plan.version && resume.planFingerprint && resume.planFingerprint === planFingerprint);
+    // 只有计划版本和 fingerprint 同时匹配才复用历史结果，防止计划变化后证据错配。
     const findings: ReviewFinding[] = canReuseResults ? [...(resume?.findings ?? [])] : [];
     const sessionUsage = { inputTokens: 0, outputTokens: 0, modelCalls: 0, toolCalls: 0, readBytes: 0 };
     const fileResults: Array<{ unitId: string; reflectionResult: Extract<ReviewReflectionStageResult, { status: "completed" | "evidence-incomplete" }>["reflectionResult"]; findings: ReviewFinding[] }> = canReuseResults ? [...(resume?.fileResults ?? [])] : [];
@@ -168,6 +179,7 @@ export class ReviewOrchestrator {
       yield* transition(this, "unit-plan-started", rollbackUnitId);
     }
 
+    // unit 串行执行，保证预算累计、事件顺序和 Global Reflection 输入可回放。
     for (const unit of [...plan.units].sort((a, b) => a.order - b.order)) {
       if (signal?.aborted) return yield* this.cancel(sessionId, sessionInput, findings);
       const restoredUnit = resume?.unitResults?.find((result) => result.unitId === unit.unitId && result.file === unit.file);
@@ -224,6 +236,7 @@ export class ReviewOrchestrator {
       this.phase = "unit-completed";
     }
 
+    // Global Reflection 只合并或拒绝已有文件级结果，不能绕过证据边界新增问题。
     try {
       if (this.phase !== "unit-completed" && this.phase !== "unit-failed" && this.phase !== "global-plan-completed" && this.phase !== "global-reflection-validating") throw new Error(`全局 Reflection 前状态非法: ${this.phase}`);
       if (this.phase !== "global-reflection-validating") yield* transition(this, "global-reflection-validating");
