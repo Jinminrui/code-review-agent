@@ -16,6 +16,7 @@ import { filterReviewFiles } from "../infrastructure/filter/file-filter.js";
 import type { GitClient } from "../infrastructure/git/git-client.js";
 import type { ParsedDiffFile } from "../infrastructure/git/parse-unified-diff.js";
 import { logger } from "../infrastructure/logging/logger.js";
+import { createTraceId, runWithTraceId } from "../infrastructure/logging/trace-context.js";
 import { relocateFinding } from "../infrastructure/llm/line-relocator.js";
 import { generateReviewPlan } from "../infrastructure/llm/plan-generator.js";
 import { runToolUseLoop } from "../infrastructure/llm/tool-use-loop.js";
@@ -49,6 +50,19 @@ type SessionStore = {
 };
 
 export async function* streamReviewSession(
+  input: Parameters<typeof streamReviewSessionInternal>[0]
+): AsyncGenerator<ReviewSessionEvent, void, void> {
+  const traceId = createTraceId();
+  const iterator = streamReviewSessionInternal(input);
+
+  while (true) {
+    const result = await runWithTraceId(traceId, () => iterator.next());
+    if (result.done) return;
+    yield result.value;
+  }
+}
+
+async function* streamReviewSessionInternal(
   input: {
     input: ReviewSessionInput;
     mode?: ReviewRuntimeMode;
@@ -73,6 +87,14 @@ export async function* streamReviewSession(
           schemaVersion: 1,
           planVersion: 1
         });
+    if (!input.resumeSessionId) {
+      const startedEvent: ReviewSessionEvent = {
+        type: "session-started",
+        sessionId: session.sessionId
+      };
+      await input.dependencies.sessionStore.appendEvent(session.sessionId, startedEvent);
+      yield startedEvent;
+    }
     let resume: ReviewResumeState | undefined;
     if (input.resumeSessionId) {
       const recovery = await input.dependencies.sessionStore.getRecoveryPoint?.(input.resumeSessionId);

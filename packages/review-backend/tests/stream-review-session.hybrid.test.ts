@@ -5,17 +5,22 @@
  */
 import { describe, expect, it, vi } from "vitest";
 import { streamReviewSession } from "../src/application/stream-review-session.js";
+import { getTraceId } from "../src/infrastructure/logging/trace-context.js";
 
 describe("streamReviewSession hybrid mode", () => {
   it("uses the hybrid runtime when explicitly selected and appends before yielding", async () => {
     const order: string[] = [];
+    const traceIds: Array<string | undefined> = [];
     const store = { createSession: vi.fn().mockResolvedValue({ sessionId: "s_hybrid" }), appendEvent: vi.fn(async (_id, event) => { order.push(`append:${event.type}`); }), completeSession: vi.fn() };
     const events = [];
     for await (const event of streamReviewSession({ input: { repositoryPath: "/repo", baseRef: "main", targetRef: "feature", contextBudgetTokens: 1000 }, mode: "hybrid", dependencies: {
       provider: { id: "fake", capabilities: { structuredOutput: true, toolCalling: true, usage: true, cancellation: true }, chat: vi.fn() },
-      gitClient: { readDiff: vi.fn().mockResolvedValue([]), readWorkspaceDiff: vi.fn().mockResolvedValue([]), readFileAtRef: vi.fn(), lsFiles: vi.fn(), grep: vi.fn() }, sessionStore: store
+      gitClient: { readDiff: vi.fn(async () => { traceIds.push(getTraceId()); return []; }), readWorkspaceDiff: vi.fn().mockResolvedValue([]), readFileAtRef: vi.fn(), lsFiles: vi.fn(), grep: vi.fn() }, sessionStore: store
     } })) { events.push(event); expect(order.at(-1)).toBe(`append:${event.type}`); }
+    expect(events[0]).toMatchObject({ type: "session-started", sessionId: "s_hybrid" });
     expect(events.some((event) => event.type === "session-finished")).toBe(true);
+    expect(traceIds).toHaveLength(1);
+    expect(traceIds[0]).toMatch(/^[0-9a-f-]{36}$/);
   });
 
   it("accepts resumeSessionId without creating a new session", async () => {
