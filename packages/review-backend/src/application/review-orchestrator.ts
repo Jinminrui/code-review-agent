@@ -11,7 +11,7 @@ import { runReviewReflectionStage, type ReviewReflectionStageResult } from "./re
 import { runGlobalReviewReflectionStage } from "./global-review-reflection-stage.js";
 import { validateAndNormalizeFindings } from "./review-result-validation.js";
 import type { ReviewFinding } from "../domain/review-finding.js";
-import type { ReviewPlan } from "../domain/review-plan.js";
+import { DEFAULT_REVIEW_PLAN, type ReviewPlan } from "../domain/review-plan.js";
 import type { LlmProvider } from "../domain/provider.js";
 import { REVIEW_RUNTIME_VERSION, REVIEW_SCHEMA_VERSION, isValidReviewPhaseTransition, type ReviewRuntimePhase } from "../domain/review-runtime.js";
 import type { ReviewSessionEvent, ReviewSessionInput } from "../domain/review-session.js";
@@ -126,6 +126,43 @@ export class ReviewOrchestrator {
     const diffFiles = allDiffFiles;
     const preAnalysis = buildReviewPreAnalysis(diffFiles);
     const resume = input.resume;
+    if (diffFiles.length === 0 && !resume) {
+      yield* transition(this, "pre-analysis-completed");
+      yield* transition(this, "global-plan-completed", undefined, {
+        planSnapshot: DEFAULT_REVIEW_PLAN,
+        planFingerprint: fingerprintReviewPlan(DEFAULT_REVIEW_PLAN),
+        planVersion: DEFAULT_REVIEW_PLAN.version
+      });
+      yield* transition(this, "global-reflection-validating");
+      yield* transition(this, "global-reflection-completed");
+      yield* transition(this, "session-finished");
+
+      const finished: ReviewSessionEvent = {
+        type: "session-finished",
+        sessionId,
+        totalFindings: 0,
+        status: "finished"
+      };
+      yield* emit(finished, this.dependencies.sessionStore);
+      await this.dependencies.sessionStore.completeSession(sessionId, {
+        sessionId,
+        status: "finished",
+        repositoryPath: sessionInput.repositoryPath,
+        baseRef: sessionInput.baseRef,
+        targetRef: sessionInput.targetRef,
+        summary: buildReviewSummary({ findings: [], changedFiles: [] }),
+        findings: [],
+        diffByFile: {},
+        plan: DEFAULT_REVIEW_PLAN,
+        planVersion: DEFAULT_REVIEW_PLAN.version,
+        planFingerprint: fingerprintReviewPlan(DEFAULT_REVIEW_PLAN),
+        fileResults: [],
+        evidenceSummaries: [],
+        unitResults: []
+      });
+      this.completed = true;
+      return;
+    }
     if (resume) {
       const persistedPhase = resume.persistedPhase;
       const safeResumePhase = resume.safeResumePhase;

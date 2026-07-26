@@ -3,7 +3,7 @@
  * 边界约束：测试应优先验证公开行为，不依赖实现细节；新增分支必须补充失败或边界场景。
  * 维护提示：修改时同步检查相关命令和现有测试，避免配置或断言与实际契约漂移。
  */
-import { mkdtemp } from "node:fs/promises";
+import { mkdtemp, readFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
@@ -64,6 +64,11 @@ describe("FileSessionStore", () => {
       findings: [],
       diffByFile: {}
     });
+
+    const persistedSession = JSON.parse(
+      await readFile(join(rootDir, session.sessionId, "session.json"), "utf8")
+    ) as { status: string };
+    expect(persistedSession.status).toBe("finished");
 
     await expect(store.getSession(session.sessionId)).resolves.toMatchObject({
       sessionId: session.sessionId,

@@ -114,6 +114,13 @@ export class FileSessionStore {
     assertValidSessionId(sessionId);
     const sessionDir = join(this.rootDir, sessionId);
     await writeFile(join(sessionDir, "summary.json"), JSON.stringify(summary, null, 2));
+
+    const sessionPath = join(sessionDir, "session.json");
+    const session = JSON.parse(await readFile(sessionPath, "utf8")) as { status: string } & Record<string, unknown>;
+    const status = (summary as { status?: unknown }).status;
+    if (status === "finished" || status === "partial" || status === "cancelled") {
+      await writeFile(sessionPath, JSON.stringify({ ...session, status }, null, 2));
+    }
   }
 
   async getSession(sessionId: string) {
