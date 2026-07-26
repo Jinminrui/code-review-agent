@@ -14,6 +14,8 @@ export * from "./llm/plan-generator.js";
 export * from "./llm/tool-use-loop.js";
 export * from "./llm/tool-executors.js";
 export * from "./logging/logger.js";
+export * from "./logging/trace-context.js";
+export * from "./logging/log-file-sink.js";
 
 export * from "./storage/file-session-store.js";
 export * from "./storage/paths.js";
