@@ -244,7 +244,7 @@
 - [x] 运行 `pnpm typecheck`，预期 backend、app、shell 全部通过。
 - [x] 运行 `pnpm test`，预期现有测试和新增测试全部通过。
 - [x] 运行 `pnpm build`，预期三个 package 构建成功。
-- [ ] 运行 `pnpm --filter @app/review-app test:e2e`，验证启动、阶段进度、finding 点击和 diff 定位主流程。
+- [x] 运行 `pnpm --filter @app/review-app test:e2e`，验证启动、阶段进度、finding 点击和 diff 定位主流程。
 - [ ] 对 golden corpus 记录新旧结果差异；只有精确率、定位准确率、证据完整率和轨迹回放率达到基线，才将 feature flag 默认切换到新运行时。
 - [x] 将旧运行时保留为显式兼容模式；删除旧路径前先完成独立迁移评审，不在本计划内顺手删除。
 
@@ -274,6 +274,6 @@
 - `pnpm test`：通过；backend 21 个测试文件 / 279 项，app 13 个测试文件 / 37 项，shell 3 个测试文件 / 9 项。
 - `pnpm --filter @app/review-app test -- review-model review-trace-panel use-review-session-stream`：通过；实际运行 13 个测试文件 / 37 项。
 - `pnpm build`：通过。通过新增无 Node 依赖的 `@app/review-backend/contracts` 入口，renderer 不再打包 backend application/infrastructure。
-- `pnpm --filter @app/review-app test:e2e`：未通过。唯一 E2E 用例在 30 秒超时，找不到“仓库”控件；启动页面的 mock API/运行时链路仍未形成可执行的主流程。
+- `pnpm --filter @app/review-app test:e2e`：通过，1 个 Playwright 主流程用例通过；修正了 mock API 在 preview 构建时的环境注入和测试选择器。
 - runtime feature flag：保持 `DEFAULT_RUNTIME_FEATURE_FLAGS.reviewRuntime = "legacy"`；仅显式传入 `reviewRuntime: "hybrid"` 时启用 hybrid。当前只有离线 golden corpus，未满足真实采样对比门槛，因此不切换默认值。
 - 迁移收口：Task 8、Task 9 renderer build 与 Task 10 离线评测已收口；Task 10 的生产 runtime 对比、E2E 主流程和真实采样对比仍未完成，因此默认 runtime 继续保持 legacy。未提交 Git。
