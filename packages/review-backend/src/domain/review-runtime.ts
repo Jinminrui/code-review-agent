@@ -15,6 +15,7 @@ export const reviewRuntimePhaseSchema = z.enum([
   "evidence-incomplete",
   "unit-completed",
   "unit-failed",
+  "global-reflection-validating",
   "global-reflection-completed",
   "session-finished",
   "session-cancelled"
@@ -45,7 +46,7 @@ const legalNextPhases: Record<ReviewRuntimePhase, readonly ReviewRuntimePhase[]>
   "pre-analysis-completed": ["global-plan-completed", "session-cancelled"],
   "global-plan-completed": [
     "unit-plan-started",
-    "global-reflection-completed",
+    "global-reflection-validating",
     "session-cancelled"
   ],
   "unit-plan-started": [
@@ -57,6 +58,7 @@ const legalNextPhases: Record<ReviewRuntimePhase, readonly ReviewRuntimePhase[]>
     "reflection-validating",
     "evidence-incomplete",
     "unit-failed",
+    "unit-plan-started",
     "session-cancelled"
   ],
   "reflection-validating": [
@@ -64,16 +66,18 @@ const legalNextPhases: Record<ReviewRuntimePhase, readonly ReviewRuntimePhase[]>
     "evidence-incomplete",
     "unit-completed",
     "unit-failed",
+    "unit-plan-started",
     "session-cancelled"
   ],
-  "evidence-backfill": ["reflection-validating", "evidence-incomplete", "session-cancelled"],
+  "evidence-backfill": ["reflection-validating", "evidence-incomplete", "unit-plan-started", "session-cancelled"],
   "evidence-incomplete": [
     "unit-plan-started",
     "global-reflection-completed",
     "session-cancelled"
   ],
-  "unit-completed": ["unit-plan-started", "global-reflection-completed", "session-cancelled"],
-  "unit-failed": ["unit-plan-started", "global-reflection-completed", "session-cancelled"],
+  "unit-completed": ["unit-plan-started", "global-reflection-validating", "session-cancelled"],
+  "unit-failed": ["unit-plan-started", "global-reflection-validating", "session-cancelled"],
+  "global-reflection-validating": ["global-reflection-completed", "session-cancelled"],
   "global-reflection-completed": ["session-finished", "session-cancelled"],
   "session-finished": [],
   "session-cancelled": []

@@ -1,5 +1,8 @@
 import { z } from "zod";
 import { reviewFindingSchema } from "./review-finding.js";
+import { reviewPlanSchema } from "./review-plan.js";
+import { evidenceBundleSchema } from "./review-evidence.js";
+import { reflectionResultSchema } from "./reflection-result.js";
 import {
   REVIEW_SCHEMA_VERSION,
   reviewRuntimePhaseSchema,
@@ -59,7 +62,29 @@ export const reviewRuntimePhaseEventSchema = z
     schemaVersion: z.literal(REVIEW_SCHEMA_VERSION),
     runtimeVersion: z.string().min(1),
     previousPhase: reviewRuntimePhaseSchema,
-    phase: reviewRuntimePhaseSchema
+    phase: reviewRuntimePhaseSchema,
+    planVersion: z.number().int().positive().optional(),
+    planFingerprint: z.string().min(1).optional(),
+    planSnapshot: reviewPlanSchema.optional(),
+    unitResult: z.object({
+      unitId: z.string().min(1),
+      file: z.string().min(1),
+      findings: z.array(reviewFindingSchema),
+      reflectionResult: reflectionResultSchema,
+      evidenceSummary: z.object({
+        schemaVersion: z.literal(REVIEW_SCHEMA_VERSION),
+        unitId: z.string().min(1),
+        completeness: z.enum(["complete", "incomplete"]),
+        items: z.array(z.object({
+          id: z.string().min(1),
+          checkId: z.string().min(1),
+          source: z.enum(["file_read", "file_find", "code_search", "file_read_diff"]),
+          contentHash: z.string().min(1),
+          summary: z.string().min(1)
+        }))
+      }),
+      diff: z.object({ original: z.string(), modified: z.string() }).optional()
+    }).optional()
   })
   .superRefine((event, context) => {
     if (!isValidReviewPhaseTransition(event.previousPhase, event.phase)) {
@@ -68,6 +93,17 @@ export const reviewRuntimePhaseEventSchema = z
         path: ["phase"],
         message: `非法审查阶段转移: ${event.previousPhase} -> ${event.phase}`
       });
+    }
+    if ([
+      "unit-plan-started",
+      "react-evidence-collecting",
+      "reflection-validating",
+      "evidence-backfill",
+      "evidence-incomplete",
+      "unit-completed",
+      "unit-failed"
+    ].includes(event.phase) && !event.unitId) {
+      context.addIssue({ code: z.ZodIssueCode.custom, path: ["unitId"], message: `${event.phase} 阶段必须携带 unitId` });
     }
   });
 

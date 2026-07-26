@@ -2,6 +2,7 @@
 export * from "./application/stream-review-session.js";
 export * from "./application/build-review-summary.js";
 export * from "./application/start-review-session.js";
+export * from "./application/review-orchestrator.js";
 export * from "./application/get-review-session.js";
 export * from "./application/list-review-sessions.js";
 

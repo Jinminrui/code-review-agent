@@ -35,6 +35,22 @@ describe("review session schemas", () => {
   });
 });
 
+describe("hybrid phase event contract", () => {
+  it.each(["unit-plan-started", "react-evidence-collecting", "reflection-validating", "evidence-backfill", "evidence-incomplete", "unit-completed", "unit-failed"] as const)(
+    "requires unitId for %s",
+    (phase) => {
+      expect(() => reviewSessionEventSchema.parse({
+        type: "phase-transitioned",
+        sessionId: "s_1",
+        schemaVersion: 1,
+        runtimeVersion: "1.0.0",
+        previousPhase: phase === "unit-plan-started" ? "global-plan-completed" : "unit-plan-started",
+        phase
+      })).toThrow();
+    }
+  );
+});
+
 describe("review session schemas cancellation", () => {
   it("accepts cancelled session details with createdAt", () => {
     const parsed = reviewSessionDetailSchema.parse({

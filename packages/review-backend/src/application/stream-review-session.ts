@@ -14,28 +14,94 @@ import { logger } from "../infrastructure/logging/logger.js";
 import { relocateFinding } from "../infrastructure/llm/line-relocator.js";
 import { generateReviewPlan } from "../infrastructure/llm/plan-generator.js";
 import { runToolUseLoop } from "../infrastructure/llm/tool-use-loop.js";
+import { ReviewOrchestrator } from "./review-orchestrator.js";
+import type { ReviewResumeState } from "./review-orchestrator.js";
+import type { ReviewRuntimeMode } from "../infrastructure/runtime-feature-flags.js";
 
 type SessionStore = {
   createSession(input: {
     repositoryPath: string;
     baseRef: string;
     targetRef: string;
+    runtimeVersion?: string;
+    schemaVersion?: number;
+    planVersion?: number;
   }): Promise<{ sessionId: string }>;
   appendEvent(sessionId: string, event: ReviewSessionEvent): Promise<void>;
   completeSession(sessionId: string, summary: unknown): Promise<void>;
+  getRecoveryPoint?(sessionId: string): Promise<{ phase: string; resumePhase: string; unitId?: string; resumable: boolean }>;
+  readEvents?(sessionId: string): Promise<ReviewSessionEvent[]>;
+  getSession?(sessionId: string): Promise<{
+    plan?: ReviewResumeState["plan"];
+    planVersion?: number;
+    planFingerprint?: string;
+    findings?: ReviewResumeState["findings"];
+    fileResults?: ReviewResumeState["fileResults"];
+    evidenceSummaries?: ReviewResumeState["evidenceSummaries"];
+    diffByFile?: ReviewResumeState["diffByFile"];
+    unitResults?: ReviewResumeState["unitResults"];
+  }>;
 };
 
 export async function* streamReviewSession(
   input: {
     input: ReviewSessionInput;
+    mode?: ReviewRuntimeMode;
+    resumeSessionId?: string;
     signal?: AbortSignal;
     dependencies: {
-      provider: Pick<LlmProvider, "id" | "chat">;
+      provider: Pick<LlmProvider, "id" | "chat"> & Partial<Pick<LlmProvider, "capabilities">>;
       gitClient: Pick<GitClient, "readDiff" | "readFileAtRef" | "readWorkspaceDiff" | "lsFiles" | "grep">;
       sessionStore: SessionStore;
     };
   }
 ): AsyncGenerator<ReviewSessionEvent, void, void> {
+  if (input.mode === "hybrid") {
+    const session = input.resumeSessionId
+      ? { sessionId: input.resumeSessionId }
+      : await input.dependencies.sessionStore.createSession({
+          repositoryPath: input.input.repositoryPath,
+          baseRef: input.input.baseRef,
+          targetRef: input.input.targetRef,
+          runtimeVersion: "1.0.0",
+          schemaVersion: 1,
+          planVersion: 1
+        });
+    let resume: ReviewResumeState | undefined;
+    if (input.resumeSessionId) {
+      const recovery = await input.dependencies.sessionStore.getRecoveryPoint?.(input.resumeSessionId);
+      if (!recovery?.resumable) throw new Error(`session ${input.resumeSessionId} is not resumable`);
+      const events = await input.dependencies.sessionStore.readEvents?.(input.resumeSessionId);
+      const stored = await input.dependencies.sessionStore.getSession?.(input.resumeSessionId);
+      const planEvent = events?.find((event): event is Extract<ReviewSessionEvent, { type: "phase-transitioned" }> => event.type === "phase-transitioned" && event.phase === "global-plan-completed" && Boolean(event.planSnapshot));
+      const unitEvents = events?.filter((event): event is Extract<ReviewSessionEvent, { type: "phase-transitioned" }> => event.type === "phase-transitioned" && event.phase === "unit-completed" && Boolean(event.unitResult)) ?? [];
+      resume = {
+        persistedPhase: recovery?.phase as ReviewResumeState["persistedPhase"],
+        safeResumePhase: recovery?.resumePhase as ReviewResumeState["safeResumePhase"],
+        unitId: recovery?.unitId,
+        recoveryPhase: recovery?.resumePhase as ReviewResumeState["recoveryPhase"],
+        plan: planEvent?.planSnapshot ?? stored?.plan,
+        planVersion: planEvent?.planVersion ?? stored?.planVersion,
+        planFingerprint: planEvent?.planFingerprint ?? stored?.planFingerprint,
+        completedUnitIds: unitEvents.length > 0 ? unitEvents.map((event) => event.unitId!) : stored?.unitResults?.map((result) => result.unitId),
+        findings: unitEvents.length > 0 ? unitEvents.flatMap((event) => event.unitResult!.findings) : stored?.findings,
+        fileResults: unitEvents.length > 0 ? unitEvents.map((event) => ({ unitId: event.unitResult!.unitId, reflectionResult: event.unitResult!.reflectionResult, findings: event.unitResult!.findings })) : stored?.fileResults,
+        evidenceSummaries: unitEvents.length > 0 ? unitEvents.map((event) => event.unitResult!.evidenceSummary) : stored?.evidenceSummaries,
+        diffByFile: unitEvents.length > 0 ? Object.fromEntries(unitEvents.filter((event) => event.unitResult!.diff).map((event) => [event.unitResult!.file, event.unitResult!.diff!])) : stored?.diffByFile,
+        unitResults: unitEvents.length > 0 ? unitEvents.map((event) => event.unitResult!) : stored?.unitResults
+      };
+    }
+    const provider = input.dependencies.provider as ConstructorParameters<typeof ReviewOrchestrator>[0]["provider"];
+    const orchestrator = new ReviewOrchestrator({
+      provider,
+      gitClient: input.dependencies.gitClient,
+      sessionStore: input.dependencies.sessionStore
+    });
+    for await (const event of orchestrator.run({ sessionId: session.sessionId, input: input.input, signal: input.signal, resume })) {
+      yield event;
+    }
+    return;
+  }
   // 审查以事件流为边界：每个阶段先持久化事件，再向 UI 推送，保证刷新后仍可恢复进度。
   const { repositoryPath, baseRef, targetRef } = input.input;
   const signal = input.signal;
