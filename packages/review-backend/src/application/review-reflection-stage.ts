@@ -35,7 +35,7 @@ export type ReviewReflectionStageBackfill = {
 };
 
 export type ReviewReflectionStageError = {
-  code: "structured-output-unsupported" | ReflectionProviderErrorCode | "provider-failed";
+  code: "structured-output-unsupported" | ReflectionProviderErrorCode | "provider-failed" | "invalid-input";
   message: string;
 };
 
@@ -76,7 +76,21 @@ export async function runReviewReflectionStage(
   input: ReviewReflectionStageInput
 ): Promise<ReviewReflectionStageResult> {
   input.signal?.throwIfAborted();
-  const parsedEvidence = evidenceBundleSchema.parse(input.evidenceBundle);
+  const parsedEvidenceResult = evidenceBundleSchema.safeParse(input.evidenceBundle);
+  if (!parsedEvidenceResult.success) {
+    return {
+      status: "reflection-failed",
+      evidenceBundle: emptyEvidenceBundle(input.unit.unitId),
+      backfill: { ...NO_BACKFILL },
+      error: {
+        code: "invalid-input",
+        message: `Reflection 输入 schema 校验失败：${parsedEvidenceResult.error.issues
+          .map((issue) => `${issue.path.join(".") || "evidenceBundle"}: ${issue.message}`)
+          .join("；")}`
+      }
+    };
+  }
+  const parsedEvidence = parsedEvidenceResult.data;
 
   if (input.provider.capabilities.structuredOutput !== true) {
     return {
@@ -150,6 +164,15 @@ export async function runReviewReflectionStage(
     reflectionResult: secondResult,
     evidenceBundle: backfill.evidenceBundle,
     backfill: { requested: true, requestCount: 1, toolCalls: backfill.toolCalls, requestDenied: false }
+  };
+}
+
+function emptyEvidenceBundle(unitId: string): EvidenceBundle {
+  return {
+    schemaVersion: 1,
+    unitId: unitId.trim().length > 0 ? unitId : "invalid-unit",
+    completeness: "incomplete",
+    items: []
   };
 }
 
@@ -379,5 +402,8 @@ function statusFromEvidence(
 }
 
 function isReflectionProviderErrorCode(value: unknown): value is ReflectionProviderErrorCode {
-  return value === "empty-response" || value === "invalid-json" || value === "invalid-result";
+  return value === "empty-response" ||
+    value === "invalid-json" ||
+    value === "invalid-result" ||
+    value === "tool-request-denied";
 }
