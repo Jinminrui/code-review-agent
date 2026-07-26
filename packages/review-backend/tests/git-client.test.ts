@@ -24,6 +24,19 @@ diff --git a/src/a.ts b/src/a.ts
   });
 });
 
+async function createCommittedRepo(): Promise<string> {
+  const repo = await mkdtemp(join(tmpdir(), "review-backend-signal-"));
+  await execa("git", ["init", "-b", "main"], { cwd: repo });
+  await writeFile(join(repo, "file.txt"), "committed content\n");
+  await execa("git", ["add", "."], { cwd: repo });
+  await execa(
+    "git",
+    ["-c", "user.name=Test", "-c", "user.email=test@example.com", "commit", "-m", "init"],
+    { cwd: repo }
+  );
+  return repo;
+}
+
 describe("GitClient", () => {
   it("lists branches from a temporary repo", async () => {
     const repo = await mkdtemp(join(tmpdir(), "review-backend-"));
@@ -93,6 +106,25 @@ describe("GitClient", () => {
     const content = await client.readFileAtRef("WORKSPACE", "file.txt");
 
     expect(content).toBe("workspace content\n");
+  });
+
+  it("正常 Git 调用接受未触发的 deadline signal", async () => {
+    const client = new GitClient(await createCommittedRepo());
+    const deadlineSignal = AbortSignal.timeout(5_000);
+
+    await expect(
+      client.readFileAtRef("HEAD", "file.txt", deadlineSignal)
+    ).resolves.toBe("committed content");
+  });
+
+  it("取消 signal 可以终止 GitClient 的 Git 调用", async () => {
+    const client = new GitClient(await createCommittedRepo());
+    const controller = new AbortController();
+    controller.abort();
+
+    await expect(
+      client.readFileAtRef("HEAD", "file.txt", controller.signal)
+    ).rejects.toMatchObject({ isCanceled: true });
   });
 
   it("lsFiles returns tracked files", async () => {

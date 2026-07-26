@@ -21,20 +21,21 @@ export class GitClient {
       .filter(Boolean);
   }
 
-  async readDiff(baseRef: string, targetRef: string) {
+  async readDiff(baseRef: string, targetRef: string, signal?: AbortSignal) {
     const { stdout } = await execa(
       "git",
       ["diff", "--no-ext-diff", `${baseRef}...${targetRef}`],
       {
         cwd: this.repositoryPath,
-        maxBuffer: 20_000_000
+        maxBuffer: 20_000_000,
+        ...(signal ? { cancelSignal: signal } : {})
       }
     );
 
     return parseUnifiedDiff(stdout);
   }
 
-  async readFileAtRef(ref: string, filePath: string): Promise<string> {
+  async readFileAtRef(ref: string, filePath: string, signal?: AbortSignal): Promise<string> {
     if (ref === "WORKSPACE") {
       // 工作区读取绕过 git show，但必须校验路径，防止工具调用访问仓库外文件。
       const repositoryRoot = resolve(this.repositoryPath);
@@ -42,37 +43,40 @@ export class GitClient {
       if (absolutePath !== repositoryRoot && !absolutePath.startsWith(repositoryRoot + sep)) {
         throw new Error(`File path escapes repository: ${filePath}`);
       }
-      return readFile(absolutePath, "utf8");
+      return readFile(absolutePath, signal ? { encoding: "utf8", signal } : "utf8");
     }
 
     const { stdout } = await execa("git", ["show", `${ref}:${filePath}`], {
-      cwd: this.repositoryPath
+      cwd: this.repositoryPath,
+      ...(signal ? { cancelSignal: signal } : {})
     });
 
     return stdout;
   }
 
-  async readWorkspaceDiff() {
+  async readWorkspaceDiff(signal?: AbortSignal) {
     const { stdout } = await execa(
       "git",
       ["diff", "--no-ext-diff", "HEAD"],
       {
         cwd: this.repositoryPath,
-        maxBuffer: 20_000_000
+        maxBuffer: 20_000_000,
+        ...(signal ? { cancelSignal: signal } : {})
       }
     );
 
     return parseUnifiedDiff(stdout);
   }
 
-  async lsFiles(pattern?: string): Promise<string[]> {
+  async lsFiles(pattern?: string, signal?: AbortSignal): Promise<string[]> {
     const args = ["ls-files"];
     if (pattern) {
       args.push(pattern);
     }
 
     const { stdout } = await execa("git", args, {
-      cwd: this.repositoryPath
+      cwd: this.repositoryPath,
+      ...(signal ? { cancelSignal: signal } : {})
     });
 
     return stdout
@@ -83,7 +87,8 @@ export class GitClient {
 
   async grep(
     pattern: string,
-    options?: { regex?: boolean; paths?: readonly string[] }
+    options?: { regex?: boolean; paths?: readonly string[] },
+    signal?: AbortSignal
   ): Promise<string[]> {
     const args = ["grep", "-n", "-H"];
     if (options?.regex) {
@@ -98,7 +103,8 @@ export class GitClient {
 
     try {
       const { stdout } = await execa("git", args, {
-        cwd: this.repositoryPath
+        cwd: this.repositoryPath,
+        ...(signal ? { cancelSignal: signal } : {})
       });
 
       return stdout

@@ -18,6 +18,7 @@ export const toolNameSchema = z.enum([
 
 export const toolCallSchema = z.object({
   id: z.string(),
+  checkId: z.string().min(1).optional(),
   name: toolNameSchema,
   arguments: z.record(z.unknown())
 });

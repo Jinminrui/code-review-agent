@@ -63,6 +63,98 @@ describe("executeToolCall file_read_diff", () => {
   });
 });
 
+describe("executeToolCall repository file index retry", () => {
+  it("lsFiles 失败后删除 WeakMap 缓存，允许同一 GitClient 二次调用重试", async () => {
+    const lsFiles = vi
+      .fn()
+      .mockRejectedValueOnce(new Error("index unavailable"))
+      .mockResolvedValueOnce(["src/auth.ts"]);
+    const grep = vi.fn().mockResolvedValue(["src/auth.ts:1:AuthService"]);
+    const gitClient = {
+      readFileAtRef: vi.fn(),
+      lsFiles,
+      grep,
+      readDiff: vi.fn(),
+      readWorkspaceDiff: vi.fn()
+    };
+    const context = {
+      gitClient,
+      baseRef: "HEAD~1",
+      targetRef: "HEAD",
+      repositoryPath: "/repo"
+    };
+    const authorizer = new PlanAuthorizer({
+      checkId: "check-auth",
+      allowedFiles: ["src/auth.ts"],
+      evidenceTargets: ["AuthService"],
+      budget: {
+        modelCalls: 1,
+        toolCalls: 2,
+        maxInputTokens: 100,
+        maxOutputTokens: 50,
+        maxReadBytes: 1024,
+        maxDurationMs: 1000
+      }
+    });
+    const firstCall = { id: "search-1", name: "code_search" as const, arguments: { pattern: "AuthService" } };
+    const secondCall = { id: "search-2", name: "code_search" as const, arguments: { pattern: "AuthService" } };
+
+    const first = await executeToolCall(firstCall, context, authorizer.authorize(firstCall));
+    const second = await executeToolCall(secondCall, context, authorizer.authorize(secondCall));
+
+    expect(first.isError).toBe(true);
+    expect(second.isError).toBeUndefined();
+    expect(second.content).toContain("AuthService");
+    expect(lsFiles).toHaveBeenCalledTimes(2);
+  });
+});
+
+describe("executeToolCall signal 传递", () => {
+  it("将同一 signal 传给 file_find、file_read、code_search 和 diff Git 操作", async () => {
+    const signal = new AbortController().signal;
+    const gitClient = {
+      readFileAtRef: vi.fn().mockResolvedValue("content"),
+      lsFiles: vi.fn().mockResolvedValue(["src/auth.ts"]),
+      grep: vi.fn().mockResolvedValue(["src/auth.ts:1:auth"]),
+      readDiff: vi.fn().mockResolvedValue([]),
+      readWorkspaceDiff: vi.fn().mockResolvedValue([])
+    };
+    const context = {
+      gitClient,
+      baseRef: "HEAD~1",
+      targetRef: "HEAD",
+      repositoryPath: "/repo",
+      signal
+    };
+
+    await executeToolCall(
+      { id: "find", name: "file_find", arguments: { keyword: "auth" } },
+      context
+    );
+    await executeToolCall(
+      { id: "read", name: "file_read", arguments: { path: "src/auth.ts" } },
+      context
+    );
+    await executeToolCall(
+      { id: "search", name: "code_search", arguments: { pattern: "auth" } },
+      context
+    );
+    await executeToolCall(
+      { id: "diff", name: "file_read_diff", arguments: {} },
+      context
+    );
+
+    expect(gitClient.lsFiles).toHaveBeenCalledWith("*auth*", signal);
+    expect(gitClient.readFileAtRef).toHaveBeenCalledWith("HEAD", "src/auth.ts", signal);
+    expect(gitClient.grep).toHaveBeenCalledWith(
+      "auth",
+      { regex: undefined },
+      signal
+    );
+    expect(gitClient.readDiff).toHaveBeenCalledWith("HEAD~1", "HEAD", signal);
+  });
+});
+
 describe("executeToolCall 授权和审计", () => {
   const context = {
     gitClient: {

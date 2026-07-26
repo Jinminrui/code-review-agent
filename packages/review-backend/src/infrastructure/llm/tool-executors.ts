@@ -7,6 +7,7 @@ import type { PlanAuthorizationDecision } from "./plan-authorizer.js";
 
 export type ToolExecutorContext = {
   gitClient: Pick<GitClient, "readFileAtRef" | "lsFiles" | "grep" | "readDiff" | "readWorkspaceDiff">;
+  signal?: AbortSignal;
   baseRef: string;
   targetRef: string;
   repositoryPath: string;
@@ -32,7 +33,7 @@ const fileReadExecutor: ToolExecutor = async (args, context) => {
   if (!path) return { toolCallId: "", content: "Error: 'path' parameter is required", isError: true };
 
   try {
-    let content = await context.gitClient.readFileAtRef(context.targetRef, path);
+    let content = await readFileAtRef(context, context.targetRef, path);
 
     const startLine = args.start_line as number | undefined;
     const endLine = args.end_line as number | undefined;
@@ -67,7 +68,7 @@ const fileFindExecutor: ToolExecutor = async (args, context) => {
         : [...(await getRepositoryFileIndex(context)).files].filter((file) =>
             context.allowedFileSet!.has(file) && file.includes(keyword)
           ))
-      : await context.gitClient.lsFiles(`*${keyword}*`);
+      : await lsFiles(context, `*${keyword}*`);
     log.debug(`搜索文件: ${keyword} -> ${files.length} 个匹配`);
     return { toolCallId: "", content: files.length > 0 ? files.join("\n") : "No files found matching the keyword." };
   } catch (error) {
@@ -85,7 +86,7 @@ const codeSearchExecutor: ToolExecutor = async (args, context) => {
     if (context.allowedFileSet?.size === 0) {
       return { toolCallId: "", content: "No matches found." };
     }
-    const results = await context.gitClient.grep(pattern, {
+    const results = await grep(context, pattern, {
       regex,
       ...(context.allowedFiles ? { paths: context.allowedFiles } : {})
     });
@@ -118,8 +119,8 @@ const fileReadDiffExecutor: ToolExecutor = async (args, context) => {
 
   try {
     const diffFiles = context.diffFiles ?? (context.targetRef === "WORKSPACE"
-      ? await context.gitClient.readWorkspaceDiff()
-      : await context.gitClient.readDiff(context.baseRef, context.targetRef));
+      ? await readWorkspaceDiff(context)
+      : await readDiff(context, context.baseRef, context.targetRef));
     const allowedDiffFiles = filterDiffFiles(diffFiles, context.allowedFileSet);
 
     if (path) {
@@ -171,11 +172,62 @@ function getRepositoryFileIndex(context: ToolExecutorContext): Promise<Repositor
   const cached = repositoryFileIndexes.get(cacheKey);
   if (cached) return cached;
 
-  const indexPromise = context.gitClient.lsFiles().then((files) => ({
-    files: new Set(files)
-  }));
+  const indexPromise = lsFiles(context)
+    .then((files) => ({
+      files: new Set(files)
+    }))
+    .catch((error) => {
+      // 失败或取消的索引不能污染缓存，否则同一仓库后续无法重试。
+      if (repositoryFileIndexes.get(cacheKey) === indexPromise) {
+        repositoryFileIndexes.delete(cacheKey);
+      }
+      throw error;
+    });
   repositoryFileIndexes.set(cacheKey, indexPromise);
   return indexPromise;
+}
+
+function readFileAtRef(
+  context: ToolExecutorContext,
+  ref: string,
+  path: string
+): Promise<string> {
+  return context.signal
+    ? context.gitClient.readFileAtRef(ref, path, context.signal)
+    : context.gitClient.readFileAtRef(ref, path);
+}
+
+function lsFiles(context: ToolExecutorContext, pattern?: string): Promise<string[]> {
+  if (context.signal) return context.gitClient.lsFiles(pattern, context.signal);
+  return pattern === undefined
+    ? context.gitClient.lsFiles()
+    : context.gitClient.lsFiles(pattern);
+}
+
+function grep(
+  context: ToolExecutorContext,
+  pattern: string,
+  options: { regex?: boolean; paths?: readonly string[] }
+): Promise<string[]> {
+  return context.signal
+    ? context.gitClient.grep(pattern, options, context.signal)
+    : context.gitClient.grep(pattern, options);
+}
+
+function readDiff(
+  context: ToolExecutorContext,
+  baseRef: string,
+  targetRef: string
+) {
+  return context.signal
+    ? context.gitClient.readDiff(baseRef, targetRef, context.signal)
+    : context.gitClient.readDiff(baseRef, targetRef);
+}
+
+function readWorkspaceDiff(context: ToolExecutorContext) {
+  return context.signal
+    ? context.gitClient.readWorkspaceDiff(context.signal)
+    : context.gitClient.readWorkspaceDiff();
 }
 
 function findUniqueSearchResultFile(

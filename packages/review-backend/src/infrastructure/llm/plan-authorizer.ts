@@ -164,6 +164,10 @@ export class PlanAuthorizer {
     return { ...this.usage };
   }
 
+  getCheckId(): string {
+    return this.checkId;
+  }
+
   private validateScope(
     toolName: ReadOnlyToolName,
     args: Record<string, unknown>
