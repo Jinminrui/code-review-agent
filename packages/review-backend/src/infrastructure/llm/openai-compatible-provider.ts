@@ -1,8 +1,10 @@
-import type {
-  ChatMessage,
-  ChatResponse,
-  LlmProvider,
-  ProviderProfile
+import {
+  providerCapabilitiesSchema,
+  type ChatMessage,
+  type ChatResponse,
+  type LlmProvider,
+  type ProviderCapabilities,
+  type ProviderProfile
 } from "../../domain/provider.js";
 import type { ToolDefinition } from "../../domain/tool.js";
 import { logger } from "../logging/logger.js";
@@ -11,9 +13,23 @@ const log = logger.child({ component: "llm" });
 
 export class OpenAiCompatibleProvider implements LlmProvider {
   readonly id: string;
+  readonly capabilities: ProviderCapabilities;
 
   constructor(private readonly profile: ProviderProfile) {
     this.id = profile.id;
+    const conservativeCapabilities: ProviderCapabilities = {
+      structuredOutput: false,
+      toolCalling: false,
+      usage: false,
+      cancellation: false,
+      ...(profile.contextWindowTokens === undefined
+        ? {}
+        : { contextWindowTokens: profile.contextWindowTokens })
+    };
+    const configuredCapabilities = profile.capabilities ?? conservativeCapabilities;
+
+    // OpenAI-compatible 只描述 wire format，不能据此推断具体服务端能力。
+    this.capabilities = providerCapabilitiesSchema.parse(configuredCapabilities);
   }
 
   async chat(input: {

@@ -12,6 +12,9 @@ export * from "./contracts/ipc.js";
 export * from "./domain/provider.js";
 export * from "./domain/review-finding.js";
 export * from "./domain/review-session.js";
+export * from "./domain/review-runtime.js";
+export * from "./domain/review-evidence.js";
+export * from "./domain/reflection-result.js";
 
 export * from "./domain/tool.js";
 export * from "./domain/review-plan.js";

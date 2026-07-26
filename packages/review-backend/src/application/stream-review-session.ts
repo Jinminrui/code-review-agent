@@ -127,8 +127,9 @@ export async function* streamReviewSession(
           fileContent: context.afterContent,
           signal
         });
-        planGuidance = `\n\nReview plan:\n- Risk points: ${plan.riskPoints.map((r) => `${r.area} (${r.riskLevel})`).join(", ") || "none identified"}\n- Strategy: ${plan.reviewStrategy}\n- Complexity: ${plan.estimatedComplexity}`;
-        unitLog.info(`计划生成: ${plan.riskPoints.length} 个风险点, 复杂度=${plan.estimatedComplexity}`);
+        const legacyPlan = plan.legacy;
+        planGuidance = `\n\nReview plan:\n- Risk points: ${plan.riskAreas.map((r) => `${r.area} (${r.riskLevel})`).join(", ") || "none identified"}\n- Strategy: ${legacyPlan?.reviewStrategy ?? "Standard review: check for bugs, security issues, and code quality."}\n- Complexity: ${legacyPlan?.estimatedComplexity ?? "medium"}`;
+        unitLog.info(`计划生成: ${plan.riskAreas.length} 个风险点, 复杂度=${legacyPlan?.estimatedComplexity ?? "medium"}`);
       }
 
       // Tool-use loop
