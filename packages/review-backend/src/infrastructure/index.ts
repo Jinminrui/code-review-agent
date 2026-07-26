@@ -16,6 +16,7 @@ export * from "./llm/tool-executors.js";
 export * from "./logging/logger.js";
 export * from "./logging/trace-context.js";
 export * from "./logging/log-file-sink.js";
+export * from "./logging/read-logs.js";
 
 export * from "./storage/file-session-store.js";
 export * from "./storage/paths.js";
