@@ -21,7 +21,7 @@ describe("LogFileSink", () => {
 
     const files = await readdir(directory);
     expect(files).toHaveLength(1);
-    expect(await readFile(join(directory, files[0]), "utf8")).toBe(
+    expect(await readFile(join(directory, files[0]!), "utf8")).toBe(
       '{"traceId":"trace-1","msg":"started"}\n'
     );
   });

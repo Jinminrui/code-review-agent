@@ -9,3 +9,4 @@ export {
   OpenAiCompatibleProvider,
   resolveSessionsRoot
 } from "@app/review-backend/infrastructure";
+export { configureLogging } from "@app/review-backend/infrastructure";

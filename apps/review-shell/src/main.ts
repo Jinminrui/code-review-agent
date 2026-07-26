@@ -14,7 +14,8 @@ import {
   FileSessionStore,
   GitClient,
   OpenAiCompatibleProvider,
-  resolveSessionsRoot
+  resolveSessionsRoot,
+  configureLogging
 } from "@app/review-infrastructure";
 import { createReviewWorkbenchHandlers } from "./ipc/review-workbench-handlers.js";
 import { getRendererFilePath } from "./paths.js";
@@ -67,6 +68,7 @@ async function createWindow() {
         const abortController = new AbortController();
         const iterator = streamReviewSession({
           input: request,
+          mode: "hybrid",
           signal: abortController.signal,
           dependencies: {
             provider,
@@ -147,4 +149,7 @@ async function createWindow() {
 // Explicitly set userData path (matches Electron default) for clarity and future customization
 app.setPath("userData", join(app.getPath("appData"), app.getName()));
 
-app.whenReady().then(createWindow);
+app.whenReady().then(async () => {
+  configureLogging({ directory: app.getPath("logs") });
+  await createWindow();
+});
