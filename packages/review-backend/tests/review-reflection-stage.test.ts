@@ -317,9 +317,8 @@ describe("runReviewReflectionStage", () => {
       candidates: [{ decision: "accept", evidenceIds: ["evidence-1"] }]
     });
     const request = vi.mocked(provider.chat).mock.calls[0]![0];
+    expect(request.tools).toEqual([expect.objectContaining({ name: "submit_review_reflection" })]);
     expect(request.jsonMode).toBe(true);
-    expect(request.jsonSchema).toEqual(expect.objectContaining({ name: "review_reflection", strict: true }));
-    expect(request.tools).toBeUndefined();
     expect(request.messages.map((message) => message.role)).toEqual(["system", "user"]);
     const userMessage = request.messages[1];
     expect(userMessage?.role).toBe("user");
@@ -524,7 +523,7 @@ describe("runReviewReflectionStage", () => {
     });
     const provider: Pick<LlmProvider, "id" | "capabilities" | "chat"> = {
       ...supportedProvider,
-      capabilities: { ...capabilities, structuredOutput: false }
+      capabilities: { ...capabilities, toolCalling: false }
     };
 
     const result = await runReviewReflectionStage({
@@ -604,7 +603,7 @@ describe("runGlobalReviewReflectionStage", () => {
       ]
     });
     const request = vi.mocked(provider.chat).mock.calls[0]![0];
-    expect(request.tools).toBeUndefined();
+    expect(request.tools).toEqual([expect.objectContaining({ name: "submit_global_review_reflection" })]);
     expect(request.jsonMode).toBe(true);
     const userMessage = request.messages[1];
     if (userMessage?.role !== "user") throw new Error("缺少全局 Reflection 用户消息");
@@ -690,7 +689,7 @@ describe("runGlobalReviewReflectionStage", () => {
     ]);
   });
 
-  it("不传工具定义，并将模型工具请求作为结构化拒绝返回", async () => {
+  it("拒绝非全局 Reflection 提交工具的模型工具请求", async () => {
     const provider = providerReturning();
     vi.mocked(provider.chat).mockResolvedValueOnce({
       content: null,
@@ -720,14 +719,16 @@ describe("runGlobalReviewReflectionStage", () => {
     expect(result.unadopted.map((candidate) => candidate.finding.id)).toEqual(
       expectedUnadoptedIds
     );
-    expect(vi.mocked(provider.chat).mock.calls[0]![0].tools).toBeUndefined();
+    expect(vi.mocked(provider.chat).mock.calls[0]![0].tools).toEqual([
+      expect.objectContaining({ name: "submit_global_review_reflection" })
+    ]);
   });
 
   it("structured output 不支持时仍返回文件级未采纳轨迹", async () => {
     const supportedProvider = providerReturning();
     const provider: Pick<LlmProvider, "id" | "capabilities" | "chat"> = {
       ...supportedProvider,
-      capabilities: { ...capabilities, structuredOutput: false }
+      capabilities: { ...capabilities, toolCalling: false }
     };
     const input = globalStageInput(provider);
     const expectedUnadoptedIds = addFileUnadoptedCandidates(input);
@@ -1436,7 +1437,7 @@ describe("runGlobalReviewReflectionStage", () => {
     ];
 
     if (failure === "structured-output-unsupported") {
-      input.provider = { ...provider, capabilities: { ...capabilities, structuredOutput: false } };
+      input.provider = { ...provider, capabilities: { ...capabilities, toolCalling: false } };
     } else if (failure === "provider-failed") {
       vi.mocked(provider.chat).mockRejectedValueOnce(new Error("provider crashed"));
     } else {

@@ -18,6 +18,18 @@ export const toolNameSchema = z.enum([
   "code_search",
   "code_comment",
   "file_read_diff",
+  "task_done",
+  "submit_review_plan",
+  "submit_review_reflection",
+  "submit_global_review_reflection"
+]);
+
+export const executableToolNameSchema = z.enum([
+  "file_read",
+  "file_find",
+  "code_search",
+  "code_comment",
+  "file_read_diff",
   "task_done"
 ]);
 
@@ -47,4 +59,5 @@ export type ToolCall = z.infer<typeof toolCallSchema>;
 export type ToolResult = z.infer<typeof toolResultSchema>;
 export type ToolDefinition = z.infer<typeof toolDefinitionSchema>;
 export type ToolName = z.infer<typeof toolNameSchema>;
+export type ExecutableToolName = z.infer<typeof executableToolNameSchema>;
 export type ReadOnlyToolName = z.infer<typeof readOnlyToolNameSchema>;

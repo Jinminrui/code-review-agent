@@ -4,7 +4,8 @@
  * 维护提示：修改时优先保持现有契约和错误语义，并同步更新相关测试。
  */
 import { createHash } from "node:crypto";
-import type { ToolCall, ToolDefinition, ToolResult, ToolName } from "../../domain/tool.js";
+import { executableToolNameSchema } from "../../domain/tool.js";
+import type { ExecutableToolName, ToolCall, ToolDefinition, ToolResult, ToolName } from "../../domain/tool.js";
 import type { GitClient } from "../git/git-client.js";
 import type { ParsedDiffFile } from "../git/parse-unified-diff.js";
 import { logger } from "../logging/logger.js";
@@ -275,7 +276,7 @@ const taskDoneExecutor: ToolExecutor = async () => {
   return { toolCallId: "", content: "Review task completed." };
 };
 
-const executors: Record<ToolName, ToolExecutor> = {
+const executors: Record<ExecutableToolName, ToolExecutor> = {
   file_read: fileReadExecutor,
   file_find: fileFindExecutor,
   code_search: codeSearchExecutor,
@@ -315,7 +316,8 @@ export function executeToolCall(
     ));
   }
 
-  const executor = executors[toolCall.name];
+  const executableName = executableToolNameSchema.safeParse(toolCall.name);
+  const executor = executableName.success ? executors[executableName.data] : undefined;
   if (!executor) {
     return Promise.resolve(finalizeToolResult(toolCall, {
       toolCallId: toolCall.id,

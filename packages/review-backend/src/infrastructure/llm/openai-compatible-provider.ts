@@ -80,6 +80,9 @@ export class OpenAiCompatibleProvider implements LlmProvider {
       body.response_format = { type: "json_object" };
     }
     if (input.tools && input.tools.length > 0) {
+      if (this.capabilities.toolCalling !== true) {
+        throw new Error("provider 不支持 tool calling");
+      }
       body.tools = input.tools.map((tool) => ({
         type: "function",
         function: { name: tool.name, description: tool.description, parameters: tool.parameters }

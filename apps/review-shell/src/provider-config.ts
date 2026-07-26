@@ -32,7 +32,8 @@ export function resolveOpenAiProviderCapabilities(
   env: NodeJS.ProcessEnv = process.env
 ): OpenAiProviderCapabilities {
   return {
-    structuredOutput: readBoolean(env.OPENAI_STRUCTURED_OUTPUT, true),
+    // Mimo 当前不支持 response_format=json_schema，结构化阶段通过 tool calling 返回。
+    structuredOutput: readBoolean(env.OPENAI_STRUCTURED_OUTPUT, false),
     toolCalling: readBoolean(env.OPENAI_TOOL_CALLING, true),
     usage: readBoolean(env.OPENAI_USAGE, true),
     cancellation: readBoolean(env.OPENAI_CANCELLATION, true)

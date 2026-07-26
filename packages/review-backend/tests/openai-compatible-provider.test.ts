@@ -9,13 +9,13 @@ vi.mock("openai", () => ({
   }))
 }));
 
-describe("OpenAiCompatibleProvider strict structured output", () => {
+describe("OpenAiCompatibleProvider tool calling", () => {
   afterEach(() => {
     vi.unstubAllGlobals();
     createCompletion.mockReset();
   });
 
-  it("将 jsonSchema 转换为 strict json_schema response_format", async () => {
+  it("将结构化提交工具转换为 OpenAI-compatible tools", async () => {
     createCompletion.mockResolvedValue({
       choices: [{ message: { content: '{"ok":true}', tool_calls: [] } }],
       usage: { prompt_tokens: 3, completion_tokens: 2 }
@@ -26,23 +26,59 @@ describe("OpenAiCompatibleProvider strict structured output", () => {
       baseUrl: "https://llm.example.test/v1",
       apiKey: "test-key",
       model: "test-model",
-      capabilities: { structuredOutput: true, toolCalling: true, usage: true, cancellation: true }
+      capabilities: { structuredOutput: false, toolCalling: true, usage: true, cancellation: true }
     });
 
     const result = await provider.chat({
       messages: [{ role: "user", content: "返回结果" }],
-      jsonMode: true,
-      jsonSchema: { name: "probe", strict: true, schema: { type: "object" } }
+      tools: [{ name: "submit_review_plan", description: "提交计划", parameters: { type: "object" } }]
     } as never);
 
     expect(createCompletion).toHaveBeenCalledWith({
       model: "test-model",
       messages: [{ role: "user", content: "返回结果" }],
-      response_format: {
-        type: "json_schema",
-        json_schema: { name: "probe", strict: true, schema: { type: "object" } }
-      }
+      tools: [{ type: "function", function: { name: "submit_review_plan", description: "提交计划", parameters: { type: "object" } } }]
     }, undefined);
     expect(result).toEqual({ content: '{"ok":true}', toolCalls: [], usage: { inputTokens: 3, outputTokens: 2 } });
+  });
+
+  it("解析结构化提交工具的 arguments", async () => {
+    createCompletion.mockResolvedValue({
+      choices: [{ message: { content: null, tool_calls: [{ id: "call-1", type: "function", function: { name: "submit_review_plan", arguments: '{"version":1}' } }] } }]
+    });
+
+    const provider = new OpenAiCompatibleProvider({
+      id: "tool-provider",
+      baseUrl: "https://llm.example.test/v1",
+      apiKey: "test-key",
+      model: "test-model",
+      capabilities: { structuredOutput: false, toolCalling: true, usage: true, cancellation: true }
+    });
+
+    const result = await provider.chat({ messages: [{ role: "user", content: "返回结果" }], tools: [{ name: "submit_review_plan", description: "提交计划", parameters: { type: "object" } }] } as never);
+
+    expect(result.toolCalls[0]).toMatchObject({ id: "call-1", name: "submit_review_plan", arguments: { version: 1 } });
+  });
+
+  it("将 jsonMode 转换为 json_object response_format", async () => {
+    createCompletion.mockResolvedValue({
+      choices: [{ message: { content: '{\"version\":1}', tool_calls: [] } }]
+    });
+
+    const provider = new OpenAiCompatibleProvider({
+      id: "json-provider",
+      baseUrl: "https://llm.example.test/v1",
+      apiKey: "test-key",
+      model: "test-model",
+      capabilities: { structuredOutput: false, toolCalling: true, usage: true, cancellation: true }
+    });
+
+    await provider.chat({ messages: [{ role: "user", content: "返回 JSON" }], jsonMode: true });
+
+    expect(createCompletion).toHaveBeenCalledWith({
+      model: "test-model",
+      messages: [{ role: "user", content: "返回 JSON" }],
+      response_format: { type: "json_object" }
+    }, undefined);
   });
 });

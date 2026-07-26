@@ -195,12 +195,12 @@ OpenAI SDK 配置仅在 Electron 主进程读取：
 2. `OPENAI_BASE_URL`：可选，默认使用当前 MiMo 兼容 endpoint。
 3. `OPENAI_MODEL`：可选，默认使用 `mimo-v2.5-pro`。
 
-OpenAI-compatible provider 默认启用当前 endpoint 所需的结构化输出、工具调用、usage 和取消能力。若实际 endpoint 不支持某项能力，可设置对应变量为 `false`：
+当前 MiMo endpoint 不使用 `response_format=json_schema`；Plan 和 Reflection 通过专用 tool calling 提交结构化结果，再由 Zod 和语义规则校验。provider 默认启用工具调用、usage 和取消能力；若实际 endpoint 不支持某项能力，可设置对应变量为 `false`：
 
-1. `OPENAI_STRUCTURED_OUTPUT`
-2. `OPENAI_TOOL_CALLING`
-3. `OPENAI_USAGE`
-4. `OPENAI_CANCELLATION`
+1. `OPENAI_TOOL_CALLING`
+2. `OPENAI_USAGE`
+3. `OPENAI_CANCELLATION`
+4. `OPENAI_STRUCTURED_OUTPUT`：仅供支持 JSON Schema 的其他 endpoint 使用；MiMo 保持 `false`。
 
 Plan 使用确定性 fallback 不会单独导致会话显示“部分完成”；只有审查单元或 Reflection 实际失败时才会标记为 `partial`。
 

@@ -99,14 +99,14 @@ export async function runReviewReflectionStage(
   }
   const parsedEvidence = parsedEvidenceResult.data;
 
-  if (input.provider.capabilities.structuredOutput !== true) {
+  if (input.provider.capabilities.toolCalling !== true) {
     return {
       status: "reflection-failed",
       evidenceBundle: parsedEvidence,
       backfill: { ...NO_BACKFILL },
       error: {
         code: "structured-output-unsupported",
-        message: "Reflection provider 不支持 structured output，禁止发布正式 finding"
+        message: "Reflection provider 不支持结构化提交工具，禁止发布正式 finding"
       }
     };
   }

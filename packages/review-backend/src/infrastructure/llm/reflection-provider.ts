@@ -49,22 +49,22 @@ const GLOBAL_REFLECTION_SYSTEM_PROMPT = [
   "本阶段没有工具，不得请求或调用工具。不要输出原始思维链，只输出结构化结论、反例摘要和决策理由。"
 ].join("\n");
 
-export const reviewReflectionJsonSchema = {
-  name: "review_reflection",
-  strict: true as const,
-  schema: zodToJsonSchema(reflectionResultSchema, {
+export const reviewReflectionTool = {
+  name: "submit_review_reflection" as const,
+  description: "提交文件级 ReflectionResult。必须只提交一个完整结果。",
+  parameters: zodToJsonSchema(reflectionResultSchema, {
     name: "review_reflection",
-    target: "openAi",
+    target: "jsonSchema7",
     $refStrategy: "none"
   }) as Record<string, unknown>
 };
 
-export const globalReviewReflectionJsonSchema = {
-  name: "global_review_reflection",
-  strict: true as const,
-  schema: zodToJsonSchema(reflectionResultSchema.omit({ unitId: true, backfillRequest: true }), {
+export const globalReviewReflectionTool = {
+  name: "submit_global_review_reflection" as const,
+  description: "提交全局 ReflectionResult。不得新增 finding、调用工具或携带 unitId。",
+  parameters: zodToJsonSchema(reflectionResultSchema.omit({ unitId: true, backfillRequest: true }), {
     name: "global_review_reflection",
-    target: "openAi",
+    target: "jsonSchema7",
     $refStrategy: "none"
   }) as Record<string, unknown>
 };
@@ -135,9 +135,14 @@ export async function requestReviewReflection(input: {
 }): Promise<ReflectionResult> {
   let messages = buildReviewReflectionMessages(input);
   for (let attempt = 0; attempt < 2; attempt += 1) {
-    const response = await input.provider.chat({ messages, jsonMode: true, jsonSchema: reviewReflectionJsonSchema, signal: input.signal });
+    const response = await input.provider.chat({
+      messages,
+      tools: [reviewReflectionTool],
+      jsonMode: true,
+      signal: input.signal
+    });
     try {
-      const result = parseReflectionResponse(response.content, "Reflection provider");
+      const result = parseReflectionResponse(response, reviewReflectionTool.name, "Reflection provider");
       if (result.unitId !== input.unit.unitId) {
         throw new ReflectionProviderError(
           "invalid-result",
@@ -154,7 +159,7 @@ export async function requestReviewReflection(input: {
         ...messages,
         {
           role: "user",
-          content: `上一次 Reflection 输出未通过 schema 校验：${error.message}。请补齐 candidates、schemaVersion 和 unitId，只输出完整的 ReflectionResult JSON，不要输出解释。`
+          content: `上一次 Reflection 提交未通过 schema 校验：${error.message}。请补齐 candidates、schemaVersion 和 unitId，并调用 ${reviewReflectionTool.name} 工具提交完整结果，不要输出解释。`
         }
       ];
     }
@@ -163,23 +168,23 @@ export async function requestReviewReflection(input: {
   throw new Error("Reflection provider 重试流程异常结束");
 }
 
-function parseReflectionResponse(content: string | null | undefined, label: string): ReflectionResult {
-  if (content === null || content === undefined || content.trim().length === 0) {
-    throw new ReflectionProviderError("empty-response", `${label} 未返回 JSON 内容`);
-  }
-
-  let value: unknown;
-  try {
-    value = JSON.parse(content);
-  } catch (cause) {
+function parseReflectionResponse(
+  response: Awaited<ReturnType<LlmProvider["chat"]>>,
+  expectedToolName: string,
+  label: string
+): ReflectionResult {
+  const submitted = response.toolCalls.find((toolCall) => toolCall.name === expectedToolName);
+  if (response.toolCalls.length > 0 && !submitted) {
+    const isGlobalToolRequest = expectedToolName === globalReviewReflectionTool.name;
     throw new ReflectionProviderError(
-      "invalid-json",
-      "Reflection provider 返回了非法 JSON",
-      undefined,
-      { cause }
+      isGlobalToolRequest ? "tool-request-denied" : "invalid-result",
+      isGlobalToolRequest
+        ? "全局 Reflection 不允许调用工具，模型工具请求已拒绝"
+        : `${label} 返回了非 ${expectedToolName} 工具调用`
     );
   }
 
+  const value = submitted?.arguments ?? parseReflectionContent(response.content, label);
   const parsed = reflectionResultSchema.safeParse(value);
   if (!parsed.success) {
     const details = parsed.error.issues.map(
@@ -187,13 +192,30 @@ function parseReflectionResponse(content: string | null | undefined, label: stri
     );
     throw new ReflectionProviderError(
       "invalid-result",
-      `ReflectionResult 校验失败：${details.join("；")}`,
+      `${label} 结构化结果校验失败：${details.join("；")}`,
       details,
       { cause: parsed.error }
     );
   }
 
   return parsed.data;
+}
+
+function parseReflectionContent(content: string | null | undefined, label: string): unknown {
+  if (content === null || content === undefined || content.trim().length === 0) {
+    throw new ReflectionProviderError("empty-response", `${label} 未返回结构化结果`);
+  }
+
+  try {
+    return JSON.parse(content);
+  } catch (cause) {
+    throw new ReflectionProviderError(
+      "invalid-json",
+      `${label} 返回了非法 JSON`,
+      undefined,
+      { cause }
+    );
+  }
 }
 
 function isRetryableReflectionError(code: ReflectionProviderErrorCode): boolean {
@@ -209,12 +231,14 @@ export async function requestGlobalReviewReflection(input: {
 }): Promise<ReflectionResult> {
   let messages = buildGlobalReviewReflectionMessages(input);
   for (let attempt = 0; attempt < 2; attempt += 1) {
-    const response = await input.provider.chat({ messages, jsonMode: true, jsonSchema: globalReviewReflectionJsonSchema, signal: input.signal });
+    const response = await input.provider.chat({
+      messages,
+      tools: [globalReviewReflectionTool],
+      jsonMode: true,
+      signal: input.signal
+    });
     try {
-      if (response.toolCalls.length > 0) {
-        throw new ReflectionProviderError("tool-request-denied", "全局 Reflection 不允许调用工具，模型工具请求已拒绝");
-      }
-      const result = parseReflectionResponse(response.content, "全局 Reflection provider");
+      const result = parseReflectionResponse(response, globalReviewReflectionTool.name, "全局 Reflection provider");
       if (result.unitId !== undefined) {
         throw new ReflectionProviderError("invalid-result", "全局 ReflectionResult 必须省略 unitId", ["unitId: 全局 Reflection 不属于单个文件单元"]);
       }
@@ -230,7 +254,7 @@ export async function requestGlobalReviewReflection(input: {
         ...messages,
         {
           role: "user",
-          content: `上一次全局 Reflection 输出未通过 schema 校验：${error.message}。请补齐 candidates、schemaVersion，并省略 unitId 和 backfillRequest，只输出 JSON。`
+          content: `上一次全局 Reflection 提交未通过 schema 校验：${error.message}。请补齐 candidates、schemaVersion，省略 unitId 和 backfillRequest，并调用 ${globalReviewReflectionTool.name} 工具提交结果。`
         }
       ];
     }

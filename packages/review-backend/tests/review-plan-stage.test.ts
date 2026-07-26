@@ -145,8 +145,8 @@ describe("generateReviewPlanStage", () => {
     expect(provider.chat).toHaveBeenCalledOnce();
     expect(provider.chat).toHaveBeenCalledWith(
       expect.objectContaining({
+        tools: [expect.objectContaining({ name: "submit_review_plan" })],
         jsonMode: true,
-        jsonSchema: expect.objectContaining({ name: "review_plan", strict: true }),
         messages: [
           expect.objectContaining({ role: "system" }),
           expect.objectContaining({

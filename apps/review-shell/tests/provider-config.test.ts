@@ -18,7 +18,7 @@ describe("resolveOpenAiProviderConfig", () => {
 describe("resolveOpenAiProviderCapabilities", () => {
   it("默认显式启用兼容 endpoint 的能力", () => {
     expect(resolveOpenAiProviderCapabilities({})).toEqual({
-      structuredOutput: true,
+      structuredOutput: false,
       toolCalling: true,
       usage: true,
       cancellation: true

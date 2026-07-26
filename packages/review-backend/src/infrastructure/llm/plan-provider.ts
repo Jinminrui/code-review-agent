@@ -63,12 +63,12 @@ const planCandidateSchema = z.object({
     .optional()
 });
 
-export const reviewPlanJsonSchema = {
-  name: "review_plan",
-  strict: true as const,
-  schema: zodToJsonSchema(planCandidateSchema, {
+export const reviewPlanTool = {
+  name: "submit_review_plan" as const,
+  description: "提交经过结构化校验的 ReviewPlan。只能提交一个完整计划。",
+  parameters: zodToJsonSchema(planCandidateSchema, {
     name: "review_plan",
-    target: "openAi",
+    target: "jsonSchema7",
     $refStrategy: "none"
   }) as Record<string, unknown>
 };
@@ -106,9 +106,14 @@ export async function requestReviewPlan(input: {
     });
 
   for (let attempt = 0; attempt < 2; attempt += 1) {
-    const response = await input.provider.chat({ messages, jsonMode: true, jsonSchema: reviewPlanJsonSchema, signal: input.signal });
+    const response = await input.provider.chat({
+      messages,
+      tools: [reviewPlanTool],
+      jsonMode: true,
+      signal: input.signal
+    });
     try {
-      return parsePlanResponse(response.content);
+      return parsePlanResponse(response);
     } catch (error) {
       if (!(error instanceof PlanProviderError) || attempt === 1 || !isRetryablePlanError(error.code)) {
         throw error;
@@ -117,7 +122,7 @@ export async function requestReviewPlan(input: {
         ...messages,
         {
           role: "user",
-          content: `上一次 Plan 输出未通过 schema 校验：${error.message}。请修复所有字段类型和必填字段，只输出完整的 ReviewPlan JSON，不要输出解释。`
+          content: `上一次 Plan 提交未通过 schema 校验：${error.message}。请修复所有字段类型和必填字段，并调用 submit_review_plan 工具提交完整计划，不要输出解释。`
         }
       ];
     }
@@ -126,20 +131,13 @@ export async function requestReviewPlan(input: {
   throw new Error("Plan provider 重试流程异常结束");
 }
 
-function parsePlanResponse(content: string | null | undefined): ReviewPlan {
-  if (content === null || content === undefined || content.trim().length === 0) {
-    throw new PlanProviderError("empty-response", "Plan provider 未返回 JSON 内容");
+function parsePlanResponse(response: Awaited<ReturnType<LlmProvider["chat"]>>): ReviewPlan {
+  const submitted = response.toolCalls.find((toolCall) => toolCall.name === reviewPlanTool.name);
+  if (response.toolCalls.length > 0 && !submitted) {
+    throw new PlanProviderError("invalid-plan", "Plan provider 返回了非 submit_review_plan 工具调用");
   }
 
-  let value: unknown;
-  try {
-    value = JSON.parse(content);
-  } catch (cause) {
-    throw new PlanProviderError("invalid-json", "Plan provider 返回了非法 JSON", undefined, {
-      cause
-    });
-  }
-
+  const value = submitted?.arguments ?? parseContent(response.content);
   const parsed = planCandidateSchema.safeParse(value);
   if (!parsed.success) {
     const details = parsed.error.issues.map(
@@ -151,6 +149,20 @@ function parsePlanResponse(content: string | null | undefined): ReviewPlan {
   }
 
   return parsed.data;
+}
+
+function parseContent(content: string | null | undefined): unknown {
+  if (content === null || content === undefined || content.trim().length === 0) {
+    throw new PlanProviderError("empty-response", "Plan provider 未返回 JSON 内容");
+  }
+
+  try {
+    return JSON.parse(content);
+  } catch (cause) {
+    throw new PlanProviderError("invalid-json", "Plan provider 返回了非法 JSON", undefined, {
+      cause
+    });
+  }
 }
 
 function isRetryablePlanError(code: PlanProviderErrorCode): boolean {

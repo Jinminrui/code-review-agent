@@ -152,7 +152,7 @@ export async function runGlobalReviewReflectionStage(
     };
   }
 
-  if (input.provider.capabilities.structuredOutput !== true) {
+  if (input.provider.capabilities.toolCalling !== true) {
     const fileLevel = filterFileLevelBaseline({
       fileResults,
       evidenceSummaries,
@@ -164,7 +164,7 @@ export async function runGlobalReviewReflectionStage(
       unadopted: fileLevel.unadopted,
       error: {
         code: "structured-output-unsupported",
-        message: "全局 Reflection provider 不支持 structured output，仅保留通过文件级 accept、evidence 和合法性校验的正式 finding"
+        message: "全局 Reflection provider 不支持结构化提交工具，仅保留通过文件级 accept、evidence 和合法性校验的正式 finding"
       }
     };
   }
