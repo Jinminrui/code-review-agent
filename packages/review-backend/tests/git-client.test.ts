@@ -179,6 +179,44 @@ describe("GitClient", () => {
     expect(results[0]).toContain("const foo = 1;");
   });
 
+  it("grep accepts pathspec filters while keeping other files out of the result", async () => {
+    const repo = await mkdtemp(join(tmpdir(), "review-backend-"));
+    await execa("git", ["init", "-b", "main"], { cwd: repo });
+    await mkdir(join(repo, "src"), { recursive: true });
+    await writeFile(join(repo, "src", "a.ts"), "const AuthService = 1;\n");
+    await writeFile(join(repo, "src", "b.ts"), "const AuthService = 2;\n");
+    await execa("git", ["add", "."], { cwd: repo });
+    await execa(
+      "git",
+      ["-c", "user.name=Test", "-c", "user.email=test@example.com", "commit", "-m", "init"],
+      { cwd: repo }
+    );
+
+    const client = new GitClient(repo);
+    const results = await client.grep("AuthService", { paths: ["src/a.ts"] });
+
+    expect(results).toEqual(["src/a.ts:1:const AuthService = 1;"]);
+  });
+
+  it("grep treats paths as literal pathspecs", async () => {
+    const repo = await mkdtemp(join(tmpdir(), "review-backend-"));
+    await execa("git", ["init", "-b", "main"], { cwd: repo });
+    await mkdir(join(repo, "src"), { recursive: true });
+    await writeFile(join(repo, "src", "a*.ts"), "const AuthService = 1;\n");
+    await writeFile(join(repo, "src", "abc.ts"), "const AuthService = 2;\n");
+    await execa("git", ["add", "."], { cwd: repo });
+    await execa(
+      "git",
+      ["-c", "user.name=Test", "-c", "user.email=test@example.com", "commit", "-m", "init"],
+      { cwd: repo }
+    );
+
+    const client = new GitClient(repo);
+    const results = await client.grep("AuthService", { paths: ["src/a*.ts"] });
+
+    expect(results).toEqual(["src/a*.ts:1:const AuthService = 1;"]);
+  });
+
   it("grep returns empty array when no matches", async () => {
     const repo = await mkdtemp(join(tmpdir(), "review-backend-"));
     await execa("git", ["init", "-b", "main"], { cwd: repo });
