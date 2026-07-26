@@ -3,8 +3,8 @@
  * 边界约束：IPC 入参先校验，再调用 backend application；不要把主进程能力直接暴露给页面。
  * 维护提示：修改时优先保持现有契约和错误语义，并同步更新相关测试。
  */
-import type { CreateReviewSessionRequest } from "@app/review-backend";
-import { createReviewSessionRequestSchema } from "@app/review-backend";
+import type { CreateReviewSessionRequest } from "@app/review-contracts";
+import { createReviewSessionRequestSchema } from "@app/review-contracts";
 
 type ReviewWorkbenchBackend = {
   listRepositories(): Promise<string[]>;

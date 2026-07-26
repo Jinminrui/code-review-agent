@@ -24,11 +24,36 @@ importers:
         specifier: ^3.1.4
         version: 3.2.6(@types/debug@4.1.13)(@types/node@22.19.19)(jiti@2.7.0)(jsdom@26.1.0)(tsx@4.22.4)
 
+  apps/review-shell:
+    dependencies:
+      '@app/review-contracts':
+        specifier: workspace:*
+        version: link:../../packages/review-contracts
+      '@app/review-engine':
+        specifier: workspace:*
+        version: link:../../packages/review-engine
+      '@app/review-infrastructure':
+        specifier: workspace:*
+        version: link:../../packages/review-infrastructure
+      electron:
+        specifier: ^36.4.0
+        version: 36.9.5
+    devDependencies:
+      '@types/node':
+        specifier: ^22.13.10
+        version: 22.19.19
+      typescript:
+        specifier: ^5.8.3
+        version: 5.9.3
+      vitest:
+        specifier: ^3.2.6
+        version: 3.2.6(@types/debug@4.1.13)(@types/node@22.19.19)(jiti@2.7.0)(jsdom@26.1.0)(tsx@4.22.4)
+
   packages/review-app:
     dependencies:
-      '@app/review-backend':
+      '@app/review-contracts':
         specifier: workspace:*
-        version: link:../review-backend
+        version: link:../review-contracts
       '@fontsource/geist-sans':
         specifier: ^5.2.5
         version: 5.3.0
@@ -71,7 +96,7 @@ importers:
         version: 1.60.0
       '@testing-library/jest-dom':
         specifier: ^6.6.3
-        version: 6.9.1
+        version: 6.10.0(@testing-library/dom@10.4.1)
       '@testing-library/react':
         specifier: ^16.3.0
         version: 16.3.2(@testing-library/dom@10.4.1)(@types/react-dom@19.2.3(@types/react@19.2.16))(@types/react@19.2.16)(react-dom@19.2.7(react@19.2.7))(react@19.2.7)
@@ -137,24 +162,30 @@ importers:
         specifier: ^3.1.4
         version: 3.2.6(@types/debug@4.1.13)(@types/node@22.19.19)(jiti@2.7.0)(jsdom@26.1.0)(tsx@4.22.4)
 
-  packages/review-shell:
+  packages/review-contracts:
     dependencies:
-      '@app/review-backend':
-        specifier: workspace:*
-        version: link:../review-backend
-      electron:
-        specifier: ^36.4.0
-        version: 36.9.5
+      zod:
+        specifier: ^3.23.8
+        version: 3.25.76
     devDependencies:
-      '@types/node':
-        specifier: ^22.13.10
-        version: 22.19.19
       typescript:
         specifier: ^5.8.3
         version: 5.9.3
       vitest:
-        specifier: ^3.2.6
+        specifier: ^3.1.4
         version: 3.2.6(@types/debug@4.1.13)(@types/node@22.19.19)(jiti@2.7.0)(jsdom@26.1.0)(tsx@4.22.4)
+
+  packages/review-engine:
+    dependencies:
+      '@app/review-backend':
+        specifier: workspace:*
+        version: link:../review-backend
+
+  packages/review-infrastructure:
+    dependencies:
+      '@app/review-backend':
+        specifier: workspace:*
+        version: link:../review-backend
 
 packages:
 
@@ -886,9 +917,11 @@ packages:
     resolution: {integrity: sha512-o4PXJQidqJl82ckFaXUeoAW+XysPLauYI43Abki5hABd853iMhitooc6znOnczgbTYmEP6U6/y1ZyKAIsvMKGg==}
     engines: {node: '>=18'}
 
-  '@testing-library/jest-dom@6.9.1':
-    resolution: {integrity: sha512-zIcONa+hVtVSSep9UT3jZ5rizo2BsxgyDYU7WFD5eICBE7no3881HGeb/QkGfsJs6JTkY1aQhT7rIPC7e+0nnA==}
-    engines: {node: '>=14', npm: '>=6', yarn: '>=1'}
+  '@testing-library/jest-dom@6.10.0':
+    resolution: {integrity: sha512-HQwu0KaB2zyT0iLzBL+8CLyZDL3KlZlZJ+2iyc9uCUnlJVskJU/UlPuVCyIPhtukjPQdT2QNoR5nCP5FqTmmDQ==}
+    engines: {node: '>=22', npm: '>=6', yarn: '>=1'}
+    peerDependencies:
+      '@testing-library/dom': '>=10 <11'
 
   '@testing-library/react@16.3.2':
     resolution: {integrity: sha512-XU5/SytQM+ykqMnAnvB2umaJNIOsLF3PVv//1Ew4CTcpz0/BRyy/af40qqrt7SjKpDdT1saBMc42CUok5gaw+g==}
@@ -3394,9 +3427,10 @@ snapshots:
       picocolors: 1.1.1
       pretty-format: 27.5.1
 
-  '@testing-library/jest-dom@6.9.1':
+  '@testing-library/jest-dom@6.10.0(@testing-library/dom@10.4.1)':
     dependencies:
       '@adobe/css-tools': 4.5.0
+      '@testing-library/dom': 10.4.1
       aria-query: 5.3.2
       css.escape: 1.5.1
       dom-accessibility-api: 0.6.3

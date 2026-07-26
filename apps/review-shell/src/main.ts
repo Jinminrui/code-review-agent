@@ -9,13 +9,13 @@ import {
   getReviewSession,
   listReviewSessions,
   streamReviewSession
-} from "@app/review-backend";
+} from "@app/review-engine";
 import {
   FileSessionStore,
   GitClient,
   OpenAiCompatibleProvider,
   resolveSessionsRoot
-} from "@app/review-backend/infrastructure";
+} from "@app/review-infrastructure";
 import { createReviewWorkbenchHandlers } from "./ipc/review-workbench-handlers.js";
 import { getRendererFilePath } from "./paths.js";
 import { getPreloadFilename } from "./runtime-config.js";

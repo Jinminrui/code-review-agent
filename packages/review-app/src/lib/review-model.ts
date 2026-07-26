@@ -8,12 +8,12 @@ import {
   reviewFindingSchema,
   reviewSessionDetailSchema,
   reviewSessionEventSchema
-} from "@app/review-backend/contracts";
+} from "@app/review-contracts";
 import type {
   ReviewFinding,
   ReviewSessionDetail,
   ReviewSessionEvent
-} from "@app/review-backend/contracts";
+} from "@app/review-contracts";
 
 // Re-export 后端类型，保持前端导入路径不变
 export type { ReviewFinding, ReviewSessionDetail, ReviewSessionEvent };

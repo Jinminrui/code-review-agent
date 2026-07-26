@@ -3,7 +3,7 @@
  * 边界约束：输入数据应在边界处校验；不要在本模块内绕过既定的分层和 IPC 约束。
  * 维护提示：修改时优先保持现有契约和错误语义，并同步更新相关测试。
  */
-import type { ReviewSessionEvent } from "@app/review-backend/contracts";
+import type { ReviewSessionEvent } from "@app/review-contracts";
 import type { ReviewSessionDetail, SessionSummary } from "./review-model";
 
 export type CreateSessionInput = {

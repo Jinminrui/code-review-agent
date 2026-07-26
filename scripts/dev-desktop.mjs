@@ -99,7 +99,7 @@ try {
 
   electronProcess = spawnCommand(
     "pnpm",
-    ["exec", "electron", "packages/review-shell/dist/src/main.js"],
+    ["exec", "electron", "apps/review-shell/dist/src/main.js"],
     {
       env: {
         ...process.env,

@@ -1,0 +1,15 @@
+{
+  "name": "@app/review-infrastructure",
+  "private": true,
+  "type": "module",
+  "main": "dist/src/index.js",
+  "types": "dist/src/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/src/index.d.ts",
+      "default": "./dist/src/index.js"
+    }
+  },
+  "scripts": { "build": "tsc -b" },
+  "dependencies": { "@app/review-backend": "workspace:*" }
+}

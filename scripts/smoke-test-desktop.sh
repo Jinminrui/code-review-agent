@@ -8,10 +8,10 @@ REPO_ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 
 # 待检查的文件列表
 CHECKS=(
-  "packages/review-shell/dist/src/main.js|Electron 主进程入口"
-  "packages/review-shell/renderer/index.html|渲染器入口 HTML"
-  "packages/review-backend/dist/src/index.js|后端入口"
-  "packages/review-shell/dist/src/preload.cjs|Preload 脚本"
+  "apps/review-shell/dist/src/main.js|Electron 主进程入口"
+  "apps/review-shell/renderer/index.html|渲染器入口 HTML"
+  "packages/review-engine/dist/src/index.js|审查引擎入口"
+  "apps/review-shell/dist/src/preload.cjs|Preload 脚本"
 )
 
 failed=0

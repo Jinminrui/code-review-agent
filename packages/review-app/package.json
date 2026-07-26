@@ -9,7 +9,7 @@
     "test:e2e": "playwright test"
   },
   "dependencies": {
-    "@app/review-backend": "workspace:*",
+    "@app/review-contracts": "workspace:*",
     "@fontsource/geist-sans": "^5.2.5",
     "@monaco-editor/react": "^4.7.0",
     "@tanstack/react-query": "^5.80.7",

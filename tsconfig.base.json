@@ -5,6 +5,9 @@
     "moduleResolution": "NodeNext",
     "paths": {
       "@app/review-backend": ["./packages/review-backend/src/index.ts"],
+      "@app/review-contracts": ["./packages/review-contracts/src/index.ts"],
+      "@app/review-engine": ["./packages/review-engine/src/index.ts"],
+      "@app/review-infrastructure": ["./packages/review-infrastructure/src/index.ts"]
     },
     "strict": true,
     "declaration": true,

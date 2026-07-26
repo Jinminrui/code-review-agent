@@ -3,6 +3,13 @@ import { defineWorkspace } from "vitest/config";
 export default defineWorkspace([
   {
     test: {
+      name: "review-contracts",
+      include: ["packages/review-contracts/src/**/*.test.ts"],
+      environment: "node"
+    }
+  },
+  {
+    test: {
       name: "review-backend",
       include: ["packages/review-backend/tests/**/*.test.ts"],
       environment: "node"
@@ -19,7 +26,7 @@ export default defineWorkspace([
   {
     test: {
       name: "review-shell",
-      include: ["packages/review-shell/tests/**/*.test.ts"],
+      include: ["apps/review-shell/tests/**/*.test.ts"],
       environment: "node"
     }
   }

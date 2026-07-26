@@ -5,6 +5,5 @@
     "outDir": "dist",
     "composite": true
   },
-  "references": [{ "path": "../review-backend" }],
-  "include": ["src/**/*.ts", "src/**/*.cts", "tests/**/*.ts"]
+  "include": ["src/**/*.ts"]
 }

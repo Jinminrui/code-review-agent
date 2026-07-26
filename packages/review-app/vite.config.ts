@@ -13,8 +13,7 @@ export default defineConfig({
   resolve: {
     alias: {
       "@": resolve(__dirname, "src"),
-      "@app/review-backend/contracts": resolve(__dirname, "../review-backend/src/contracts/index.ts"),
-      "@app/review-backend": resolve(__dirname, "../review-backend/src/index.ts")
+      "@app/review-contracts": resolve(__dirname, "../review-contracts/src/index.ts")
     }
   },
   test: {

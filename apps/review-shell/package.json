@@ -9,7 +9,9 @@
     "test": "vitest run"
   },
   "dependencies": {
-    "@app/review-backend": "workspace:*",
+    "@app/review-contracts": "workspace:*",
+    "@app/review-engine": "workspace:*",
+    "@app/review-infrastructure": "workspace:*",
     "electron": "^36.4.0"
   },
   "devDependencies": {

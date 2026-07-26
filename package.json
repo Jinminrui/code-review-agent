@@ -12,14 +12,14 @@
     "pnpm": "11.5.2"
   },
   "scripts": {
-    "build": "pnpm --filter @app/review-backend build && pnpm --filter @app/review-app build && pnpm --filter @app/review-shell build",
-    "build:desktop": "pnpm build && cp -r packages/review-app/dist/ packages/review-shell/renderer/",
+    "build": "pnpm --filter @app/review-contracts build && pnpm --filter @app/review-backend build && pnpm --filter @app/review-engine build && pnpm --filter @app/review-infrastructure build && pnpm --filter @app/review-app build && pnpm --filter @app/review-shell build",
+    "build:desktop": "pnpm build && cp -r packages/review-app/dist/ apps/review-shell/renderer/",
     "dist:mac": "pnpm build:desktop && electron-builder --mac --config electron-builder.yml",
     "dev:web": "VITE_USE_MOCK_API=true pnpm --filter @app/review-app exec vite --host 127.0.0.1 --port 5173",
     "dev:desktop": "node scripts/dev-desktop.mjs",
-    "test": "pnpm --filter @app/review-backend test && pnpm --filter @app/review-app test && pnpm --filter @app/review-shell test",
+    "test": "pnpm --filter @app/review-contracts test && pnpm --filter @app/review-backend test && pnpm --filter @app/review-app test && pnpm --filter @app/review-shell test",
     "test:watch": "pnpm --filter @app/review-app test",
-    "typecheck": "tsc -b packages/review-backend packages/review-app packages/review-shell"
+    "typecheck": "tsc -b packages/review-contracts packages/review-backend packages/review-engine packages/review-infrastructure packages/review-app apps/review-shell"
   },
   "devDependencies": {
     "electron": "^36.4.0",

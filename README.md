@@ -104,6 +104,9 @@ docs/
     specs/
     plans/
 packages/
+  review-contracts/
+  review-engine/
+  review-infrastructure/
   review-backend/
     src/
       domain/
@@ -121,7 +124,13 @@ packages/
       lib/
       styles/
     tests/
+apps/
+  review-shell/
+    src/
+    tests/
 ```
+
+目录迁移采用兼容 facade 分阶段进行：`review-backend` 暂作为内部实现保留，`review-engine` 和 `review-infrastructure` 先提供稳定入口，后续再逐步迁移其 domain、application 与 adapter 实现。
 
 ## 文档入口
 

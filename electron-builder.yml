@@ -6,11 +6,11 @@ directories:
 
 files:
   - "package.json"
-  - from: "packages/review-shell/dist"
+  - from: "apps/review-shell/dist"
     to: "dist"
   - from: "packages/review-backend/dist"
     to: "node_modules/@app/review-backend/dist"
-  - from: "packages/review-shell/renderer"
+  - from: "apps/review-shell/renderer"
     to: "renderer"
 
 extraResources: []

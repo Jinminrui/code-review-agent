@@ -50,6 +50,13 @@ docs/
     specs/
     plans/
 packages/
+  review-contracts/
+    src/
+    tests/
+  review-engine/
+    src/
+  review-infrastructure/
+    src/
   review-backend/
     src/
       domain/
@@ -67,6 +74,10 @@ packages/
       lib/
       styles/
     tests/
+apps/
+  review-shell/
+    src/
+    tests/
 ```
 
 目录职责：
@@ -76,9 +87,17 @@ packages/
 2. `docs/superpowers/plans`
    记录实现计划，当前已有前后端两个详细计划。
 3. `packages/review-backend`
-   审查引擎与应用服务，不包含窗口 UI。
-4. `packages/review-app`
+   当前审查引擎的兼容实现，内部继续按 domain/application/infrastructure 分层；新代码通过 facade 迁移。
+4. `packages/review-contracts`
+   独立的跨进程、跨包 Zod contract，不依赖 Node.js、Electron 或 renderer。
+5. `packages/review-engine`
+   审查应用服务入口，承接 Plan-and-Solve、受限 ReAct、Reflection 编排；当前通过兼容 facade 暴露 backend 实现。
+6. `packages/review-infrastructure`
+   Git、LLM provider、文件会话存储等外部适配器入口；当前通过兼容 facade 暴露 backend 实现。
+7. `packages/review-app`
    renderer 前端工作台，不包含主进程逻辑。
+8. `apps/review-shell`
+   Electron 主进程、preload 和 IPC 注册；只依赖 contracts、engine、infrastructure，不直接依赖 backend 内部模块。
 
 ## 4. 后端实现约定
 
