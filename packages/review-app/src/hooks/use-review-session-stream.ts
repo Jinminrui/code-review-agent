@@ -1,15 +1,17 @@
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { ipcClient } from "@/lib/ipc-client";
 import { useReviewSessionStore } from "@/store/review-session-store";
-import type { ReviewSessionEvent } from "@/lib/review-model";
+import { createInitialReviewProgress, reduceReviewProgress, type ReviewSessionEvent, type ReviewProgressState } from "@/lib/review-model";
 
 export function useReviewSessionStream(sessionId: string) {
+  const [progress, setProgress] = useState<ReviewProgressState>(() => createInitialReviewProgress());
   const setSession = useReviewSessionStore((state) => state.setSession);
   const appendUnitResult = useReviewSessionStore((state) => state.appendUnitResult);
   const updateSessionStatus = useReviewSessionStore((state) => state.updateSessionStatus);
   const setError = useReviewSessionStore((state) => state.setError);
 
   useEffect(() => {
+    setProgress(createInitialReviewProgress());
     if (!sessionId) {
       setSession(null);
       setError(null);
@@ -36,6 +38,7 @@ export function useReviewSessionStream(sessionId: string) {
 
     const unsubscribe = ipcClient.subscribeSession(sessionId, (event: ReviewSessionEvent) => {
       if (!active) return;
+      setProgress((current) => reduceReviewProgress(current, event));
 
       switch (event.type) {
         case "unit-completed":
@@ -87,4 +90,6 @@ export function useReviewSessionStream(sessionId: string) {
       unsubscribe();
     };
   }, [sessionId, setSession, appendUnitResult, updateSessionStatus, setError]);
+
+  return { progress };
 }

@@ -171,4 +171,18 @@ describe("useReviewSessionStream", () => {
     expect(useReviewSessionStore.getState().session?.findings).toHaveLength(1);
     expect(useReviewSessionStore.getState().session?.diffByFile["src/file.ts"]?.modified).toBe("after\n");
   });
+
+  it("returns structured progress for runtime phase events", async () => {
+    let eventHandler: ((event: ReviewSessionEvent) => void) | undefined;
+    window.reviewWorkbenchApi = {
+      listRepositories: vi.fn(), selectRepository: vi.fn(), listBranches: vi.fn(), createSession: vi.fn(),
+      getSession: vi.fn().mockResolvedValue({ sessionId: "s_1", status: "running", repositoryPath: "/repo", baseRef: "main", targetRef: "feature", summary: { changedFilesCount: 0, findingsCount: 0, highSeverityCount: 0, files: [] }, findings: [], diffByFile: {} }),
+      listSessions: vi.fn(), deleteSession: vi.fn(), cancelSession: vi.fn(), exportSession: vi.fn(),
+      subscribeSession: vi.fn().mockImplementation((_id, handler) => { eventHandler = handler; return vi.fn(); })
+    };
+    const { result } = renderHook(() => useReviewSessionStream("s_1"));
+    await waitFor(() => expect(eventHandler).toBeDefined());
+    eventHandler?.({ type: "phase-transitioned", sessionId: "s_1", schemaVersion: 1, runtimeVersion: "hybrid-1", previousPhase: "session-created", phase: "pre-analysis-completed" });
+    expect(result.current.progress.phase).toBe("pre-analysis");
+  });
 });

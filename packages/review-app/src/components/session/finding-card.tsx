@@ -20,6 +20,16 @@ const categoryIcons = {
 
 export function FindingCard({ finding, isSelected, onClick }: FindingCardProps) {
   const CategoryIcon = categoryIcons[finding.category as keyof typeof categoryIcons] || categoryIcons.default
+  const futureReviewStatus = (finding as ReviewFinding & { reviewStatus?: unknown }).reviewStatus
+  const findingStatus = typeof futureReviewStatus === 'string'
+    ? futureReviewStatus
+    : finding.status === 'line-level' ? 'validated' : 'file-level'
+  const findingStatusLabels: Record<string, string> = {
+    validated: '已校验',
+    'needs-review': '待复核',
+    rejected: '已拒绝',
+    'file-level': '文件级'
+  }
 
   return (
     <button
@@ -56,6 +66,9 @@ export function FindingCard({ finding, isSelected, onClick }: FindingCardProps) 
           severity={finding.severity}
           label={finding.severity.toUpperCase()}
         />
+        <span className={cn('text-[10px] font-mono', findingStatus === 'rejected' ? 'text-accent-red' : findingStatus === 'needs-review' ? 'text-accent-amber' : 'text-text-tertiary')}>
+          {findingStatusLabels[findingStatus] ?? '不可用'}
+        </span>
       </div>
 
       {/* 文件路径 */}

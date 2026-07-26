@@ -4,11 +4,13 @@ import { ProgressBar } from '@/components/ui/progress-bar'
 import { SectionLabel } from '@/components/ui/section-label'
 import { StatusBadge, type Status } from '@/components/ui/status-badge'
 import { Loader2, FileText } from 'lucide-react'
+import type { ReviewProgressState } from '@/lib/review-model'
 
 interface SessionProgressProps {
   status: Status
   completedUnits?: number
   totalUnits?: number
+  progress?: ReviewProgressState
 }
 
 const statusLabels: Record<Status, string> = {
@@ -22,7 +24,7 @@ const statusLabels: Record<Status, string> = {
   cancelled: '已中止'
 }
 
-export function SessionProgress({ status, completedUnits = 0, totalUnits = 0 }: SessionProgressProps) {
+export function SessionProgress({ status, completedUnits = 0, totalUnits = 0, progress }: SessionProgressProps) {
   const percentage = totalUnits > 0 ? Math.round((completedUnits / totalUnits) * 100) : 0
   const isRunning = status === 'running' || status === 'streaming'
   const statusLabel = statusLabels[status] ?? status
@@ -49,6 +51,15 @@ export function SessionProgress({ status, completedUnits = 0, totalUnits = 0 }: 
           <Icon icon={FileText} size="xs" variant="muted" />
           <span>{completedUnits}/{totalUnits} units complete</span>
         </div>
+        {progress && (
+          <div className="space-y-1 text-xs text-text-tertiary">
+            <div>阶段：<span className="text-text-secondary">{({ 'pre-analysis': '预分析', planning: '规划', evidence: '证据采集', validation: '校验', complete: '完成' } as const)[progress.phase]}</span></div>
+            <div>当前 unit：<span className="font-mono text-text-secondary">{progress.currentUnit ?? '不可用'}</span></div>
+            <div>检查项：<span className="text-text-secondary">{progress.checks.length > 0 ? progress.checks.map((check) => `${check.id}（${check.status}）`).join('、') : '不可用'}</span></div>
+            <div>预算：<span className="font-mono text-text-secondary">{progress.budget ? `模型 ${progress.budget.modelCalls} / 工具 ${progress.budget.toolCalls} / 输入 ${progress.budget.maxInputTokens} / 输出 ${progress.budget.maxOutputTokens}` : '不可用'}</span></div>
+            {progress.degradation && <div className="text-accent-amber">{progress.degradation}</div>}
+          </div>
+        )}
       </div>
     </div>
   )

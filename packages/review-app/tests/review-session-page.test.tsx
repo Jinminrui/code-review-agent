@@ -75,6 +75,7 @@ describe("ReviewSessionPage", () => {
 
     // 会话进度区域
     expect(screen.getByText("session-status")).toBeInTheDocument();
+    expect(screen.getByText("review-trace")).toBeInTheDocument();
 
     // 审查摘要区域
     expect(screen.getByText("session-summary")).toBeInTheDocument();

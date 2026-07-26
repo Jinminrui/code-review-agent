@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { reviewSessionDetailSchema, sessionSummarySchema } from "../src/lib/review-model";
+import { reviewSessionDetailSchema, sessionSummarySchema, createInitialReviewProgress, reduceReviewProgress, type ReviewProgressState } from "../src/lib/review-model";
 import type { ReviewSessionEvent } from "../src/lib/review-model";
 
 describe("reviewSessionDetailSchema", () => {
@@ -85,5 +85,59 @@ describe("ReviewSessionEvent", () => {
     };
 
     expect(event.diffByFile["src/file.ts"]?.modified).toBe("after\n");
+  });
+});
+
+describe("review progress projection", () => {
+  it("maps runtime phases to the five UI phases and keeps structured unit data", () => {
+    const state = reduceReviewProgress(undefined, {
+      type: "phase-transitioned",
+      sessionId: "s_1",
+      schemaVersion: 1,
+      runtimeVersion: "hybrid-1",
+      previousPhase: "unit-plan-started",
+      phase: "react-evidence-collecting",
+      unitId: "unit:src/a.ts",
+      planSnapshot: {
+        version: 1,
+        changeSetSummary: { files: ["src/a.ts"], totalInsertions: 2, totalDeletions: 1 },
+        riskAreas: [],
+        units: [{
+          unitId: "unit:src/a.ts",
+          file: "src/a.ts",
+          order: 0,
+          checks: [{ id: "check-1", description: "检查输入", completionCriteria: ["有证据"], allowedFiles: ["src/a.ts"], evidenceTargets: ["函数"] }],
+          budget: { modelCalls: 1, toolCalls: 2, maxInputTokens: 1000, maxOutputTokens: 500, maxReadBytes: 1000, maxDurationMs: 1000 }
+        }]
+      }
+    });
+
+    expect(state.phase).toBe("evidence");
+    expect(state.currentUnit).toBe("unit:src/a.ts");
+    expect(state.checks).toEqual([{ id: "check-1", description: "检查输入", status: "不可用" }]);
+    expect(state.budget).toEqual({ modelCalls: 1, toolCalls: 2, maxInputTokens: 1000, maxOutputTokens: 500, maxReadBytes: 1000, maxDurationMs: 1000 });
+  });
+
+  it("keeps basic progress for legacy events", () => {
+    const state = reduceReviewProgress(undefined, {
+      type: "unit-completed", sessionId: "s_1", unitId: "unit:a", findingsCount: 1, findings: [], diffByFile: {}
+    });
+    expect(state.phase).toBe("pre-analysis");
+    expect(state.degradation).toBeNull();
+  });
+
+  it("does not invent a degradation for normal legacy completion", () => {
+    const initial: ReviewProgressState = { ...reduceReviewProgress(undefined, { type: "session-started", sessionId: "s_1" }), degradation: null };
+    const state = reduceReviewProgress(initial, {
+      type: "unit-completed", sessionId: "s_1", unitId: "unit:a", findingsCount: 0, findings: [], diffByFile: {}
+    });
+    expect(state.degradation).toBeNull();
+  });
+
+  it("keeps the current phase after one unit completes in a multi-file session", () => {
+    const state = reduceReviewProgress({ ...createInitialReviewProgress(), phase: "validation" }, {
+      type: "unit-completed", sessionId: "s_1", unitId: "unit:a", findingsCount: 0, findings: [], diffByFile: {}
+    });
+    expect(state.phase).toBe("validation");
   });
 });

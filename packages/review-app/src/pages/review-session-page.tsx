@@ -5,6 +5,7 @@ import { useReviewSessionStream } from '@/hooks/use-review-session-stream'
 import { useSelectedFinding } from '@/hooks/use-selected-finding'
 import { SidebarHeader } from '@/components/session/sidebar-header'
 import { SessionProgress } from '@/components/session/session-progress'
+import { ReviewTracePanel } from '@/components/session/review-trace-panel'
 import { ReviewSummaryPanel } from '@/components/session/review-summary-panel'
 import { RiskFileList } from '@/components/session/risk-file-list'
 import { FindingList } from '@/components/session/finding-list'
@@ -16,7 +17,7 @@ import { ipcClient } from '@/lib/ipc-client'
 export function ReviewSessionPage() {
   const { sessionId = '' } = useParams()
   // 页面挂载即建立快照加载和事件订阅，离开页面时由 hook 统一清理。
-  useReviewSessionStream(sessionId)
+  const { progress } = useReviewSessionStream(sessionId)
 
   const session = useReviewSessionStore((state) => state.session)
   const error = useReviewSessionStore((state) => state.error)
@@ -83,7 +84,9 @@ export function ReviewSessionPage() {
         {/* 会话进度 */}
         <SessionProgress
           status={session?.status ?? 'idle'}
+          progress={progress}
         />
+        <ReviewTracePanel trace={progress.trace} />
 
         {/* 审查摘要 */}
         {session ? (
