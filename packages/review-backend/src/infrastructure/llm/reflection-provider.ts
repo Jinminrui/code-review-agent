@@ -4,6 +4,7 @@
  * 维护提示：修改时优先保持现有契约和错误语义，并同步更新相关测试。
  */
 import type { ChatMessage, LlmProvider } from "../../domain/provider.js";
+import { zodToJsonSchema } from "zod-to-json-schema";
 import {
   reflectionResultSchema,
   type ReflectionResult
@@ -47,6 +48,26 @@ const GLOBAL_REFLECTION_SYSTEM_PROMPT = [
   "只能对输入正式 finding 做接受、拒绝、needs-review 或 severity 调整，不得新增 finding、修改文件/行号/问题范围，也不得引用 Evidence 摘要中不存在的 id。",
   "本阶段没有工具，不得请求或调用工具。不要输出原始思维链，只输出结构化结论、反例摘要和决策理由。"
 ].join("\n");
+
+export const reviewReflectionJsonSchema = {
+  name: "review_reflection",
+  strict: true as const,
+  schema: zodToJsonSchema(reflectionResultSchema, {
+    name: "review_reflection",
+    target: "openAi",
+    $refStrategy: "none"
+  }) as Record<string, unknown>
+};
+
+export const globalReviewReflectionJsonSchema = {
+  name: "global_review_reflection",
+  strict: true as const,
+  schema: zodToJsonSchema(reflectionResultSchema.omit({ unitId: true, backfillRequest: true }), {
+    name: "global_review_reflection",
+    target: "openAi",
+    $refStrategy: "none"
+  }) as Record<string, unknown>
+};
 
 export type GlobalReflectionFileResult = {
   unitId: string;
@@ -112,19 +133,44 @@ export async function requestReviewReflection(input: {
   candidateContext: unknown;
   signal?: AbortSignal;
 }): Promise<ReflectionResult> {
-  const response = await input.provider.chat({
-    messages: buildReviewReflectionMessages(input),
-    jsonMode: true,
-    signal: input.signal
-  });
+  let messages = buildReviewReflectionMessages(input);
+  for (let attempt = 0; attempt < 2; attempt += 1) {
+    const response = await input.provider.chat({ messages, jsonMode: true, jsonSchema: reviewReflectionJsonSchema, signal: input.signal });
+    try {
+      const result = parseReflectionResponse(response.content, "Reflection provider");
+      if (result.unitId !== input.unit.unitId) {
+        throw new ReflectionProviderError(
+          "invalid-result",
+          `ReflectionResult.unitId 必须等于当前文件子计划 ${input.unit.unitId}`,
+          ["unitId: 与当前文件子计划不一致"]
+        );
+      }
+      return result;
+    } catch (error) {
+      if (!(error instanceof ReflectionProviderError) || attempt === 1 || !isRetryableReflectionError(error.code)) {
+        throw error;
+      }
+      messages = [
+        ...messages,
+        {
+          role: "user",
+          content: `上一次 Reflection 输出未通过 schema 校验：${error.message}。请补齐 candidates、schemaVersion 和 unitId，只输出完整的 ReflectionResult JSON，不要输出解释。`
+        }
+      ];
+    }
+  }
 
-  if (response.content === null || response.content.trim().length === 0) {
-    throw new ReflectionProviderError("empty-response", "Reflection provider 未返回 JSON 内容");
+  throw new Error("Reflection provider 重试流程异常结束");
+}
+
+function parseReflectionResponse(content: string | null | undefined, label: string): ReflectionResult {
+  if (content === null || content === undefined || content.trim().length === 0) {
+    throw new ReflectionProviderError("empty-response", `${label} 未返回 JSON 内容`);
   }
 
   let value: unknown;
   try {
-    value = JSON.parse(response.content);
+    value = JSON.parse(content);
   } catch (cause) {
     throw new ReflectionProviderError(
       "invalid-json",
@@ -147,15 +193,11 @@ export async function requestReviewReflection(input: {
     );
   }
 
-  if (parsed.data.unitId !== input.unit.unitId) {
-    throw new ReflectionProviderError(
-      "invalid-result",
-      `ReflectionResult.unitId 必须等于当前文件子计划 ${input.unit.unitId}`,
-      ["unitId: 与当前文件子计划不一致"]
-    );
-  }
-
   return parsed.data;
+}
+
+function isRetryableReflectionError(code: ReflectionProviderErrorCode): boolean {
+  return code === "invalid-result";
 }
 
 export async function requestGlobalReviewReflection(input: {
@@ -165,62 +207,34 @@ export async function requestGlobalReviewReflection(input: {
   evidenceSummaries: readonly GlobalEvidenceSummary[];
   signal?: AbortSignal;
 }): Promise<ReflectionResult> {
-  const response = await input.provider.chat({
-    messages: buildGlobalReviewReflectionMessages(input),
-    jsonMode: true,
-    signal: input.signal
-  });
-
-  if (response.toolCalls.length > 0) {
-    throw new ReflectionProviderError(
-      "tool-request-denied",
-      "全局 Reflection 不允许调用工具，模型工具请求已拒绝"
-    );
+  let messages = buildGlobalReviewReflectionMessages(input);
+  for (let attempt = 0; attempt < 2; attempt += 1) {
+    const response = await input.provider.chat({ messages, jsonMode: true, jsonSchema: globalReviewReflectionJsonSchema, signal: input.signal });
+    try {
+      if (response.toolCalls.length > 0) {
+        throw new ReflectionProviderError("tool-request-denied", "全局 Reflection 不允许调用工具，模型工具请求已拒绝");
+      }
+      const result = parseReflectionResponse(response.content, "全局 Reflection provider");
+      if (result.unitId !== undefined) {
+        throw new ReflectionProviderError("invalid-result", "全局 ReflectionResult 必须省略 unitId", ["unitId: 全局 Reflection 不属于单个文件单元"]);
+      }
+      if (result.backfillRequest !== undefined) {
+        throw new ReflectionProviderError("tool-request-denied", "全局 Reflection 不允许补证或调用工具，backfillRequest 已拒绝");
+      }
+      return result;
+    } catch (error) {
+      if (!(error instanceof ReflectionProviderError) || attempt === 1 || !isRetryableReflectionError(error.code)) {
+        throw error;
+      }
+      messages = [
+        ...messages,
+        {
+          role: "user",
+          content: `上一次全局 Reflection 输出未通过 schema 校验：${error.message}。请补齐 candidates、schemaVersion，并省略 unitId 和 backfillRequest，只输出 JSON。`
+        }
+      ];
+    }
   }
 
-  if (response.content === null || response.content.trim().length === 0) {
-    throw new ReflectionProviderError("empty-response", "全局 Reflection provider 未返回 JSON 内容");
-  }
-
-  let value: unknown;
-  try {
-    value = JSON.parse(response.content);
-  } catch (cause) {
-    throw new ReflectionProviderError(
-      "invalid-json",
-      "全局 Reflection provider 返回了非法 JSON",
-      undefined,
-      { cause }
-    );
-  }
-
-  const parsed = reflectionResultSchema.safeParse(value);
-  if (!parsed.success) {
-    const details = parsed.error.issues.map(
-      (issue) => `${issue.path.join(".") || "reflectionResult"}: ${issue.message}`
-    );
-    throw new ReflectionProviderError(
-      "invalid-result",
-      `全局 ReflectionResult 校验失败：${details.join("；")}`,
-      details,
-      { cause: parsed.error }
-    );
-  }
-
-  if (parsed.data.unitId !== undefined) {
-    throw new ReflectionProviderError(
-      "invalid-result",
-      "全局 ReflectionResult 必须省略 unitId",
-      ["unitId: 全局 Reflection 不属于单个文件单元"]
-    );
-  }
-
-  if (parsed.data.backfillRequest !== undefined) {
-    throw new ReflectionProviderError(
-      "tool-request-denied",
-      "全局 Reflection 不允许补证或调用工具，backfillRequest 已拒绝"
-    );
-  }
-
-  return parsed.data;
+  throw new Error("全局 Reflection provider 重试流程异常结束");
 }

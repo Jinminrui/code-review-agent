@@ -276,7 +276,8 @@ export async function runReviewReactStage(
         }
 
         items.push({
-          id: `evidence-${items.length + 1}`,
+          // evidenceId 会进入全局 Reflection，必须跨 Review Unit 唯一。
+          id: `${input.unit.unitId}-evidence-${items.length + 1}`,
           checkId: authorization.checkId,
           source: authorization.toolName,
           arguments: toolResult.auditArguments ?? authorization.auditArguments,

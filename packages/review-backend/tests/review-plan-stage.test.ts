@@ -110,6 +110,25 @@ const preAnalysis = buildReviewPreAnalysis([
 ]);
 
 describe("generateReviewPlanStage", () => {
+  it("Plan schema 校验失败后重试一次并接受修复后的结构化结果", async () => {
+    const provider = {
+      id: "retry-plan-provider",
+      chat: vi.fn()
+        .mockResolvedValueOnce({ content: JSON.stringify({ version: "1" }), toolCalls: [] })
+        .mockResolvedValueOnce({ content: JSON.stringify(validPlan()), toolCalls: [] })
+    };
+
+    const result = await generateReviewPlanStage({
+      provider,
+      preAnalysis,
+      diffSummary: "受控摘要"
+    });
+
+    expect(result.status).toBe("planned");
+    expect(provider.chat).toHaveBeenCalledTimes(2);
+    expect(provider.chat.mock.calls[1]?.[0].messages.at(-1)?.content).toContain("修复");
+  });
+
   it("独立调用 provider，并按 order 稳定输出全局计划和文件子计划", async () => {
     const provider = providerReturning(validPlan());
 
@@ -127,6 +146,7 @@ describe("generateReviewPlanStage", () => {
     expect(provider.chat).toHaveBeenCalledWith(
       expect.objectContaining({
         jsonMode: true,
+        jsonSchema: expect.objectContaining({ name: "review_plan", strict: true }),
         messages: [
           expect.objectContaining({ role: "system" }),
           expect.objectContaining({

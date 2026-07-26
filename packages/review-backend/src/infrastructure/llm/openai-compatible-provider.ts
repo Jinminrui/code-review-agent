@@ -12,6 +12,7 @@ import {
   type ProviderProfile
 } from "../../domain/provider.js";
 import type { ToolDefinition } from "../../domain/tool.js";
+import OpenAI from "openai";
 import { logger } from "../logging/logger.js";
 
 const log = logger.child({ component: "llm" });
@@ -19,9 +20,11 @@ const log = logger.child({ component: "llm" });
 export class OpenAiCompatibleProvider implements LlmProvider {
   readonly id: string;
   readonly capabilities: ProviderCapabilities;
+  private readonly client: OpenAI;
 
   constructor(private readonly profile: ProviderProfile) {
     this.id = profile.id;
+    this.client = new OpenAI({ apiKey: profile.apiKey, baseURL: profile.baseUrl });
     const conservativeCapabilities: ProviderCapabilities = {
       structuredOutput: false,
       toolCalling: false,
@@ -41,6 +44,7 @@ export class OpenAiCompatibleProvider implements LlmProvider {
     messages: ChatMessage[];
     tools?: ToolDefinition[];
     jsonMode?: boolean;
+    jsonSchema?: { name: string; strict: true; schema: Record<string, unknown> };
     signal?: AbortSignal;
   }): Promise<ChatResponse> {
     // 内部消息模型与 OpenAI-compatible wire format 不完全相同，这里集中做协议转换。
@@ -64,7 +68,15 @@ export class OpenAiCompatibleProvider implements LlmProvider {
 
     const body: Record<string, unknown> = { model: this.profile.model, messages };
     // 仅在调用方明确要求时启用 JSON 模式，普通工具调用仍保留模型的自然语言能力。
-    if (input.jsonMode) {
+    if (input.jsonSchema) {
+      if (this.capabilities.structuredOutput !== true) {
+        throw new Error("provider 不支持 strict JSON Schema structured output");
+      }
+      body.response_format = {
+        type: "json_schema",
+        json_schema: input.jsonSchema
+      };
+    } else if (input.jsonMode) {
       body.response_format = { type: "json_object" };
     }
     if (input.tools && input.tools.length > 0) {
@@ -75,47 +87,35 @@ export class OpenAiCompatibleProvider implements LlmProvider {
     }
 
     const t0 = Date.now();
-    const response = await fetch(`${this.profile.baseUrl}/chat/completions`, {
-      method: "POST",
-      signal: input.signal,
-      headers: {
-        "content-type": "application/json",
-        authorization: `Bearer ${this.profile.apiKey}`
-      },
-      body: JSON.stringify(body)
+    const completion = await this.client.chat.completions.create(
+      body as never,
+      input.signal ? { signal: input.signal } : undefined
+    );
+
+    const choice = completion.choices[0]?.message;
+    const toolCalls = (choice?.tool_calls ?? []).flatMap((tc) => {
+      if (tc.type !== "function") return [];
+      return [{
+        id: tc.id,
+        name: tc.function.name as ToolDefinition["name"],
+        arguments: JSON.parse(tc.function.arguments) as Record<string, unknown>
+      }];
     });
 
-    if (!response.ok) {
-      log.error(`LLM 请求失败: HTTP ${response.status}, ${Date.now() - t0}ms`);
-      throw new Error(`OpenAI-compatible provider request failed: ${response.status}`);
-    }
-
-    const payload = (await response.json()) as {
-      choices?: Array<{
-        message?: {
-          content?: string | null;
-          tool_calls?: Array<{ id: string; type: string; function: { name: string; arguments: string } }>;
-        };
-      }>;
-      usage?: { prompt_tokens?: number; completion_tokens?: number };
-    };
-
-    const choice = payload.choices?.[0]?.message;
-    const toolCalls = (choice?.tool_calls ?? []).map((tc) => ({
-      id: tc.id,
-      name: tc.function.name as ToolDefinition["name"],
-      arguments: JSON.parse(tc.function.arguments) as Record<string, unknown>
-    }));
-
-    const tokens = payload.usage ? `${payload.usage.prompt_tokens ?? 0}+${payload.usage.completion_tokens ?? 0}` : "-";
+    const tokens = completion.usage
+      ? `${completion.usage.prompt_tokens ?? 0}+${completion.usage.completion_tokens ?? 0}`
+      : "-";
     const tools = toolCalls.map((tc) => tc.name).join(",") || "无";
     log.info(`LLM 完成: ${Date.now() - t0}ms, tools=[${tools}], tokens=${tokens}`);
 
     return {
       content: choice?.content ?? null,
       toolCalls,
-      usage: payload.usage
-        ? { inputTokens: payload.usage.prompt_tokens ?? 0, outputTokens: payload.usage.completion_tokens ?? 0 }
+      usage: completion.usage
+        ? {
+            inputTokens: completion.usage.prompt_tokens ?? 0,
+            outputTokens: completion.usage.completion_tokens ?? 0
+          }
         : undefined
     };
   }

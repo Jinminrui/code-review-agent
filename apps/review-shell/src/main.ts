@@ -19,14 +19,15 @@ import {
 } from "@app/review-infrastructure";
 import { createReviewWorkbenchHandlers } from "./ipc/review-workbench-handlers.js";
 import { getRendererFilePath } from "./paths.js";
+import { resolveOpenAiProviderCapabilities, resolveOpenAiProviderConfig } from "./provider-config.js";
 import { getPreloadFilename } from "./runtime-config.js";
 
 function createProvider() {
+  const config = resolveOpenAiProviderConfig();
   return new OpenAiCompatibleProvider({
     id: "default",
-    baseUrl: process.env.OPENAI_BASE_URL ?? "https://token-plan-cn.xiaomimimo.com/v1",
-    apiKey: process.env.OPENAI_API_KEY ?? "tp-ci5mnu4qjlucxx7c5wy92pc5m1934clxyc7j65buukig1leh",
-    model: process.env.OPENAI_MODEL ?? "mimo-v2.5-pro"
+    ...config,
+    capabilities: resolveOpenAiProviderCapabilities()
   });
 }
 

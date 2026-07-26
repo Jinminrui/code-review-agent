@@ -21,6 +21,9 @@ import type { ParsedDiffFile } from "../infrastructure/git/parse-unified-diff.js
 import { PlanAuthorizer } from "../infrastructure/llm/plan-authorizer.js";
 import type { GlobalEvidenceSummary, GlobalReflectionFileResult } from "../infrastructure/llm/reflection-provider.js";
 import { createHash } from "node:crypto";
+import { logger } from "../infrastructure/logging/logger.js";
+
+const log = logger.child({ component: "review-orchestrator" });
 
 type Store = {
   appendEvent(sessionId: string, event: ReviewSessionEvent): Promise<void>;
@@ -204,7 +207,16 @@ export class ReviewOrchestrator {
     const evidenceSummaries: Array<{ schemaVersion: 1; unitId: string; completeness: "complete" | "incomplete"; items: Array<{ id: string; checkId: string; source: "file_read" | "file_find" | "code_search" | "file_read_diff"; contentHash: string; summary: string }> }> = canReuseResults ? [...(resume?.evidenceSummaries ?? [])] : [];
     const diffByFile: Record<string, { original: string; modified: string }> = canReuseResults ? { ...(resume?.diffByFile ?? {}) } : {};
     const unitResults = canReuseResults ? [...(resume?.unitResults ?? [])] : [];
-    let partial = planResult.status !== "planned";
+    // Plan 降级仍有确定性的 fallback 计划；只有执行或 Reflection 失败才影响最终状态。
+    let partial = false;
+    if (planResult.status !== "planned") {
+      log.warn({
+        stage: "plan",
+        code: planResult.error.code,
+        message: planResult.error.message,
+        sessionId
+      }, "Plan 阶段降级");
+    }
     const allRestoredUnits = plan.units.every((unit) => resume?.unitResults?.some((result) => result.unitId === unit.unitId && result.file === unit.file));
     if (resume && (resume.recoveryPhase === "global-reflection-validating" || resume.recoveryPhase === "global-reflection-completed") && (!canReuseResults || !allRestoredUnits)) {
       throw new Error("恢复失败：全局 Reflection 边界缺少匹配计划或完整 unit 结果");
@@ -240,18 +252,24 @@ export class ReviewOrchestrator {
         yield* transition(this, "reflection-validating", unit.unitId);
         const reflection = await this.stages.reflection({ unit, evidenceBundle: react.evidenceBundle, candidateContext: { beforeContent: context.beforeContent, afterContent: context.afterContent }, provider: this.dependencies.provider, authorizers, toolExecutorContext: { gitClient: this.dependencies.gitClient, baseRef: sessionInput.baseRef, targetRef: sessionInput.targetRef, repositoryPath: sessionInput.repositoryPath, diffFiles, signal }, signal });
         if (reflection.status === "reflection-failed" || reflection.status === "evidence-incomplete") partial = true;
-        if (reflection.status !== "reflection-failed") {
-          const normalized = validateAndNormalizeFindings({ unit, evidenceBundle: reflection.evidenceBundle, reflectionResult: reflection.reflectionResult, diffFiles });
-          findings.push(...normalized.findings);
-          fileResults.push({ unitId: unit.unitId, reflectionResult: reflection.reflectionResult, findings: normalized.findings });
+        if (reflection.status === "reflection-failed") {
+          log.warn({ stage: "reflection", code: reflection.error.code, message: reflection.error.message, sessionId, unitId: unit.unitId }, "文件级 Reflection 失败");
+          partial = true;
+          const reason = reflection.error.message;
+          yield* transition(this, "unit-failed", unit.unitId);
+          yield* emit({ type: "unit-failed", sessionId, unitId: unit.unitId, reason }, this.dependencies.sessionStore);
+          continue;
         }
+        const normalized = validateAndNormalizeFindings({ unit, evidenceBundle: reflection.evidenceBundle, reflectionResult: reflection.reflectionResult, diffFiles });
+        findings.push(...normalized.findings);
+        fileResults.push({ unitId: unit.unitId, reflectionResult: reflection.reflectionResult, findings: normalized.findings });
         evidenceSummaries.push({ schemaVersion: 1, unitId: unit.unitId, completeness: react.evidenceBundle.completeness, items: react.evidenceBundle.items.map((item) => ({ id: item.id, checkId: item.checkId, source: item.source, contentHash: item.contentHash, summary: item.content.slice(0, 200) || "不可用" })) });
         diffByFile[unit.file] = { original: context.beforeContent, modified: context.afterContent };
         const persistedUnitResult = {
           unitId: unit.unitId,
           file: unit.file,
           findings: normalizedFindingsForPersistence(reflection, unit, react, diffFiles),
-          reflectionResult: reflection.status !== "reflection-failed" ? reflection.reflectionResult : { schemaVersion: 1 as const, unitId: unit.unitId, candidates: [] },
+          reflectionResult: reflection.reflectionResult,
           evidenceSummary: evidenceSummaries.at(-1)!,
           diff: diffByFile[unit.file]
         };
@@ -264,6 +282,13 @@ export class ReviewOrchestrator {
       } catch (error) {
         if (isCancellation(error, signal)) return yield* this.cancel(sessionId, sessionInput, findings);
         partial = true;
+        log.error({
+          stage: "review-unit",
+          code: "unhandled-error",
+          message: error instanceof Error ? error.message : "unknown error",
+          sessionId,
+          unitId: unit.unitId
+        }, "审查单元执行失败");
         yield* transition(this, "unit-failed", unit.unitId);
         yield* emit({ type: "unit-failed", sessionId, unitId: unit.unitId, reason: error instanceof Error ? error.message : "unknown error" }, this.dependencies.sessionStore);
       }
@@ -279,12 +304,21 @@ export class ReviewOrchestrator {
       if (this.phase !== "global-reflection-validating") yield* transition(this, "global-reflection-validating");
       const global = await this.stages.globalReflection({ reviewPlan: plan, fileResults, evidenceSummaries, provider: this.dependencies.provider, signal });
       if (signal?.aborted) return yield* this.cancel(sessionId, sessionInput, findings);
-      if (global.status === "reflection-failed") partial = true;
+      if (global.status === "reflection-failed") {
+        partial = true;
+        log.warn({ stage: "global-reflection", code: global.error.code, message: global.error.message, sessionId }, "全局 Reflection 失败");
+      }
       findings.splice(0, findings.length, ...global.findings);
       yield* transition(this, "global-reflection-completed");
     } catch (error) {
       if (isCancellation(error, signal)) return yield* this.cancel(sessionId, sessionInput, findings);
       partial = true;
+      log.error({
+        stage: "global-reflection",
+        code: "unhandled-error",
+        message: error instanceof Error ? error.message : "unknown error",
+        sessionId
+      }, "全局 Reflection 执行失败");
       yield* transition(this, "global-reflection-completed");
     }
     yield* transition(this, "session-finished");

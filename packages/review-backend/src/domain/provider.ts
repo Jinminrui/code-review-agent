@@ -37,6 +37,12 @@ export type ChatMessage =
   | { role: "assistant"; content: string | null; toolCalls?: ToolCall[] }
   | { role: "tool"; toolCallId: string; content: string };
 
+export type JsonSchemaResponseFormat = {
+  name: string;
+  strict: true;
+  schema: Record<string, unknown>;
+};
+
 export type ChatResponse = {
   content: string | null;
   toolCalls: ToolCall[];
@@ -50,6 +56,7 @@ export interface LlmProvider {
     messages: ChatMessage[];
     tools?: ToolDefinition[];
     jsonMode?: boolean;
+    jsonSchema?: JsonSchemaResponseFormat;
     signal?: AbortSignal;
   }): Promise<ChatResponse>;
 }

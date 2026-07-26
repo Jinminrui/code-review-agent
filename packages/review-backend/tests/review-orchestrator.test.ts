@@ -33,6 +33,30 @@ function deps(stages: Partial<ReviewOrchestratorStages> = {}) {
 }
 
 describe("ReviewOrchestrator", () => {
+  it("计划降级但各审查单元成功时仍完成会话", async () => {
+    const plan = vi.fn().mockResolvedValue({
+      status: "plan-degraded",
+      plan: {
+        version: 1,
+        changeSetSummary: { files: ["src/a.ts", "src/b.ts"], totalInsertions: 2, totalDeletions: 0 },
+        riskAreas: [],
+        units: [
+          { unitId: "u-a", file: "src/a.ts", order: 0, checks: [], budget: { modelCalls: 1, toolCalls: 0, maxInputTokens: 100, maxOutputTokens: 100, maxReadBytes: 1000, maxDurationMs: 1000 } },
+          { unitId: "u-b", file: "src/b.ts", order: 1, checks: [], budget: { modelCalls: 1, toolCalls: 0, maxInputTokens: 100, maxOutputTokens: 100, maxReadBytes: 1000, maxDurationMs: 1000 } }
+        ]
+      },
+      error: { code: "provider-error", message: "Plan provider unavailable" }
+    });
+    const store = { appendEvent: vi.fn(), completeSession: vi.fn() };
+    const orchestrator = new ReviewOrchestrator({ ...deps({ plan }), sessionStore: store });
+
+    const events: ReviewSessionEvent[] = [];
+    for await (const event of orchestrator.run({ sessionId: "s-plan-degraded", input: { repositoryPath: "/repo", baseRef: "main", targetRef: "feature", contextBudgetTokens: 1000 } })) events.push(event);
+
+    expect(events.some((event) => event.type === "session-finished" && event.status === "finished")).toBe(true);
+    expect(events.some((event) => event.type === "session-finished" && event.status === "partial")).toBe(false);
+  });
+
   it("rejects an illegal phase transition and emits the hybrid phase order", async () => {
     const store = { appendEvent: vi.fn(), completeSession: vi.fn() };
     const orchestrator = new ReviewOrchestrator({ ...deps(), sessionStore: store });
@@ -55,6 +79,23 @@ describe("ReviewOrchestrator", () => {
     expect(events.some((event) => event.type === "unit-failed" && event.unitId === "u-a")).toBe(true);
     expect(events.some((event) => event.type === "phase-transitioned" && event.phase === "unit-failed" && event.unitId === "u-a")).toBe(true);
     expect(events.some((event) => event.type === "session-finished" && event.status === "partial")).toBe(true);
+  });
+
+  it("Reflection 失败时发出 unit-failed，而不是伪装成 unit-completed", async () => {
+    const reflection = vi.fn().mockResolvedValue({
+      status: "reflection-failed",
+      evidenceBundle: { schemaVersion: 1, unitId: "u-a", completeness: "complete", items: [] },
+      backfill: { requested: false, requestCount: 0, toolCalls: 0, requestDenied: false },
+      error: { code: "invalid-result", message: "candidates missing" }
+    });
+    const store = { appendEvent: vi.fn(), completeSession: vi.fn() };
+    const orchestrator = new ReviewOrchestrator({ ...deps({ reflection }), sessionStore: store });
+    const events: ReviewSessionEvent[] = [];
+
+    for await (const event of orchestrator.run({ sessionId: "s-reflection-failed", input: { repositoryPath: "/repo", baseRef: "main", targetRef: "feature", contextBudgetTokens: 1000 } })) events.push(event);
+
+    expect(events.some((event) => event.type === "unit-failed" && event.unitId === "u-a" && event.reason === "candidates missing")).toBe(true);
+    expect(events.some((event) => event.type === "phase-transitioned" && event.phase === "unit-completed" && event.unitId === "u-a")).toBe(false);
   });
 
   it("cancels during plan and global reflection without finishing the session", async () => {

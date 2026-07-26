@@ -20,7 +20,41 @@ export const reflectionBackfillRequestSchema = z.object({
   checkId: z.string().min(1),
   reason: z.string().min(1),
   allowedTool: evidenceSourceSchema,
-  arguments: z.record(z.unknown())
+  // 使用固定的只读工具参数集合，避免 JSON Schema 退化为 additionalProperties。
+  arguments: z.object({
+    path: z.string().optional(),
+    keyword: z.string().optional(),
+    pattern: z.string().optional(),
+    regex: z.boolean().optional(),
+    start_line: z.number().int().positive().optional(),
+    end_line: z.number().int().positive().optional(),
+    calls: z.array(z.object({
+      allowedTool: evidenceSourceSchema.optional(),
+      name: evidenceSourceSchema.optional(),
+      tool: evidenceSourceSchema.optional(),
+      arguments: z.object({
+        path: z.string().optional(),
+        keyword: z.string().optional(),
+        pattern: z.string().optional(),
+        regex: z.boolean().optional(),
+        start_line: z.number().int().positive().optional(),
+        end_line: z.number().int().positive().optional()
+      })
+    })).optional(),
+    toolCalls: z.array(z.object({
+      allowedTool: evidenceSourceSchema.optional(),
+      name: evidenceSourceSchema.optional(),
+      tool: evidenceSourceSchema.optional(),
+      arguments: z.object({
+        path: z.string().optional(),
+        keyword: z.string().optional(),
+        pattern: z.string().optional(),
+        regex: z.boolean().optional(),
+        start_line: z.number().int().positive().optional(),
+        end_line: z.number().int().positive().optional()
+      })
+    })).optional()
+  })
 });
 
 export const reflectionResultSchema = z.object({

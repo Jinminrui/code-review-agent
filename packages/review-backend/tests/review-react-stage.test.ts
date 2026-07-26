@@ -131,7 +131,7 @@ describe("runReviewReactStage", () => {
       completeness: "complete",
       items: [
         {
-          id: "evidence-1",
+          id: "unit-auth-evidence-1",
           checkId: "check-auth",
           source: "file_read",
           arguments: { path: "src/auth.ts" },
@@ -139,7 +139,7 @@ describe("runReviewReactStage", () => {
           contentHash: expect.stringMatching(/^sha256:/)
         },
         {
-          id: "evidence-2",
+          id: "unit-auth-evidence-2",
           checkId: "check-auth",
           source: "code_search",
           arguments: { pattern: "authenticate" },
@@ -169,7 +169,7 @@ describe("runReviewReactStage", () => {
       unit: { unitId: "unit-auth" },
       toolResults: [
         {
-          evidenceId: "evidence-1",
+          evidenceId: "unit-auth-evidence-1",
           checkId: "check-auth",
           source: "file_read"
         }

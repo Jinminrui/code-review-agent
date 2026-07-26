@@ -268,6 +268,24 @@ function addFileUnadoptedCandidates(input: ReturnType<typeof globalStageInput>) 
 }
 
 describe("runReviewReflectionStage", () => {
+  it("Reflection 缺少 candidates 时重试一次并接受修复后的结果", async () => {
+    const provider = providerReturning(
+      { schemaVersion: 1, unitId: "unit-auth" },
+      { schemaVersion: 1, unitId: "unit-auth", candidates: [] }
+    );
+
+    const result = await runReviewReflectionStage({
+      unit: unit(),
+      evidenceBundle: evidenceBundle(),
+      candidateContext: {},
+      provider,
+      toolExecutorContext: toolContext()
+    });
+
+    expect(result.status).toBe("completed");
+    expect(provider.chat).toHaveBeenCalledTimes(2);
+  });
+
   it("将文件子计划、EvidenceBundle 和候选上下文交给独立 provider，并返回版本化结果", async () => {
     const provider = providerReturning({
       schemaVersion: 1,
@@ -300,6 +318,7 @@ describe("runReviewReflectionStage", () => {
     });
     const request = vi.mocked(provider.chat).mock.calls[0]![0];
     expect(request.jsonMode).toBe(true);
+    expect(request.jsonSchema).toEqual(expect.objectContaining({ name: "review_reflection", strict: true }));
     expect(request.tools).toBeUndefined();
     expect(request.messages.map((message) => message.role)).toEqual(["system", "user"]);
     const userMessage = request.messages[1];

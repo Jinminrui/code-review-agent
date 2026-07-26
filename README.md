@@ -189,6 +189,21 @@ pnpm --filter @app/review-app test:e2e
 3. `REVIEW_LOG_FILE_SIZE`：单个日志文件大小上限，单位为字节。
 4. `REVIEW_LOG_RETENTION_DAYS`：日志保留天数。
 
+OpenAI SDK 配置仅在 Electron 主进程读取：
+
+1. `OPENAI_API_KEY`：必填，不会传入 renderer、会话文件或日志。
+2. `OPENAI_BASE_URL`：可选，默认使用当前 MiMo 兼容 endpoint。
+3. `OPENAI_MODEL`：可选，默认使用 `mimo-v2.5-pro`。
+
+OpenAI-compatible provider 默认启用当前 endpoint 所需的结构化输出、工具调用、usage 和取消能力。若实际 endpoint 不支持某项能力，可设置对应变量为 `false`：
+
+1. `OPENAI_STRUCTURED_OUTPUT`
+2. `OPENAI_TOOL_CALLING`
+3. `OPENAI_USAGE`
+4. `OPENAI_CANCELLATION`
+
+Plan 使用确定性 fallback 不会单独导致会话显示“部分完成”；只有审查单元或 Reflection 实际失败时才会标记为 `partial`。
+
 拿到日志中的 `traceId` 后，可以使用开发者命令查询完整关联记录：
 
 ```bash
