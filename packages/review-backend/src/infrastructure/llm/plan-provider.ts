@@ -122,7 +122,7 @@ export async function requestReviewPlan(input: {
         ...messages,
         {
           role: "user",
-          content: `上一次 Plan 提交未通过 schema 校验：${error.message}。请修复所有字段类型和必填字段，并调用 submit_review_plan 工具提交完整计划，不要输出解释。`
+          content: `上一次 Plan 工具参数未通过 schema 校验：${error.message}。请直接调用 submit_review_plan 工具提交完整计划；参数必须是 JSON 对象，version 使用数字 1，units 使用数组，不要输出普通文本。`
         }
       ];
     }
@@ -138,7 +138,7 @@ function parsePlanResponse(response: Awaited<ReturnType<LlmProvider["chat"]>>): 
   }
 
   const value = submitted?.arguments ?? parseContent(response.content);
-  const parsed = planCandidateSchema.safeParse(value);
+  const parsed = planCandidateSchema.safeParse(normalizePlanResult(value));
   if (!parsed.success) {
     const details = parsed.error.issues.map(
       (issue) => `${issue.path.join(".") || "plan"}: ${issue.message}`
@@ -149,6 +149,34 @@ function parsePlanResponse(response: Awaited<ReturnType<LlmProvider["chat"]>>): 
   }
 
   return parsed.data;
+}
+
+function normalizePlanResult(value: unknown): unknown {
+  if (!isRecord(value)) return value;
+  return {
+    ...value,
+    ...(typeof value.version === "string" && Number.isInteger(Number(value.version))
+      ? { version: Number(value.version) }
+      : {}),
+    ...parseEncodedField(value, "changeSetSummary"),
+    ...parseEncodedField(value, "riskAreas"),
+    ...parseEncodedField(value, "units"),
+    ...parseEncodedField(value, "revision")
+  };
+}
+
+function parseEncodedField(record: Record<string, unknown>, key: string): Record<string, unknown> {
+  const value = record[key];
+  if (typeof value !== "string") return {};
+  try {
+    return { [key]: JSON.parse(value) };
+  } catch {
+    return {};
+  }
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null && !Array.isArray(value);
 }
 
 function parseContent(content: string | null | undefined): unknown {

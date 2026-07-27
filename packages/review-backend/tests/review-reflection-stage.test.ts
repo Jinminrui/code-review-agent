@@ -10,7 +10,10 @@ import type { ReviewFinding } from "../src/domain/review-finding.js";
 import type { ReviewPlan } from "../src/domain/review-plan.js";
 import { runGlobalReviewReflectionStage } from "../src/application/global-review-reflection-stage.js";
 import { runReviewReflectionStage } from "../src/application/review-reflection-stage.js";
-import { buildReviewReflectionMessages } from "../src/infrastructure/llm/reflection-provider.js";
+import {
+  buildGlobalReviewReflectionMessages,
+  buildReviewReflectionMessages
+} from "../src/infrastructure/llm/reflection-provider.js";
 import { PlanAuthorizer } from "../src/infrastructure/llm/plan-authorizer.js";
 import type { ToolExecutorContext } from "../src/infrastructure/llm/tool-executors.js";
 
@@ -301,6 +304,42 @@ describe("runReviewReflectionStage", () => {
     expect(provider.chat).toHaveBeenCalledTimes(2);
   });
 
+  it("兼容 provider 将 Reflection schemaVersion 和 candidates 编码成字符串的返回", async () => {
+    const candidate = {
+      finding: finding(),
+      evidenceIds: ["evidence-1"],
+      counterEvidence: "未发现反例",
+      decision: "accept" as const,
+      decisionReason: "证据支持该问题"
+    };
+    const provider = {
+      id: "encoded-reflection-provider",
+      capabilities,
+      chat: vi.fn().mockResolvedValue({
+        content: null,
+        toolCalls: [{
+          id: "call-reflection-1",
+          name: "submit_review_reflection",
+          arguments: {
+            schemaVersion: "1",
+            unitId: "unit-auth",
+            candidates: JSON.stringify([candidate])
+          }
+        }]
+      })
+    };
+
+    const result = await runReviewReflectionStage({
+      unit: unit(),
+      evidenceBundle: evidenceBundle(),
+      candidateContext: {},
+      provider,
+      toolExecutorContext: toolContext()
+    });
+
+    expect(result.status).toBe("completed");
+  });
+
   it("将文件子计划、EvidenceBundle 和候选上下文交给独立 provider，并返回版本化结果", async () => {
     const provider = providerReturning({
       schemaVersion: 1,
@@ -583,6 +622,18 @@ describe("runReviewReflectionStage", () => {
 });
 
 describe("runGlobalReviewReflectionStage", () => {
+  it("全局 Reflection prompt 要求只通过指定工具提交最小合法结果", () => {
+    const input = globalStageInput(providerReturning({}));
+    const systemMessage = buildGlobalReviewReflectionMessages(input)[0];
+
+    expect(systemMessage?.role).toBe("system");
+    expect(systemMessage?.content).toContain("只调用 submit_global_review_reflection 工具");
+    expect(systemMessage?.content).toContain("工具参数必须是 JSON 对象");
+    expect(systemMessage?.content).toContain('"schemaVersion":1');
+    expect(systemMessage?.content).toContain('"candidates":[]');
+    expect(systemMessage?.content).not.toContain("本阶段没有工具");
+  });
+
   it("结合跨文件 Evidence 摘要识别契约风险并调整正式 finding severity", async () => {
     const provider = providerReturning({
       schemaVersion: 1,

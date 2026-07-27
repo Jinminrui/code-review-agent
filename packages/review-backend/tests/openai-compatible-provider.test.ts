@@ -53,6 +53,32 @@ describe("OpenAiCompatibleProvider tool calling", () => {
     expect(result).toEqual({ content: '{"ok":true}', toolCalls: [], usage: { inputTokens: 3, outputTokens: 2 } });
   });
 
+  it("工具调用时不再同时发送 json_object response_format", async () => {
+    createCompletion.mockResolvedValue({
+      choices: [{ message: { content: null, tool_calls: [] } }]
+    });
+
+    const provider = new OpenAiCompatibleProvider({
+      id: "tool-json-provider",
+      baseUrl: "https://llm.example.test/v1",
+      apiKey: "test-key",
+      model: "test-model",
+      capabilities: { structuredOutput: false, toolCalling: true, usage: true, cancellation: true }
+    });
+
+    await provider.chat({
+      messages: [{ role: "user", content: "提交结果" }],
+      tools: [{ name: "submit_review_reflection", description: "提交 Reflection", parameters: { type: "object" } }],
+      jsonMode: true
+    });
+
+    expect(createCompletion).toHaveBeenCalledWith({
+      model: "test-model",
+      messages: [{ role: "user", content: "提交结果" }],
+      tools: [{ type: "function", function: { name: "submit_review_reflection", description: "提交 Reflection", parameters: { type: "object" } } }]
+    }, undefined);
+  });
+
   it("解析结构化提交工具的 arguments", async () => {
     createCompletion.mockResolvedValue({
       choices: [{ message: { content: null, tool_calls: [{ id: "call-1", type: "function", function: { name: "submit_review_plan", arguments: '{"version":1}' } }] } }]

@@ -14,11 +14,12 @@ export const REVIEW_PLAN_SYSTEM_PROMPT = `你是代码审查的 Plan 阶段，�
 2. 每个变更文件必须有且只有一个文件子计划，order 决定审查顺序。
 3. 每个子计划必须包含至少一个 check；每个 check 必须包含 completionCriteria、allowedFiles 和 evidenceTargets。
 4. unit.file 必须是变更文件；所有 relatedFiles 和 allowedFiles 必须位于允许文件范围内。
-5. 不得请求工具、执行审查、生成 finding，也不得补充消息中不存在的文件。
-6. 只返回 JSON 对象，不要使用 Markdown 代码块或解释性文字。
-7. 所有描述性文本（包括 changeSetSummary、riskAreas、description、completionCriteria 和 evidenceTargets）必须使用中文；文件路径、字段名和内部 ID 保持原样。
+5. 只调用 submit_review_plan 工具提交结果，不要在普通文本中输出结果，也不要调用其他工具。
+6. 工具参数必须是 JSON 对象，不是 JSON 字符串；数字、数组和对象必须保持原生类型，不得序列化成字符串。
+7. 必须提交完整计划；version 使用数字 1，units 使用数组。最小合法形状为 {"version":1,"changeSetSummary":{...},"riskAreas":[],"units":[]}；budget 可以省略，由系统填入确定性默认值。
+8. 所有描述性文本（包括 changeSetSummary、riskAreas、description、completionCriteria 和 evidenceTargets）必须使用中文；文件路径、字段名和内部 ID 保持原样。
 
-输出字段必须符合 ReviewPlan：version、changeSetSummary、riskAreas、units，以及修订时可选的 revision。budget 可以省略，由系统填入确定性默认值。`;
+输出字段必须符合 ReviewPlan：version、changeSetSummary、riskAreas、units，以及修订时可选的 revision。`;
 
 export type ReviewPlanPromptInput = {
   preAnalysis: ReviewPreAnalysis;

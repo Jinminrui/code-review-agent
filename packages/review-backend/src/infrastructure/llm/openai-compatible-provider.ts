@@ -98,8 +98,10 @@ export class OpenAiCompatibleProvider implements LlmProvider {
     });
 
     const body: Record<string, unknown> = { model: this.profile.model, messages };
-    // 仅在调用方明确要求时启用 JSON 模式，普通工具调用仍保留模型的自然语言能力。
-    if (input.jsonSchema) {
+    const hasTools = input.tools !== undefined && input.tools.length > 0;
+    // 工具调用和 response_format 是两套输出协议。兼容服务端可能因此把工具参数
+    // 当作普通 JSON 文本处理，所以有工具时优先使用 tool calling，不发送 response_format。
+    if (!hasTools && input.jsonSchema) {
       if (this.capabilities.structuredOutput !== true) {
         throw new Error("provider 不支持 strict JSON Schema structured output");
       }
@@ -107,7 +109,7 @@ export class OpenAiCompatibleProvider implements LlmProvider {
         type: "json_schema",
         json_schema: input.jsonSchema
       };
-    } else if (input.jsonMode) {
+    } else if (!hasTools && input.jsonMode) {
       body.response_format = { type: "json_object" };
     }
     if (input.tools && input.tools.length > 0) {

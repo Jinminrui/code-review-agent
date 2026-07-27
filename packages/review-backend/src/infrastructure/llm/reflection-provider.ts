@@ -50,11 +50,13 @@ const REFLECTION_SYSTEM_PROMPT = [
 const GLOBAL_REFLECTION_SYSTEM_PROMPT = [
   "你处于全局 Reflection 阶段，只能消费给定的全局 ReviewPlan、文件级 Reflection 结果、正式 finding 和 Evidence 摘要。",
   "检查跨文件契约风险、重复或同根因 finding、互相矛盾的 finding，并统一整体 severity。",
-  "schemaVersion 必须是数字 1，candidates 必须是数组；必须省略 unitId 和 backfillRequest。",
-  "输出必须符合 ReflectionResult JSON contract；必须省略 unitId 和 backfillRequest。",
+  "只调用 submit_global_review_reflection 工具提交结果，不要在普通文本中输出结果，也不要调用其他工具。",
+  "工具参数必须是 JSON 对象，不是 JSON 字符串；数字、数组和对象必须保持原生类型，不得序列化成字符串。",
+  "必须提交最小合法结果，例如 {\"schemaVersion\":1,\"candidates\":[]}；必须省略 unitId 和 backfillRequest。",
+  "schemaVersion 必须是数字 1，candidates 必须是数组；不得省略 candidates。",
   "只能对输入正式 finding 做接受、拒绝、needs-review 或 severity 调整，不得新增 finding、修改文件/行号/问题范围，也不得引用 Evidence 摘要中不存在的 id。",
   "所有决策理由、反例摘要和 finding 文案必须使用中文；文件路径、代码内容和内部 ID 保持原样。",
-  "本阶段没有工具，不得请求或调用工具。不要输出原始思维链，只输出结构化结论、反例摘要和决策理由。"
+  "不要输出原始思维链，只输出结构化结论、反例摘要和决策理由。"
 ].join("\n");
 
 export const reviewReflectionTool = {
@@ -205,7 +207,7 @@ function parseReflectionResponse(
   }
 
   const value = submitted?.arguments ?? parseReflectionContent(response.content, label);
-  const parsed = reflectionResultSchema.safeParse(value);
+  const parsed = reflectionResultSchema.safeParse(normalizeReflectionResult(value));
   if (!parsed.success) {
     const details = parsed.error.issues.map(
       (issue) => `${issue.path.join(".") || "reflectionResult"}: ${issue.message}`
@@ -219,6 +221,32 @@ function parseReflectionResponse(
   }
 
   return parsed.data;
+}
+
+function normalizeReflectionResult(value: unknown): unknown {
+  if (!isRecord(value)) return value;
+  return {
+    ...value,
+    ...(typeof value.schemaVersion === "string" && Number.isInteger(Number(value.schemaVersion))
+      ? { schemaVersion: Number(value.schemaVersion) }
+      : {}),
+    ...parseEncodedField(value, "candidates"),
+    ...parseEncodedField(value, "backfillRequest")
+  };
+}
+
+function parseEncodedField(record: Record<string, unknown>, key: string): Record<string, unknown> {
+  const value = record[key];
+  if (typeof value !== "string") return {};
+  try {
+    return { [key]: JSON.parse(value) };
+  } catch {
+    return {};
+  }
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null && !Array.isArray(value);
 }
 
 function parseReflectionContent(content: string | null | undefined, label: string): unknown {
@@ -285,7 +313,7 @@ export async function requestGlobalReviewReflection(input: {
         ...messages,
         {
           role: "user",
-          content: `上一次全局 Reflection 提交未通过 schema 校验：${error.message}。请补齐 candidates、schemaVersion，省略 unitId 和 backfillRequest，并调用 ${globalReviewReflectionTool.name} 工具提交结果。`
+          content: `上一次全局 Reflection 工具参数未通过 schema 校验：${error.message}。请直接调用 ${globalReviewReflectionTool.name} 工具；参数必须是 JSON 对象，schemaVersion 使用数字 1，candidates 使用数组，缺少候选时使用 []，省略 unitId 和 backfillRequest，不要输出普通文本。`
         }
       ];
     }

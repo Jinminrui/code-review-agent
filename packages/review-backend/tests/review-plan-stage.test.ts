@@ -11,6 +11,7 @@ import {
   generateReviewPlanStage,
   reviseReviewPlanStage
 } from "../src/application/review-plan-stage.js";
+import { buildReviewPlanMessages } from "../src/infrastructure/llm/review-stage-prompts.js";
 import type { ParsedDiffFile } from "../src/infrastructure/git/parse-unified-diff.js";
 
 type PlanProvider = Pick<LlmProvider, "id" | "chat">;
@@ -110,6 +111,20 @@ const preAnalysis = buildReviewPreAnalysis([
 ]);
 
 describe("generateReviewPlanStage", () => {
+  it("Plan prompt 要求只通过 submit_review_plan 工具提交最小合法计划", () => {
+    const systemMessage = buildReviewPlanMessages({
+      preAnalysis,
+      diffSummary: "受控摘要",
+      allowedFiles: ["src/a.ts"]
+    })[0];
+
+    expect(systemMessage?.role).toBe("system");
+    expect(systemMessage?.content).toContain("只调用 submit_review_plan 工具");
+    expect(systemMessage?.content).toContain("工具参数必须是 JSON 对象");
+    expect(systemMessage?.content).toContain('"version":1');
+    expect(systemMessage?.content).not.toContain("只返回 JSON 对象");
+  });
+
   it("Plan schema 校验失败后重试一次并接受修复后的结构化结果", async () => {
     const provider = {
       id: "retry-plan-provider",
@@ -126,7 +141,35 @@ describe("generateReviewPlanStage", () => {
 
     expect(result.status).toBe("planned");
     expect(provider.chat).toHaveBeenCalledTimes(2);
-    expect(provider.chat.mock.calls[1]?.[0].messages.at(-1)?.content).toContain("修复");
+    expect(provider.chat.mock.calls[1]?.[0].messages.at(-1)?.content).toContain("直接调用 submit_review_plan 工具");
+  });
+
+  it("兼容 provider 将 Plan 顶层结构字段编码成字符串的返回", async () => {
+    const plan = validPlan();
+    const provider = {
+      id: "encoded-plan-provider",
+      chat: vi.fn().mockResolvedValue({
+        content: null,
+        toolCalls: [{
+          id: "call-plan-1",
+          name: "submit_review_plan",
+          arguments: {
+            version: "1",
+            changeSetSummary: JSON.stringify(plan.changeSetSummary),
+            riskAreas: JSON.stringify(plan.riskAreas),
+            units: JSON.stringify(plan.units)
+          }
+        }]
+      })
+    };
+
+    const result = await generateReviewPlanStage({
+      provider,
+      preAnalysis,
+      diffSummary: "受控摘要"
+    });
+
+    expect(result.status).toBe("planned");
   });
 
   it("独立调用 provider，并按 order 稳定输出全局计划和文件子计划", async () => {
