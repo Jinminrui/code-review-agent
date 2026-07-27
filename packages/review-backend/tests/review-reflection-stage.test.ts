@@ -10,6 +10,7 @@ import type { ReviewFinding } from "../src/domain/review-finding.js";
 import type { ReviewPlan } from "../src/domain/review-plan.js";
 import { runGlobalReviewReflectionStage } from "../src/application/global-review-reflection-stage.js";
 import { runReviewReflectionStage } from "../src/application/review-reflection-stage.js";
+import { buildReviewReflectionMessages } from "../src/infrastructure/llm/reflection-provider.js";
 import { PlanAuthorizer } from "../src/infrastructure/llm/plan-authorizer.js";
 import type { ToolExecutorContext } from "../src/infrastructure/llm/tool-executors.js";
 
@@ -268,6 +269,20 @@ function addFileUnadoptedCandidates(input: ReturnType<typeof globalStageInput>) 
 }
 
 describe("runReviewReflectionStage", () => {
+  it("prompt 明确要求通过工具提交最小合法的 ReflectionResult", () => {
+    const systemMessage = buildReviewReflectionMessages({
+      unit: unit(),
+      evidenceBundle: evidenceBundle(),
+      candidateContext: {}
+    })[0];
+
+    expect(systemMessage?.role).toBe("system");
+    expect(systemMessage?.content).toContain("只调用 submit_review_reflection 工具");
+    expect(systemMessage?.content).toContain('"schemaVersion":1');
+    expect(systemMessage?.content).toContain('"candidates":[]');
+    expect(systemMessage?.content).toContain("禁止把数字、数组或对象序列化成字符串");
+  });
+
   it("Reflection 缺少 candidates 时重试一次并接受修复后的结果", async () => {
     const provider = providerReturning(
       { schemaVersion: 1, unitId: "unit-auth" },

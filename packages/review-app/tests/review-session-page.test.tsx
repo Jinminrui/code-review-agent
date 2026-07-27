@@ -79,20 +79,22 @@ describe("ReviewSessionPage", () => {
     expect(screen.getByRole("button", { name: /中止审查/ })).toBeInTheDocument();
 
     // 会话进度区域
-    expect(screen.getByText("session-status")).toBeInTheDocument();
-    expect(screen.getByText("review-trace")).toBeInTheDocument();
+    expect(screen.getByText("审查状态")).toBeInTheDocument();
+    expect(screen.getByText("审查轨迹")).toBeInTheDocument();
 
     // 审查摘要区域
-    expect(screen.getByText("session-summary")).toBeInTheDocument();
-    expect(screen.getByText("files")).toBeInTheDocument();
-    expect(screen.getAllByText("findings").length).toBeGreaterThan(0);
-    expect(screen.getByText("high")).toBeInTheDocument();
+    expect(screen.getByText("审查摘要")).toBeInTheDocument();
+    expect(screen.getByText("文件")).toBeInTheDocument();
+    expect(screen.getAllByText("问题").length).toBeGreaterThan(0);
+    expect(screen.getAllByText("高风险").length).toBeGreaterThan(0);
 
     // 风险文件列表
-    expect(screen.getByText("risk-files")).toBeInTheDocument();
+    expect(screen.getByText("高风险文件")).toBeInTheDocument();
     expect(screen.getAllByText("src/a.ts").length).toBeGreaterThan(0);
 
     // Finding 列表
     expect(screen.getByRole("button", { name: /空值保护缺失/ })).toBeInTheDocument();
+    expect(screen.getByText("上下文")).toBeInTheDocument();
+    expect(screen.getByText("证据")).toBeInTheDocument();
   });
 });

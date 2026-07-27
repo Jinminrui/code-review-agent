@@ -36,7 +36,7 @@ export function SessionProgress({ status, completedUnits = 0, totalUnits = 0, pr
 
   return (
     <div className="p-4 border-b border-border-muted">
-      <SectionLabel command="session-status" className="mb-3" />
+      <SectionLabel command="审查状态" className="mb-3" />
 
       {/* 状态和进度 */}
       <div className="space-y-3">
@@ -54,12 +54,12 @@ export function SessionProgress({ status, completedUnits = 0, totalUnits = 0, pr
         {/* 单元计数 */}
         <div className="flex items-center gap-2 text-xs text-text-tertiary">
           <Icon icon={FileText} size="xs" variant="muted" />
-          <span>{completedUnits}/{totalUnits} units complete</span>
+          <span>{completedUnits}/{totalUnits} 个审查单元已完成</span>
         </div>
         {progress && (
           <div className="space-y-1 text-xs text-text-tertiary">
             <div>阶段：<span className="text-text-secondary">{({ 'pre-analysis': '预分析', planning: '规划', evidence: '证据采集', validation: '校验', complete: '完成' } as const)[progress.phase]}</span></div>
-            <div>当前 unit：<span className="font-mono text-text-secondary">{progress.currentUnit ?? '不可用'}</span></div>
+            <div>当前审查单元：<span className="font-mono text-text-secondary">{progress.currentUnit ?? '不可用'}</span></div>
             <div>检查项：<span className="text-text-secondary">{progress.checks.length > 0 ? progress.checks.map((check) => `${check.id}（${check.status}）`).join('、') : '不可用'}</span></div>
             <div>预算：<span className="font-mono text-text-secondary">{progress.budget ? `模型 ${progress.budget.modelCalls} / 工具 ${progress.budget.toolCalls} / 输入 ${progress.budget.maxInputTokens} / 输出 ${progress.budget.maxOutputTokens}` : '不可用'}</span></div>
             {progress.degradation && <div className="text-accent-amber">{progress.degradation}</div>}

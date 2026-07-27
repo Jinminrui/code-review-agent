@@ -33,9 +33,9 @@ describe("SessionCard", () => {
 
     expect(screen.getByText("main → feature")).toBeInTheDocument();
     expect(screen.getByText("/Users/test/repo")).toBeInTheDocument();
-    expect(screen.getByText("3 files")).toBeInTheDocument();
-    expect(screen.getByText("2 findings")).toBeInTheDocument();
-    expect(screen.getByText("1 high")).toBeInTheDocument();
+    expect(screen.getByText("3 个文件")).toBeInTheDocument();
+    expect(screen.getByText("2 个问题")).toBeInTheDocument();
+    expect(screen.getByText("1 个高风险")).toBeInTheDocument();
   });
 
   it("calls onDelete when delete button is clicked", async () => {

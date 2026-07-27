@@ -15,10 +15,10 @@ export const findingStatusLabel = {
 } as const;
 
 export const sessionStatusLabel = {
-  idle: "Pending",
-  running: "In Progress",
-  partial: "Partially Complete",
-  finished: "Completed",
-  failed: "Failed",
+  idle: "等待中",
+  running: "审查中",
+  partial: "部分完成",
+  finished: "已完成",
+  failed: "失败",
   cancelled: "已中止"
 } as const;

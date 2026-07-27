@@ -52,7 +52,7 @@ export function MonacoDiffViewer({ original, modified, finding }: MonacoDiffView
     <div className="grid h-full min-h-0 grid-rows-[auto_auto_1fr] gap-3 rounded-lg border border-border-default bg-bg-surface p-4">
       <header className="flex items-start justify-between gap-4 rounded-md border border-border-subtle bg-bg-elevated px-4 py-3">
         <div className="grid gap-1">
-          <SectionLabel icon={Lock} command="context" />
+          <SectionLabel icon={Lock} command="上下文" />
           <div className="text-base font-semibold text-text-primary">{finding?.summary ?? "等待选择问题"}</div>
           <div className="flex items-center gap-1.5">
             <Icon icon={FileText} size="xs" variant="muted" />
@@ -70,7 +70,7 @@ export function MonacoDiffViewer({ original, modified, finding }: MonacoDiffView
         </div>
       </header>
       <section className="rounded-md bg-bg-base border border-border-subtle px-4 py-3">
-        <SectionLabel icon={MessageSquare} command="evidence" />
+        <SectionLabel icon={MessageSquare} command="证据" />
         <div className="flex items-start gap-2 mt-2">
           <Icon icon={Lightbulb} size="sm" variant="warning" className="mt-0.5 flex-shrink-0" />
           <p className="text-sm leading-6 text-text-primary font-mono">{evidence}</p>

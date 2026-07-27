@@ -72,8 +72,8 @@ describe("SessionHistoryPage", () => {
 
     expect(screen.getByText("审查历史")).toBeInTheDocument();
     expect(screen.getByText("main → feature")).toBeInTheDocument();
-    expect(screen.getByText("3 files")).toBeInTheDocument();
-    expect(screen.getByText("2 findings")).toBeInTheDocument();
+    expect(screen.getByText("3 个文件")).toBeInTheDocument();
+    expect(screen.getByText("2 个问题")).toBeInTheDocument();
   });
 
   it("calls deleteSession when delete is confirmed", async () => {

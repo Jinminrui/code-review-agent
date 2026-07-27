@@ -74,16 +74,16 @@ export function SessionCard({ session, onDelete, onExport }: SessionCardProps) {
         <div className="flex items-center gap-4 text-xs">
           <div className="flex items-center gap-1.5">
             <Icon icon={FileText} size="xs" variant="muted" />
-            <span className="text-text-secondary">{session.summary.changedFilesCount} files</span>
+            <span className="text-text-secondary">{session.summary.changedFilesCount} 个文件</span>
           </div>
           <div className="flex items-center gap-1.5">
             <Icon icon={AlertTriangle} size="xs" variant="warning" />
-            <span className="text-text-secondary">{session.summary.findingsCount} findings</span>
+            <span className="text-text-secondary">{session.summary.findingsCount} 个问题</span>
           </div>
           {session.summary.highSeverityCount > 0 && (
             <div className="flex items-center gap-1.5">
               <Icon icon={AlertTriangle} size="xs" variant="danger" />
-              <span className="text-accent-red">{session.summary.highSeverityCount} high</span>
+              <span className="text-accent-red">{session.summary.highSeverityCount} 个高风险</span>
             </div>
           )}
         </div>

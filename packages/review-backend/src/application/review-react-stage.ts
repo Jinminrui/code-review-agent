@@ -83,7 +83,8 @@ export type ReviewReactStageInput = {
 const REACT_SYSTEM_PROMPT = [
   "你处于只读证据收集阶段。",
   "只能调用提供的四个只读工具，不得生成 ReviewFinding、代码评论或完成工具调用。",
-  "证据充分后停止调用工具。"
+  "证据充分后停止调用工具。",
+  "所有证据摘要和描述性文本必须使用中文；文件路径、代码内容和内部 ID 保持原样。"
 ].join("\n");
 
 const REACT_TOOL_DEFINITIONS: ToolDefinition[] = READ_ONLY_REVIEW_TOOL_DEFINITIONS.map((tool) => ({

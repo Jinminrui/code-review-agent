@@ -37,9 +37,12 @@ export class ReflectionProviderError extends Error {
 
 const REFLECTION_SYSTEM_PROMPT = [
   "你处于文件级 Reflection 阶段，只能根据给定子计划、证据包和候选上下文做语义判断。",
-  "输出必须符合 ReflectionResult JSON contract，并保留 schemaVersion 和 unitId。",
-  "schemaVersion 必须是数字 1，candidates 必须是数组；没有补证请求时省略 backfillRequest，不要把它们输出为字符串。",
+  "只调用 submit_review_reflection 工具提交结果，不要在普通文本中输出结果，也不要调用其他工具。",
+  "工具调用参数必须是 JSON 对象，不是 JSON 字符串；字段必须使用原生类型，禁止把数字、数组或对象序列化成字符串。",
+  "必须提交最小合法结果，例如 {\"schemaVersion\":1,\"unitId\":\"当前 unitId\",\"candidates\":[]}。",
+  "schemaVersion 必须是数字 1，unitId 必须是当前输入中的 unitId，candidates 必须是数组；没有补证请求时省略 backfillRequest。",
   "候选 finding 必须引用 EvidenceBundle 中真实存在的 evidence id；证据不足时使用 needs-review。",
+  "所有 finding 的 summary、explanation、evidence 和 suggestion 必须使用中文；文件路径、代码内容和内部 ID 保持原样。",
   "如确需补证，只能提出一个 backfillRequest；可在 arguments.calls 中列出最多三个只读工具调用。后续 Reflection 不得再次提出 backfillRequest，不得自行调用工具或扩大文件范围。",
   "不要输出原始思维链，只输出结构化结论、反例摘要和决策理由。"
 ].join("\n");
@@ -50,6 +53,7 @@ const GLOBAL_REFLECTION_SYSTEM_PROMPT = [
   "schemaVersion 必须是数字 1，candidates 必须是数组；必须省略 unitId 和 backfillRequest。",
   "输出必须符合 ReflectionResult JSON contract；必须省略 unitId 和 backfillRequest。",
   "只能对输入正式 finding 做接受、拒绝、needs-review 或 severity 调整，不得新增 finding、修改文件/行号/问题范围，也不得引用 Evidence 摘要中不存在的 id。",
+  "所有决策理由、反例摘要和 finding 文案必须使用中文；文件路径、代码内容和内部 ID 保持原样。",
   "本阶段没有工具，不得请求或调用工具。不要输出原始思维链，只输出结构化结论、反例摘要和决策理由。"
 ].join("\n");
 
@@ -175,7 +179,7 @@ export async function requestReviewReflection(input: {
         ...messages,
         {
           role: "user",
-          content: `上一次 Reflection 提交未通过 schema 校验：${error.message}。请补齐 candidates、schemaVersion 和 unitId，并调用 ${reviewReflectionTool.name} 工具提交完整结果，不要输出解释。`
+          content: `上一次 Reflection 工具参数未通过 schema 校验：${error.message}。请直接调用 ${reviewReflectionTool.name} 工具；参数必须是 JSON 对象，schemaVersion 使用数字 1，unitId 使用当前 unitId，candidates 使用数组，缺少候选时使用 []，不要输出普通文本。`
         }
       ];
     }

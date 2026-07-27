@@ -12,7 +12,7 @@ export function DiffEmptyState() {
       <div className="empty-state-terminal max-w-sm">
         <div className="flex items-start gap-2 mb-4">
           <span className="prompt">$</span>
-          <span className="command">select-finding</span>
+          <span className="command">选择问题</span>
         </div>
         <div className="flex items-start gap-2">
           <span className="text-accent-cyan">&gt;</span>

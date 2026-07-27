@@ -17,7 +17,7 @@ export function RiskFileList({ files }: RiskFileListProps) {
 
   return (
     <div className="p-4 border-b border-border-muted">
-      <SectionLabel command="risk-files" count={files.length} className="mb-3" />
+      <SectionLabel command="高风险文件" count={files.length} className="mb-3" />
 
       <div className="space-y-1">
         {files.map((file) => (

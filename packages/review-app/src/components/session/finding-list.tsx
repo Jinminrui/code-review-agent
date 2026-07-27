@@ -20,7 +20,7 @@ export function FindingList({ findings, selectedFindingId, onSelectFinding }: Fi
   return (
     <div className="flex-1 overflow-hidden flex flex-col">
       <div className="p-4 pb-2">
-        <SectionLabel command="findings" count={findings.length} />
+        <SectionLabel command="审查问题" count={findings.length} />
       </div>
 
       <div className="flex-1 overflow-y-auto px-4 pb-4 space-y-2">
