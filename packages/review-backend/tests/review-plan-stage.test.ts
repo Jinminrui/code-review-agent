@@ -172,6 +172,33 @@ describe("generateReviewPlanStage", () => {
     expect(result.status).toBe("planned");
   });
 
+  it("兼容 provider 将 units 双重编码成字符串的返回", async () => {
+    const plan = validPlan();
+    const provider = {
+      id: "double-encoded-units-provider",
+      chat: vi.fn().mockResolvedValue({
+        content: null,
+        toolCalls: [{
+          id: "call-plan-double-encoded",
+          name: "submit_review_plan",
+          arguments: {
+            ...plan,
+            units: JSON.stringify(JSON.stringify(plan.units))
+          }
+        }]
+      })
+    };
+
+    const result = await generateReviewPlanStage({
+      provider,
+      preAnalysis,
+      diffSummary: "受控摘要"
+    });
+
+    expect(result.status).toBe("planned");
+    expect(result.plan.units).toHaveLength(plan.units.length);
+  });
+
   it("独立调用 provider，并按 order 稳定输出全局计划和文件子计划", async () => {
     const provider = providerReturning(validPlan());
 
@@ -258,6 +285,34 @@ describe("generateReviewPlanStage", () => {
       code: "invalid-plan",
       message: expect.stringContaining("completionCriteria")
     });
+  });
+
+  it("Plan 覆盖范围失败时把缺失文件写入重试提示和降级错误", async () => {
+    const incomplete = validPlan({
+      units: validPlan().units.filter((unit) => unit.file === "src/a.ts")
+    });
+    const provider = {
+      id: "coverage-plan-provider",
+      chat: vi.fn().mockResolvedValue({
+        content: JSON.stringify(incomplete),
+        toolCalls: []
+      }).mockResolvedValueOnce({ content: JSON.stringify(incomplete), toolCalls: [] })
+    };
+
+    const result = await generateReviewPlanStage({
+      provider,
+      preAnalysis,
+      diffSummary: "受控摘要"
+    });
+
+    expect(result.status).toBe("plan-degraded");
+    if (result.status !== "plan-degraded") throw new Error("预期计划进入降级状态");
+    expect(result.error).toMatchObject({
+      code: "unit-coverage-invalid",
+      files: ["src/b.ts"]
+    });
+    expect(provider.chat).toHaveBeenCalledTimes(2);
+    expect(provider.chat.mock.calls[1]?.[0].messages.at(-1)?.content).toContain("缺失文件: src/b.ts");
   });
 
   it("引用未授权文件时显式降级", async () => {

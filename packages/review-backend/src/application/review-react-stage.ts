@@ -83,7 +83,8 @@ export type ReviewReactStageInput = {
 const REACT_SYSTEM_PROMPT = [
   "你处于只读证据收集阶段。",
   "只能调用提供的四个只读工具，不得生成 ReviewFinding、代码评论或完成工具调用。",
-  "证据充分后停止调用工具。",
+  "必须逐个覆盖当前文件子计划中的每个 checkId；每个 checkId 至少调用一次只读工具并产出证据。",
+  "只有 missingCheckIds 为空时才能停止调用工具；仍有缺失检查项时，即使已有其他证据，也必须继续收集。",
   "所有证据摘要和描述性文本必须使用中文；文件路径、代码内容和内部 ID 保持原样。"
 ].join("\n");
 
@@ -187,6 +188,10 @@ export async function runReviewReactStage(
 
       if (response.toolCalls.length === 0) {
         const missingCheckIds = getMissingCheckIds(input.unit, items);
+        if (missingCheckIds.length > 0 && usage.modelCalls < input.unit.budget.modelCalls) {
+          // 模型可能提前返回普通文本；只要还有调用预算，就把缺失项带回下一轮继续收集。
+          continue;
+        }
         if (missingCheckIds.length > 0 || input.unit.checks.length === 0) {
           return finish("evidence-incomplete", {
             type: "checks-incomplete",
@@ -295,10 +300,13 @@ export async function runReviewReactStage(
       }
     }
 
-    return finish("evidence-incomplete", {
-      type: "budget-exhausted",
-      budget: "modelCalls"
-    });
+    const missingCheckIds = getMissingCheckIds(input.unit, items);
+    return missingCheckIds.length > 0
+      ? finish("evidence-incomplete", { type: "checks-incomplete", missingCheckIds })
+      : finish("evidence-incomplete", {
+          type: "budget-exhausted",
+          budget: "modelCalls"
+        });
   } catch (error) {
     // 外部取消必须继续抛出；只有内部 deadline 才降级为结构化预算耗尽。
     if (durationController.signal.aborted && !input.signal?.aborted) {
@@ -385,6 +393,7 @@ function budgetFromReasonCode(
 }
 
 function buildMessages(unit: ReviewUnit, items: readonly EvidenceItem[]): ChatMessage[] {
+  const missingCheckIds = getMissingCheckIds(unit, items);
   return [
     { role: "system", content: REACT_SYSTEM_PROMPT },
     {
@@ -392,6 +401,7 @@ function buildMessages(unit: ReviewUnit, items: readonly EvidenceItem[]): ChatMe
       content: JSON.stringify({
         stage: "react-evidence-collection",
         unit,
+        missingCheckIds,
         toolResults: items.map((item) => ({
           evidenceId: item.id,
           checkId: item.checkId,

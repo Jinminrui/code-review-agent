@@ -5,7 +5,7 @@
  */
 import { buildReviewSummary } from "./build-review-summary.js";
 import { buildReviewPreAnalysis } from "./review-pre-analysis.js";
-import { generateReviewPlanStage } from "./review-plan-stage.js";
+import { buildDeterministicReviewPlan, generateReviewPlanStage } from "./review-plan-stage.js";
 import { runReviewReactStage, type ReviewReactStageResult } from "./review-react-stage.js";
 import { runReviewReflectionStage, type ReviewReflectionStageResult } from "./review-reflection-stage.js";
 import { runGlobalReviewReflectionStage } from "./global-review-reflection-stage.js";
@@ -189,7 +189,9 @@ export class ReviewOrchestrator {
         throw new Error("恢复失败：缺少已持久化的有效计划快照");
       }
       try {
-        planResult = await this.stages.plan({ provider: this.dependencies.provider, preAnalysis, diffSummary: JSON.stringify(preAnalysis), signal });
+        planResult = shouldUseDeterministicPlan(preAnalysis)
+          ? { status: "planned" as const, plan: buildDeterministicReviewPlan(preAnalysis) }
+          : await this.stages.plan({ provider: this.dependencies.provider, preAnalysis, diffSummary: JSON.stringify(preAnalysis), signal });
       } catch (error) {
         if (isCancellation(error, signal)) return yield* this.cancel(sessionId, sessionInput, []);
         throw error;
@@ -203,6 +205,10 @@ export class ReviewOrchestrator {
     // 只有计划版本和 fingerprint 同时匹配才复用历史结果，防止计划变化后证据错配。
     const findings: ReviewFinding[] = canReuseResults ? [...(resume?.findings ?? [])] : [];
     const sessionUsage = { inputTokens: 0, outputTokens: 0, modelCalls: 0, toolCalls: 0, readBytes: 0 };
+    const degradationReasons: string[] = [];
+    const addDegradationReason = (reason: string) => {
+      if (!degradationReasons.includes(reason)) degradationReasons.push(reason);
+    };
     const fileResults: Array<{ unitId: string; reflectionResult: Extract<ReviewReflectionStageResult, { status: "completed" | "evidence-incomplete" }>["reflectionResult"]; findings: ReviewFinding[] }> = canReuseResults ? [...(resume?.fileResults ?? [])] : [];
     const evidenceSummaries: Array<{ schemaVersion: 1; unitId: string; completeness: "complete" | "incomplete"; items: Array<{ id: string; checkId: string; source: "file_read" | "file_find" | "code_search" | "file_read_diff"; contentHash: string; summary: string }> }> = canReuseResults ? [...(resume?.evidenceSummaries ?? [])] : [];
     const diffByFile: Record<string, { original: string; modified: string }> = canReuseResults ? { ...(resume?.diffByFile ?? {}) } : {};
@@ -210,10 +216,13 @@ export class ReviewOrchestrator {
     // Plan 降级仍有确定性的 fallback 计划；只有执行或 Reflection 失败才影响最终状态。
     let partial = false;
     if (planResult.status !== "planned") {
+      addDegradationReason(`plan:${planResult.error.code}`);
       log.warn({
         stage: "plan",
         code: planResult.error.code,
         message: planResult.error.message,
+        files: planResult.error.files,
+        details: planResult.error.details,
         sessionId
       }, "Plan 阶段降级");
     }
@@ -247,14 +256,22 @@ export class ReviewOrchestrator {
         sessionUsage.readBytes += react.usage.readBytes;
         if (sessionUsage.inputTokens + sessionUsage.outputTokens > sessionInput.contextBudgetTokens) {
           partial = true;
+          addDegradationReason("context-budget-exceeded");
         }
-        if (react.status === "evidence-incomplete") partial = true;
+        if (react.status === "evidence-incomplete") {
+          partial = true;
+          addDegradationReason("evidence-incomplete");
+        }
         yield* transition(this, "reflection-validating", unit.unitId);
         const reflection = await this.stages.reflection({ unit, evidenceBundle: react.evidenceBundle, candidateContext: { beforeContent: context.beforeContent, afterContent: context.afterContent }, provider: this.dependencies.provider, authorizers, toolExecutorContext: { gitClient: this.dependencies.gitClient, baseRef: sessionInput.baseRef, targetRef: sessionInput.targetRef, repositoryPath: sessionInput.repositoryPath, diffFiles, signal }, signal });
-        if (reflection.status === "reflection-failed" || reflection.status === "evidence-incomplete") partial = true;
+        if (reflection.status === "reflection-failed" || reflection.status === "evidence-incomplete") {
+          partial = true;
+          addDegradationReason(reflection.status);
+        }
         if (reflection.status === "reflection-failed") {
           log.warn({ stage: "reflection", code: reflection.error.code, message: reflection.error.message, sessionId, unitId: unit.unitId }, "文件级 Reflection 失败");
           partial = true;
+          addDegradationReason("unit-failed");
           const reason = reflection.error.message;
           yield* transition(this, "unit-failed", unit.unitId);
           yield* emit({ type: "unit-failed", sessionId, unitId: unit.unitId, reason }, this.dependencies.sessionStore);
@@ -282,6 +299,7 @@ export class ReviewOrchestrator {
       } catch (error) {
         if (isCancellation(error, signal)) return yield* this.cancel(sessionId, sessionInput, findings);
         partial = true;
+        addDegradationReason("unit-failed");
         log.error({
           stage: "review-unit",
           code: "unhandled-error",
@@ -305,6 +323,7 @@ export class ReviewOrchestrator {
       .map((unit) => unit.unitId);
     if (missingGlobalUnitIds.length > 0 && !resume) {
       partial = true;
+      addDegradationReason("missing-unit-results");
       log.warn({
         stage: "global-reflection",
         code: "incomplete-unit-results",
@@ -321,6 +340,7 @@ export class ReviewOrchestrator {
         if (signal?.aborted) return yield* this.cancel(sessionId, sessionInput, findings);
         if (global.status === "reflection-failed") {
           partial = true;
+          addDegradationReason("global-reflection-failed");
           log.warn({ stage: "global-reflection", code: global.error.code, message: global.error.message, sessionId }, "全局 Reflection 失败");
         }
         findings.splice(0, findings.length, ...global.findings);
@@ -328,6 +348,7 @@ export class ReviewOrchestrator {
       } catch (error) {
         if (isCancellation(error, signal)) return yield* this.cancel(sessionId, sessionInput, findings);
         partial = true;
+        addDegradationReason("global-reflection-error");
         log.error({
           stage: "global-reflection",
           code: "unhandled-error",
@@ -339,9 +360,15 @@ export class ReviewOrchestrator {
     }
     yield* transition(this, "session-finished");
     const status = partial ? "partial" : "finished";
+    log.info({
+      sessionId,
+      budgetUsed: sessionUsage,
+      budgetLimit: { contextBudgetTokens: sessionInput.contextBudgetTokens },
+      degradationReasons
+    }, "审查诊断汇总");
     const finished: ReviewSessionEvent = { type: "session-finished", sessionId, totalFindings: findings.length, status };
     yield* emit(finished, this.dependencies.sessionStore);
-    await this.dependencies.sessionStore.completeSession(sessionId, { sessionId, status, repositoryPath: sessionInput.repositoryPath, baseRef: sessionInput.baseRef, targetRef: sessionInput.targetRef, summary: buildReviewSummary({ findings, changedFiles: diffFiles.map((file) => file.path) }), findings, diffByFile, plan, planVersion: plan.version, planFingerprint, fileResults, evidenceSummaries, unitResults });
+    await this.dependencies.sessionStore.completeSession(sessionId, { sessionId, status, repositoryPath: sessionInput.repositoryPath, baseRef: sessionInput.baseRef, targetRef: sessionInput.targetRef, summary: buildReviewSummary({ findings, changedFiles: diffFiles.map((file) => file.path) }), findings, diffByFile, plan, planVersion: plan.version, planFingerprint, fileResults, evidenceSummaries, unitResults, diagnostics: { budgetUsed: sessionUsage, budgetLimit: { contextBudgetTokens: sessionInput.contextBudgetTokens }, degradationReasons } });
     this.completed = true;
   }
 
@@ -367,6 +394,10 @@ export class ReviewOrchestrator {
 
 function fingerprintReviewPlan(plan: ReviewPlan): string {
   return createHash("sha256").update(JSON.stringify(plan)).digest("hex");
+}
+
+function shouldUseDeterministicPlan(preAnalysis: { files: readonly unknown[]; totals: { insertions: number; deletions: number } }): boolean {
+  return preAnalysis.files.length <= 1 && preAnalysis.totals.insertions + preAnalysis.totals.deletions <= 50;
 }
 
 function normalizedFindingsForPersistence(

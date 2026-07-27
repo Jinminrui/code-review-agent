@@ -92,6 +92,7 @@ export async function requestReviewPlan(input: {
   preAnalysis: ReviewPreAnalysis;
   diffSummary: string;
   allowedFiles: readonly string[];
+  validationFeedback?: string;
   revision?: {
     currentPlan: ReviewPlan;
     trigger: { type: string; reason: string };
@@ -104,6 +105,9 @@ export async function requestReviewPlan(input: {
       allowedFiles: input.allowedFiles,
       ...(input.revision ? { revision: input.revision } : {})
     });
+  if (input.validationFeedback) {
+    messages = [...messages, { role: "user", content: input.validationFeedback }];
+  }
 
   for (let attempt = 0; attempt < 2; attempt += 1) {
     const response = await input.provider.chat({
@@ -168,11 +172,21 @@ function normalizePlanResult(value: unknown): unknown {
 function parseEncodedField(record: Record<string, unknown>, key: string): Record<string, unknown> {
   const value = record[key];
   if (typeof value !== "string") return {};
-  try {
-    return { [key]: JSON.parse(value) };
-  } catch {
-    return {};
+  const decoded = decodeJsonString(value);
+  return decoded === value ? {} : { [key]: decoded };
+}
+
+function decodeJsonString(value: string): unknown {
+  let current: unknown = value;
+  // 兼容部分 provider 对工具参数和字段值分别做 JSON 编码的情况，限制层数避免无限解析。
+  for (let depth = 0; depth < 3 && typeof current === "string"; depth += 1) {
+    try {
+      current = JSON.parse(current);
+    } catch {
+      return value;
+    }
   }
+  return current;
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {

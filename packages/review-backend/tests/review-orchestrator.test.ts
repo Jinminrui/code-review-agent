@@ -12,11 +12,11 @@ const files = [
   { path: "src/b.ts", isNew: false, isDeleted: false, isBinary: false, insertions: 1, deletions: 0, hunks: [] }
 ];
 
-function deps(stages: Partial<ReviewOrchestratorStages> = {}) {
+function deps(stages: Partial<ReviewOrchestratorStages> = {}, diffFiles = files) {
   return {
     provider: { id: "fake", capabilities: { structuredOutput: true, toolCalling: true, usage: true, cancellation: true }, chat: vi.fn() },
     gitClient: {
-      readDiff: vi.fn().mockResolvedValue(files), readWorkspaceDiff: vi.fn().mockResolvedValue(files),
+      readDiff: vi.fn().mockResolvedValue(diffFiles), readWorkspaceDiff: vi.fn().mockResolvedValue(diffFiles),
       readFileAtRef: vi.fn().mockResolvedValue("const value = 1;\n"), lsFiles: vi.fn().mockResolvedValue([]), grep: vi.fn().mockResolvedValue([])
     },
     stages: {
@@ -33,6 +33,44 @@ function deps(stages: Partial<ReviewOrchestratorStages> = {}) {
 }
 
 describe("ReviewOrchestrator", () => {
+  it("单文件小变更使用确定性计划而不调用 Plan provider", async () => {
+    const plan = vi.fn();
+    const store = { appendEvent: vi.fn(), completeSession: vi.fn() };
+    const orchestrator = new ReviewOrchestrator({
+      ...deps({ plan }, [{ path: "src/a.ts", isNew: false, isDeleted: false, isBinary: false, insertions: 2, deletions: 1, hunks: [] }]),
+      sessionStore: store
+    });
+
+    const events: ReviewSessionEvent[] = [];
+    for await (const event of orchestrator.run({ sessionId: "s-small-diff", input: { repositoryPath: "/repo", baseRef: "main", targetRef: "feature", contextBudgetTokens: 1000 } })) events.push(event);
+
+    expect(plan).not.toHaveBeenCalled();
+    expect(events.find((event) => event.type === "phase-transitioned" && event.phase === "global-plan-completed")).toMatchObject({
+      planSnapshot: { units: [{ file: "src/a.ts", unitId: "fallback-unit-1" }] }
+    });
+  });
+
+  it("预算超限时在 session summary 中记录触发原因和使用量", async () => {
+    const store = { appendEvent: vi.fn(), completeSession: vi.fn() };
+    const react = vi.fn().mockResolvedValue({
+      status: "completed",
+      evidenceBundle: { schemaVersion: 1, unitId: "u", completeness: "complete", items: [] },
+      usage: { modelCalls: 1, toolCalls: 0, readBytes: 0, inputTokens: 900, outputTokens: 200, usageUnavailable: false, durationMs: 1 }
+    });
+    const orchestrator = new ReviewOrchestrator({
+      ...deps({ react }, [{ path: "src/a.ts", isNew: false, isDeleted: false, isBinary: false, insertions: 2, deletions: 1, hunks: [] }]),
+      sessionStore: store
+    });
+
+    for await (const _event of orchestrator.run({ sessionId: "s-budget", input: { repositoryPath: "/repo", baseRef: "main", targetRef: "feature", contextBudgetTokens: 1000 } })) { /* consume */ }
+
+    expect(store.completeSession).toHaveBeenCalledWith("s-budget", expect.objectContaining({
+      diagnostics: expect.objectContaining({
+        budgetUsed: expect.objectContaining({ inputTokens: 900, outputTokens: 200 }),
+        degradationReasons: ["context-budget-exceeded"]
+      })
+    }));
+  });
   it("计划降级但各审查单元成功时仍完成会话", async () => {
     const plan = vi.fn().mockResolvedValue({
       status: "plan-degraded",

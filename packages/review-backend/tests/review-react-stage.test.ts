@@ -362,6 +362,11 @@ describe("runReviewReactStage", () => {
           toolCalls: [],
           usage: { inputTokens: 1, outputTokens: 1 }
         })
+        .mockResolvedValueOnce({
+          content: "仍未完成",
+          toolCalls: [],
+          usage: { inputTokens: 1, outputTokens: 1 }
+        })
     };
 
     const result = await runReviewReactStage({
@@ -377,6 +382,65 @@ describe("runReviewReactStage", () => {
       type: "checks-incomplete",
       missingCheckIds: ["check-session"]
     });
+    const secondUserMessage = vi.mocked(provider.chat).mock.calls[1]![0].messages[1];
+    expect(secondUserMessage?.role).toBe("user");
+    if (secondUserMessage?.role !== "user") {
+      throw new Error("预期第二轮用户消息");
+    }
+    expect(JSON.parse(secondUserMessage.content)).toMatchObject({
+      missingCheckIds: ["check-session"]
+    });
+  });
+
+  it("模型提前停止时，仍有调用预算则继续收集缺失检查项", async () => {
+    const reviewUnit = unit({ modelCalls: 3 }, [
+      unit().checks[0]!,
+      {
+        id: "check-session",
+        description: "检查会话失效分支",
+        completionCriteria: ["确认会话失效被处理"],
+        allowedFiles: ["src/auth.ts"],
+        evidenceTargets: ["session"]
+      }
+    ]);
+    const provider: Pick<LlmProvider, "id" | "chat"> = {
+      id: "early-stop-provider",
+      chat: vi
+        .fn()
+        .mockResolvedValueOnce({
+          content: "先停一下",
+          toolCalls: [],
+          usage: { inputTokens: 1, outputTokens: 1 }
+        })
+        .mockResolvedValueOnce({
+          content: null,
+          toolCalls: [{
+            id: "read-session",
+            name: "code_search",
+            arguments: { checkId: "check-session", pattern: "session" }
+          }],
+          usage: { inputTokens: 1, outputTokens: 1 }
+        })
+        .mockResolvedValueOnce({
+          content: "完成",
+          toolCalls: [],
+          usage: { inputTokens: 1, outputTokens: 1 }
+        })
+    };
+
+    const result = await runReviewReactStage({
+      unit: reviewUnit,
+      authorizers: authorizersFor(reviewUnit),
+      provider,
+      toolExecutorContext: toolContext()
+    });
+
+    expect(result.status).toBe("evidence-incomplete");
+    expect(result.stopReason).toEqual({
+      type: "checks-incomplete",
+      missingCheckIds: ["check-auth"]
+    });
+    expect(provider.chat).toHaveBeenCalledTimes(3);
   });
 
   it("拒绝不属于当前 unit.checks 的 checkId", async () => {

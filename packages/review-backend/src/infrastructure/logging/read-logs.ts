@@ -17,9 +17,26 @@ const SAFE_FIELDS = new Set([
   "traceId",
   "sid",
   "sessionId",
+  "files",
+  "missingUnitIds",
   "file",
   "component",
-  "provider"
+  "provider",
+  "stage",
+  "code",
+  "message",
+  "details",
+  "durationMs",
+  "inputTokens",
+  "outputTokens",
+  "requestId",
+  "returnedTools",
+  "requestedTools",
+  "jsonMode",
+  "jsonSchema",
+  "degradationReasons",
+  "budgetUsed",
+  "budgetLimit"
 ]);
 
 export type ReviewLogRecord = Record<string, unknown>;

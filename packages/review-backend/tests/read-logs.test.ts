@@ -40,4 +40,30 @@ describe("readLogsByTraceId", () => {
     const directory = join(await makeTempDirectory(), "missing");
     await expect(readLogsByTraceId({ directory, traceId: "trace-1" })).resolves.toEqual([]);
   });
+
+  it("保留诊断字段但过滤 prompt、源码和密钥", async () => {
+    const directory = await makeTempDirectory();
+    await writeFile(join(directory, "review-backend-2026-07-27.jsonl"), JSON.stringify({
+      traceId: "trace-diagnostic",
+      stage: "plan",
+      code: "unit-coverage-invalid",
+      message: "缺失文件",
+      durationMs: 123,
+      inputTokens: 10,
+      outputTokens: 20,
+      prompt: "secret prompt",
+      source: "secret source",
+      apiKey: "secret key"
+    }) + "\n");
+
+    await expect(readLogsByTraceId({ directory, traceId: "trace-diagnostic" })).resolves.toEqual([{
+      traceId: "trace-diagnostic",
+      stage: "plan",
+      code: "unit-coverage-invalid",
+      message: "缺失文件",
+      durationMs: 123,
+      inputTokens: 10,
+      outputTokens: 20
+    }]);
+  });
 });

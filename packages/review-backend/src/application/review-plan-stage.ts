@@ -62,6 +62,7 @@ type PlanValidationError = {
   code: "file-out-of-scope" | "unit-coverage-invalid";
   message: string;
   files: string[];
+  details?: string[];
 };
 
 export async function generateReviewPlanStage(
@@ -73,24 +74,34 @@ export async function generateReviewPlanStage(
     ...(input.authorizedDependencyFiles ?? [])
   ]);
 
-  try {
-    const candidate = await requestReviewPlan({
-      provider: input.provider,
-      preAnalysis: input.preAnalysis,
-      diffSummary: input.diffSummary,
-      allowedFiles,
-      signal: input.signal
-    });
-    const normalized = normalizeAndValidatePlan(candidate, input.preAnalysis, allowedFiles, 1);
+  let validationFeedback: string | undefined;
+  for (let attempt = 0; attempt < 2; attempt += 1) {
+    try {
+      const candidate = await requestReviewPlan({
+        provider: input.provider,
+        preAnalysis: input.preAnalysis,
+        diffSummary: input.diffSummary,
+        allowedFiles,
+        ...(validationFeedback ? { validationFeedback } : {}),
+        signal: input.signal
+      });
+      const normalized = normalizeAndValidatePlan(candidate, input.preAnalysis, allowedFiles, 1);
 
-    if ("error" in normalized) {
-      return degradedResult(input.preAnalysis, normalized.error);
+      if ("error" in normalized) {
+        if (attempt === 0) {
+          validationFeedback = formatPlanValidationFeedback(normalized.error);
+          continue;
+        }
+        return degradedResult(input.preAnalysis, normalized.error);
+      }
+
+      return { status: "planned", plan: normalized.plan };
+    } catch (error) {
+      return degradedResult(input.preAnalysis, toPlanStageError(error));
     }
-
-    return { status: "planned", plan: normalized.plan };
-  } catch (error) {
-    return degradedResult(input.preAnalysis, toPlanStageError(error));
   }
+
+  throw new Error("Plan stage 重试流程异常结束");
 }
 
 export async function reviseReviewPlanStage(
@@ -194,11 +205,17 @@ function normalizeAndValidatePlan(
       ...missingUnitFiles,
       ...duplicateUnitFiles
     ]);
+    const details = [
+      ...(missingUnitFiles.length > 0 ? [`缺失文件: ${missingUnitFiles.join(", ")}`] : []),
+      ...(duplicateUnitFiles.length > 0 ? [`重复文件: ${stableUnique(duplicateUnitFiles).join(", ")}`] : []),
+      ...(unexpectedUnitFiles.length > 0 ? [`越界文件: ${stableUnique(unexpectedUnitFiles).join(", ")}`] : [])
+    ];
     return {
       error: {
         code: "unit-coverage-invalid",
         message: "文件子计划必须完整且唯一地覆盖原始变更集",
-        files
+        files,
+        details
       }
     };
   }
@@ -210,7 +227,8 @@ function normalizeAndValidatePlan(
       error: {
         code: "file-out-of-scope",
         message: "计划引用了不存在或未授权的文件",
-        files: stableUnique(outOfScopeFiles)
+        files: stableUnique(outOfScopeFiles),
+        details: [`越界文件: ${stableUnique(outOfScopeFiles).join(", ")}`]
       }
     };
   }
@@ -242,7 +260,7 @@ function normalizeAndValidatePlan(
   return { plan };
 }
 
-function buildDeterministicFallback(preAnalysis: ReviewPreAnalysis): ReviewPlan {
+export function buildDeterministicReviewPlan(preAnalysis: ReviewPreAnalysis): ReviewPlan {
   const changedFiles = getChangedFiles(preAnalysis);
 
   return reviewPlanSchema.parse({
@@ -277,6 +295,14 @@ function buildDeterministicFallback(preAnalysis: ReviewPreAnalysis): ReviewPlan 
   });
 }
 
+function formatPlanValidationFeedback(error: PlanValidationError): string {
+  return [
+    `上一次计划未通过业务校验：${error.message}。`,
+    ...(error.details ?? []),
+    "请只修复上述问题，并再次调用 submit_review_plan 提交完整计划。"
+  ].join("\n");
+}
+
 function collectReferencedFiles(plan: ReviewPlan): string[] {
   return stableUnique([
     ...plan.changeSetSummary.files,
@@ -300,7 +326,7 @@ function degradedResult(
 ): ReviewPlanStageResult {
   return {
     status: "plan-degraded",
-    plan: buildDeterministicFallback(preAnalysis),
+    plan: buildDeterministicReviewPlan(preAnalysis),
     error: planStageErrorSchema.parse(error)
   };
 }
