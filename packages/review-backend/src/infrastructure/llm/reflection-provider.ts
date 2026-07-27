@@ -12,8 +12,10 @@ import {
 import type { EvidenceBundle } from "../../domain/review-evidence.js";
 import type { ReviewFinding } from "../../domain/review-finding.js";
 import type { ReviewPlan } from "../../domain/review-plan.js";
+import { logger } from "../logging/logger.js";
 
 type ReviewUnit = ReviewPlan["units"][number];
+const log = logger.child({ component: "reflection" });
 
 export type ReflectionProviderErrorCode =
   | "empty-response"
@@ -36,6 +38,7 @@ export class ReflectionProviderError extends Error {
 const REFLECTION_SYSTEM_PROMPT = [
   "你处于文件级 Reflection 阶段，只能根据给定子计划、证据包和候选上下文做语义判断。",
   "输出必须符合 ReflectionResult JSON contract，并保留 schemaVersion 和 unitId。",
+  "schemaVersion 必须是数字 1，candidates 必须是数组；没有补证请求时省略 backfillRequest，不要把它们输出为字符串。",
   "候选 finding 必须引用 EvidenceBundle 中真实存在的 evidence id；证据不足时使用 needs-review。",
   "如确需补证，只能提出一个 backfillRequest；可在 arguments.calls 中列出最多三个只读工具调用。后续 Reflection 不得再次提出 backfillRequest，不得自行调用工具或扩大文件范围。",
   "不要输出原始思维链，只输出结构化结论、反例摘要和决策理由。"
@@ -44,6 +47,7 @@ const REFLECTION_SYSTEM_PROMPT = [
 const GLOBAL_REFLECTION_SYSTEM_PROMPT = [
   "你处于全局 Reflection 阶段，只能消费给定的全局 ReviewPlan、文件级 Reflection 结果、正式 finding 和 Evidence 摘要。",
   "检查跨文件契约风险、重复或同根因 finding、互相矛盾的 finding，并统一整体 severity。",
+  "schemaVersion 必须是数字 1，candidates 必须是数组；必须省略 unitId 和 backfillRequest。",
   "输出必须符合 ReflectionResult JSON contract；必须省略 unitId 和 backfillRequest。",
   "只能对输入正式 finding 做接受、拒绝、needs-review 或 severity 调整，不得新增 finding、修改文件/行号/问题范围，也不得引用 Evidence 摘要中不存在的 id。",
   "本阶段没有工具，不得请求或调用工具。不要输出原始思维链，只输出结构化结论、反例摘要和决策理由。"
@@ -135,13 +139,14 @@ export async function requestReviewReflection(input: {
 }): Promise<ReflectionResult> {
   let messages = buildReviewReflectionMessages(input);
   for (let attempt = 0; attempt < 2; attempt += 1) {
-    const response = await input.provider.chat({
-      messages,
-      tools: [reviewReflectionTool],
-      jsonMode: true,
-      signal: input.signal
-    });
+    log.info({ stage: "file-reflection", providerId: input.provider.id, unitId: input.unit.unitId, attempt: attempt + 1 }, "Reflection 请求开始");
     try {
+      const response = await input.provider.chat({
+        messages,
+        tools: [reviewReflectionTool],
+        jsonMode: true,
+        signal: input.signal
+      });
       const result = parseReflectionResponse(response, reviewReflectionTool.name, "Reflection provider");
       if (result.unitId !== input.unit.unitId) {
         throw new ReflectionProviderError(
@@ -152,6 +157,17 @@ export async function requestReviewReflection(input: {
       }
       return result;
     } catch (error) {
+      const retryable = error instanceof ReflectionProviderError && isRetryableReflectionError(error.code) && attempt === 0;
+      log.warn({
+        stage: "file-reflection",
+        providerId: input.provider.id,
+        unitId: input.unit.unitId,
+        attempt: attempt + 1,
+        retryable,
+        ...(error instanceof ReflectionProviderError
+          ? { code: error.code, details: error.details }
+          : { code: "provider-error", details: [error instanceof Error ? error.message : "unknown error"] })
+      }, retryable ? "Reflection 校验失败，将重试" : "Reflection 失败");
       if (!(error instanceof ReflectionProviderError) || attempt === 1 || !isRetryableReflectionError(error.code)) {
         throw error;
       }
@@ -231,13 +247,14 @@ export async function requestGlobalReviewReflection(input: {
 }): Promise<ReflectionResult> {
   let messages = buildGlobalReviewReflectionMessages(input);
   for (let attempt = 0; attempt < 2; attempt += 1) {
-    const response = await input.provider.chat({
-      messages,
-      tools: [globalReviewReflectionTool],
-      jsonMode: true,
-      signal: input.signal
-    });
+    log.info({ stage: "global-reflection", providerId: input.provider.id, attempt: attempt + 1, fileResultCount: input.fileResults.length }, "全局 Reflection 请求开始");
     try {
+      const response = await input.provider.chat({
+        messages,
+        tools: [globalReviewReflectionTool],
+        jsonMode: true,
+        signal: input.signal
+      });
       const result = parseReflectionResponse(response, globalReviewReflectionTool.name, "全局 Reflection provider");
       if (result.unitId !== undefined) {
         throw new ReflectionProviderError("invalid-result", "全局 ReflectionResult 必须省略 unitId", ["unitId: 全局 Reflection 不属于单个文件单元"]);
@@ -247,6 +264,16 @@ export async function requestGlobalReviewReflection(input: {
       }
       return result;
     } catch (error) {
+      const retryable = error instanceof ReflectionProviderError && isRetryableReflectionError(error.code) && attempt === 0;
+      log.warn({
+        stage: "global-reflection",
+        providerId: input.provider.id,
+        attempt: attempt + 1,
+        retryable,
+        ...(error instanceof ReflectionProviderError
+          ? { code: error.code, details: error.details }
+          : { code: "provider-error", details: [error instanceof Error ? error.message : "unknown error"] })
+      }, retryable ? "全局 Reflection 校验失败，将重试" : "全局 Reflection 失败");
       if (!(error instanceof ReflectionProviderError) || attempt === 1 || !isRetryableReflectionError(error.code)) {
         throw error;
       }

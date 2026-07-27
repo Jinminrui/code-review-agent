@@ -182,6 +182,8 @@ pnpm --filter @app/review-app test:e2e
 
 每次审查会话会生成一个 `traceId`，并贯穿 diff、LLM、工具调用和异常日志。日志同时输出到控制台和 JSONL 文件；Electron 运行时的文件日志目录使用应用的 `logs` 目录。
 
+LLM 日志会记录 provider、模型、请求阶段、耗时、工具名、token usage、请求 ID 和结构化校验错误摘要；不会记录 API Key、完整 prompt、源码或完整模型响应。
+
 可通过以下环境变量调整日志行为：
 
 1. `REVIEW_LOG_DIR`：非 Electron 环境的日志目录。
@@ -194,6 +196,8 @@ OpenAI SDK 配置仅在 Electron 主进程读取：
 1. `OPENAI_API_KEY`：必填，不会传入 renderer、会话文件或日志。
 2. `OPENAI_BASE_URL`：可选，默认使用当前 MiMo 兼容 endpoint。
 3. `OPENAI_MODEL`：可选，默认使用 `mimo-v2.5-pro`。
+4. `OPENAI_TIMEOUT_MS`：可选，provider 请求超时时间，默认 `180000` 毫秒。
+5. `OPENAI_STRICT_TOOL_CALLING`：可选，默认关闭；仅在兼容 endpoint 明确支持严格工具调用时开启。
 
 当前 MiMo endpoint 不使用 `response_format=json_schema`；Plan 和 Reflection 通过专用 tool calling 提交结构化结果，再由 Zod 和语义规则校验。provider 默认启用工具调用、usage 和取消能力；若实际 endpoint 不支持某项能力，可设置对应变量为 `false`：
 

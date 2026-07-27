@@ -13,6 +13,8 @@ export type OpenAiProviderConfig = {
   baseUrl: string;
   apiKey: string;
   model: string;
+  timeoutMs: number;
+  strictToolCalling: boolean;
 };
 
 export function resolveOpenAiProviderConfig(env: NodeJS.ProcessEnv = process.env): OpenAiProviderConfig {
@@ -24,7 +26,9 @@ export function resolveOpenAiProviderConfig(env: NodeJS.ProcessEnv = process.env
   return {
     baseUrl: env.OPENAI_BASE_URL ?? "https://token-plan-cn.xiaomimimo.com/v1",
     apiKey,
-    model: env.OPENAI_MODEL ?? "mimo-v2.5-pro"
+    model: env.OPENAI_MODEL ?? "mimo-v2.5-pro",
+    timeoutMs: readPositiveInteger(env.OPENAI_TIMEOUT_MS, 180_000),
+    strictToolCalling: readBoolean(env.OPENAI_STRICT_TOOL_CALLING, false)
   };
 }
 
@@ -43,4 +47,9 @@ export function resolveOpenAiProviderCapabilities(
 function readBoolean(value: string | undefined, fallback: boolean): boolean {
   if (value === undefined) return fallback;
   return value.trim().toLowerCase() !== "false";
+}
+
+function readPositiveInteger(value: string | undefined, fallback: number): number {
+  const parsed = Number(value);
+  return Number.isInteger(parsed) && parsed > 0 ? parsed : fallback;
 }

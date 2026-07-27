@@ -299,27 +299,43 @@ export class ReviewOrchestrator {
     }
 
     // Global Reflection 只合并或拒绝已有文件级结果，不能绕过证据边界新增问题。
-    try {
-      if (this.phase !== "unit-completed" && this.phase !== "unit-failed" && this.phase !== "global-plan-completed" && this.phase !== "global-reflection-validating") throw new Error(`全局 Reflection 前状态非法: ${this.phase}`);
-      if (this.phase !== "global-reflection-validating") yield* transition(this, "global-reflection-validating");
-      const global = await this.stages.globalReflection({ reviewPlan: plan, fileResults, evidenceSummaries, provider: this.dependencies.provider, signal });
-      if (signal?.aborted) return yield* this.cancel(sessionId, sessionInput, findings);
-      if (global.status === "reflection-failed") {
-        partial = true;
-        log.warn({ stage: "global-reflection", code: global.error.code, message: global.error.message, sessionId }, "全局 Reflection 失败");
-      }
-      findings.splice(0, findings.length, ...global.findings);
-      yield* transition(this, "global-reflection-completed");
-    } catch (error) {
-      if (isCancellation(error, signal)) return yield* this.cancel(sessionId, sessionInput, findings);
+    // 任一 unit 失败时输入不完整，跳过该阶段并保留已完成 unit 的 findings，避免二次失败。
+    const missingGlobalUnitIds = plan.units
+      .filter((unit) => !fileResults.some((result) => result.unitId === unit.unitId))
+      .map((unit) => unit.unitId);
+    if (missingGlobalUnitIds.length > 0 && !resume) {
       partial = true;
-      log.error({
+      log.warn({
         stage: "global-reflection",
-        code: "unhandled-error",
-        message: error instanceof Error ? error.message : "unknown error",
+        code: "incomplete-unit-results",
+        missingUnitIds: missingGlobalUnitIds,
         sessionId
-      }, "全局 Reflection 执行失败");
+      }, "跳过全局 Reflection：存在失败或缺失的审查单元");
+      if (this.phase !== "global-reflection-validating") yield* transition(this, "global-reflection-validating");
       yield* transition(this, "global-reflection-completed");
+    } else {
+      try {
+        if (this.phase !== "unit-completed" && this.phase !== "unit-failed" && this.phase !== "global-plan-completed" && this.phase !== "global-reflection-validating") throw new Error(`全局 Reflection 前状态非法: ${this.phase}`);
+        if (this.phase !== "global-reflection-validating") yield* transition(this, "global-reflection-validating");
+        const global = await this.stages.globalReflection({ reviewPlan: plan, fileResults, evidenceSummaries, provider: this.dependencies.provider, signal });
+        if (signal?.aborted) return yield* this.cancel(sessionId, sessionInput, findings);
+        if (global.status === "reflection-failed") {
+          partial = true;
+          log.warn({ stage: "global-reflection", code: global.error.code, message: global.error.message, sessionId }, "全局 Reflection 失败");
+        }
+        findings.splice(0, findings.length, ...global.findings);
+        yield* transition(this, "global-reflection-completed");
+      } catch (error) {
+        if (isCancellation(error, signal)) return yield* this.cancel(sessionId, sessionInput, findings);
+        partial = true;
+        log.error({
+          stage: "global-reflection",
+          code: "unhandled-error",
+          message: error instanceof Error ? error.message : "unknown error",
+          sessionId
+        }, "全局 Reflection 执行失败");
+        yield* transition(this, "global-reflection-completed");
+      }
     }
     yield* transition(this, "session-finished");
     const status = partial ? "partial" : "finished";

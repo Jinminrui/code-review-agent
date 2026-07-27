@@ -18,9 +18,12 @@ import {
   configureLogging
 } from "@app/review-infrastructure";
 import { createReviewWorkbenchHandlers } from "./ipc/review-workbench-handlers.js";
+import { loadDotEnv } from "./environment.js";
 import { getRendererFilePath } from "./paths.js";
 import { resolveOpenAiProviderCapabilities, resolveOpenAiProviderConfig } from "./provider-config.js";
 import { getPreloadFilename } from "./runtime-config.js";
+
+loadDotEnv();
 
 function createProvider() {
   const config = resolveOpenAiProviderConfig();

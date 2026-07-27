@@ -79,6 +79,7 @@ describe("ReviewOrchestrator", () => {
     expect(events.some((event) => event.type === "unit-failed" && event.unitId === "u-a")).toBe(true);
     expect(events.some((event) => event.type === "phase-transitioned" && event.phase === "unit-failed" && event.unitId === "u-a")).toBe(true);
     expect(events.some((event) => event.type === "session-finished" && event.status === "partial")).toBe(true);
+    expect(globalReflection).not.toHaveBeenCalled();
   });
 
   it("Reflection 失败时发出 unit-failed，而不是伪装成 unit-completed", async () => {

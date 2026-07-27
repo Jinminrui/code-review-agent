@@ -6,8 +6,18 @@ describe("resolveOpenAiProviderConfig", () => {
     expect(resolveOpenAiProviderConfig({ OPENAI_API_KEY: " test-key " })).toEqual({
       baseUrl: "https://token-plan-cn.xiaomimimo.com/v1",
       apiKey: "test-key",
-      model: "mimo-v2.5-pro"
+      model: "mimo-v2.5-pro",
+      timeoutMs: 180_000,
+      strictToolCalling: false
     });
+  });
+
+  it("允许通过环境变量缩短 provider 超时时间", () => {
+    expect(resolveOpenAiProviderConfig({ OPENAI_API_KEY: "test-key", OPENAI_TIMEOUT_MS: "45000" }).timeoutMs).toBe(45_000);
+  });
+
+  it("允许显式启用严格工具调用", () => {
+    expect(resolveOpenAiProviderConfig({ OPENAI_API_KEY: "test-key", OPENAI_STRICT_TOOL_CALLING: "true" }).strictToolCalling).toBe(true);
   });
 
   it("缺少 API key 时拒绝启动 provider", () => {

@@ -66,6 +66,8 @@ export type ProviderProfile = {
   baseUrl: string;
   apiKey: string;
   model: string;
+  timeoutMs?: number;
+  strictToolCalling?: boolean;
   contextWindowTokens?: number;
   capabilities?: ProviderCapabilities;
 };

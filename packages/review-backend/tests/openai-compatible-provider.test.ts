@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { OpenAiCompatibleProvider } from "../src/infrastructure/llm/openai-compatible-provider.js";
+import { OpenAiCompatibleProvider, summarizeOpenAiError } from "../src/infrastructure/llm/openai-compatible-provider.js";
 
 const createCompletion = vi.fn();
 
@@ -15,6 +15,16 @@ describe("OpenAiCompatibleProvider tool calling", () => {
     createCompletion.mockReset();
   });
 
+  it("提取 provider 错误摘要而不记录完整错误对象", () => {
+    expect(summarizeOpenAiError({ name: "APIError", message: "401 unauthorized", status: 401, code: "invalid_api_key", request_id: "req-1" })).toEqual({
+      name: "APIError",
+      message: "401 unauthorized",
+      status: 401,
+      code: "invalid_api_key",
+      requestId: "req-1"
+    });
+  });
+
   it("将结构化提交工具转换为 OpenAI-compatible tools", async () => {
     createCompletion.mockResolvedValue({
       choices: [{ message: { content: '{"ok":true}', tool_calls: [] } }],
@@ -26,6 +36,7 @@ describe("OpenAiCompatibleProvider tool calling", () => {
       baseUrl: "https://llm.example.test/v1",
       apiKey: "test-key",
       model: "test-model",
+      strictToolCalling: true,
       capabilities: { structuredOutput: false, toolCalling: true, usage: true, cancellation: true }
     });
 
@@ -37,7 +48,7 @@ describe("OpenAiCompatibleProvider tool calling", () => {
     expect(createCompletion).toHaveBeenCalledWith({
       model: "test-model",
       messages: [{ role: "user", content: "返回结果" }],
-      tools: [{ type: "function", function: { name: "submit_review_plan", description: "提交计划", parameters: { type: "object" } } }]
+      tools: [{ type: "function", function: { name: "submit_review_plan", description: "提交计划", parameters: { type: "object" }, strict: true } }]
     }, undefined);
     expect(result).toEqual({ content: '{"ok":true}', toolCalls: [], usage: { inputTokens: 3, outputTokens: 2 } });
   });

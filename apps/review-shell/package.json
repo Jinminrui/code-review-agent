@@ -12,6 +12,7 @@
     "@app/review-contracts": "workspace:*",
     "@app/review-engine": "workspace:*",
     "@app/review-infrastructure": "workspace:*",
+    "dotenv": "^16.5.0",
     "electron": "^36.4.0"
   },
   "devDependencies": {
