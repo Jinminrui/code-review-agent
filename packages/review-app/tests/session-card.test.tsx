@@ -101,4 +101,18 @@ describe("SessionCard", () => {
     expect(sessionLink).toBeDefined();
     expect(sessionLink!).toHaveAttribute("href", "/sessions/s_1");
   });
+
+  it("calls onRerun with the original session id", async () => {
+    const user = userEvent.setup();
+    const onRerun = vi.fn();
+
+    render(
+      <MemoryRouter>
+        <SessionCard session={mockSession} onDelete={vi.fn()} onExport={vi.fn()} onRerun={onRerun} />
+      </MemoryRouter>
+    );
+
+    await user.click(screen.getByLabelText("重新审查"));
+    expect(onRerun).toHaveBeenCalledWith("s_1");
+  });
 });

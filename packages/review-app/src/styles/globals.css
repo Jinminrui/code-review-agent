@@ -6,23 +6,23 @@
   color-scheme: dark;
 
   /* ===== 基底色 ===== */
-  --bg-base: #0D1117;
-  --bg-surface: #161B22;
-  --bg-elevated: #1C2128;
-  --bg-overlay: #21262D;
-  --bg-input: #0D1117;
+  --bg-base: #0f141a;
+  --bg-surface: #151c24;
+  --bg-elevated: #1b2530;
+  --bg-overlay: #24303c;
+  --bg-input: #0c1117;
 
   /* ===== 文字色 ===== */
   --text-primary: #E6EDF3;
-  --text-secondary: #8B949E;
-  --text-tertiary: #6E7681;
-  --text-disabled: #484F58;
+  --text-secondary: #a2adb9;
+  --text-tertiary: #73808d;
+  --text-disabled: #52606d;
   --text-on-accent: #FFFFFF;
 
   /* ===== 强调色 ===== */
-  --accent-cyan: #56D4DD;
-  --accent-cyan-muted: #3BA8B0;
-  --accent-cyan-subtle: rgba(86, 212, 221, 0.15);
+  --accent-cyan: #71d5d8;
+  --accent-cyan-muted: #4aaeb3;
+  --accent-cyan-subtle: rgba(113, 213, 216, 0.14);
   --accent-green: #3FB950;
   --accent-red: #F85149;
   --accent-amber: #D29922;
@@ -30,17 +30,17 @@
   --accent-blue: #58A6FF;
 
   /* ===== 边框色 ===== */
-  --border-default: #30363D;
-  --border-muted: #21262D;
-  --border-subtle: #1B1F25;
-  --border-accent: rgba(86, 212, 221, 0.4);
+  --border-default: #2b3743;
+  --border-muted: #202b35;
+  --border-subtle: #1c252e;
+  --border-accent: rgba(113, 213, 216, 0.5);
 
   /* ===== 阴影 ===== */
   --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.3);
   --shadow-md: 0 4px 12px rgba(0, 0, 0, 0.4);
   --shadow-lg: 0 12px 40px rgba(0, 0, 0, 0.5);
-  --shadow-glow-cyan: 0 0 20px rgba(86, 212, 221, 0.15);
-  --shadow-glow-red: 0 0 20px rgba(248, 81, 73, 0.2);
+  --shadow-glow-cyan: 0 4px 18px rgba(113, 213, 216, 0.1);
+  --shadow-glow-red: 0 4px 18px rgba(248, 81, 73, 0.12);
   --shadow-inset: inset 0 1px 0 rgba(255, 255, 255, 0.03);
 
   /* ===== 字体 ===== */
@@ -58,16 +58,7 @@ body {
   line-height: 1.5;
   color: var(--text-primary);
   background-color: var(--bg-base);
-  background-image:
-    linear-gradient(rgba(86, 212, 221, 0.03) 1px, transparent 1px),
-    linear-gradient(90deg, rgba(86, 212, 221, 0.03) 1px, transparent 1px),
-    radial-gradient(ellipse at 0% 0%, rgba(86, 212, 221, 0.08) 0%, transparent 50%),
-    radial-gradient(ellipse at 100% 100%, rgba(188, 140, 255, 0.05) 0%, transparent 50%);
-  background-size:
-    24px 24px,
-    24px 24px,
-    100% 100%,
-    100% 100%;
+  background-image: linear-gradient(180deg, rgba(255, 255, 255, 0.015), transparent 28%);
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
 }
@@ -149,12 +140,12 @@ code, pre, .font-mono {
 
 /* ===== 终端风格标签 ===== */
 .section-label {
-  font-family: var(--font-mono);
+  font-family: var(--font-sans), var(--font-cjk);
   font-size: 11px;
   font-weight: 500;
   letter-spacing: 0.05em;
   color: var(--text-tertiary);
-  text-transform: uppercase;
+  text-transform: none;
   display: flex;
   align-items: center;
   gap: 6px;

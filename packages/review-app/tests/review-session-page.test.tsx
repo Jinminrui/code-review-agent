@@ -88,13 +88,48 @@ describe("ReviewSessionPage", () => {
     expect(screen.getAllByText("问题").length).toBeGreaterThan(0);
     expect(screen.getAllByText("高风险").length).toBeGreaterThan(0);
 
-    // 风险文件列表
-    expect(screen.getByText("高风险文件")).toBeInTheDocument();
+    // Finding 列表内提供文件筛选，不再常驻独立风险文件列表
+    expect(screen.getByRole("combobox", { name: "文件" })).toBeInTheDocument();
     expect(screen.getAllByText("src/a.ts").length).toBeGreaterThan(0);
 
     // Finding 列表
     expect(screen.getByRole("button", { name: /空值保护缺失/ })).toBeInTheDocument();
     expect(screen.getByText("上下文")).toBeInTheDocument();
-    expect(screen.getByText("证据")).toBeInTheDocument();
+    expect(screen.getByText(/证据：/)).toBeInTheDocument();
+  });
+
+  it("distinguishes an empty running session from a completed clean session", async () => {
+    window.reviewWorkbenchApi = {
+      listRepositories: vi.fn(),
+      selectRepository: vi.fn(),
+      listBranches: vi.fn(),
+      createSession: vi.fn(),
+      getSession: vi.fn().mockResolvedValue({
+        sessionId: "s_2",
+        status: "finished",
+        repositoryPath: "/repo",
+        baseRef: "main",
+        targetRef: "feature",
+        summary: { changedFilesCount: 1, findingsCount: 0, highSeverityCount: 0, files: ["src/a.ts"] },
+        diffByFile: {},
+        findings: []
+      }),
+      listSessions: vi.fn(),
+      deleteSession: vi.fn(),
+      cancelSession: vi.fn(),
+      exportSession: vi.fn(),
+      subscribeSession: vi.fn().mockReturnValue(() => {})
+    };
+
+    render(
+      <MemoryRouter initialEntries={["/sessions/s_2"]}>
+        <Routes>
+          <Route path="/sessions/:sessionId" element={<ReviewSessionPage />} />
+        </Routes>
+      </MemoryRouter>
+    );
+
+    await waitFor(() => expect(screen.getAllByText("未发现需要关注的问题").length).toBeGreaterThan(0));
+    expect(screen.queryByText("暂无发现")).not.toBeInTheDocument();
   });
 });

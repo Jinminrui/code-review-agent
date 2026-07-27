@@ -11,6 +11,7 @@ import { SessionHistoryPage } from "../src/pages/session-history-page";
 const mockDeleteSession = vi.fn();
 const mockExportSession = vi.fn();
 const mockFetchSessions = vi.fn();
+const mockRerunSession = vi.fn();
 
 vi.mock("@/store/session-history-store", () => ({
   useSessionHistoryStore: () => ({
@@ -48,6 +49,7 @@ vi.mock("@/store/session-history-store", () => ({
     fetchSessions: mockFetchSessions,
     deleteSession: mockDeleteSession,
     exportSession: mockExportSession,
+    rerunSession: mockRerunSession,
     clearError: vi.fn()
   })
 }));
@@ -55,6 +57,7 @@ vi.mock("@/store/session-history-store", () => ({
 describe("SessionHistoryPage", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    mockRerunSession.mockResolvedValue("s_3");
   });
 
   afterEach(() => {
@@ -130,5 +133,20 @@ describe("SessionHistoryPage", () => {
     );
 
     expect(screen.getByText("已中止")).toBeInTheDocument();
+  });
+
+  it("calls rerunSession for the selected historical session", async () => {
+    render(
+      <MemoryRouter initialEntries={["/sessions"]}>
+        <Routes>
+          <Route path="/sessions" element={<SessionHistoryPage />} />
+          <Route path="/sessions/:sessionId" element={<div />} />
+        </Routes>
+      </MemoryRouter>
+    );
+
+    fireEvent.click(screen.getAllByLabelText("重新审查")[0]!);
+
+    await waitFor(() => expect(mockRerunSession).toHaveBeenCalledWith("s_1"));
   });
 });

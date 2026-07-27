@@ -13,7 +13,7 @@ test("launches a session and opens the detail workbench", async ({ page }) => {
   await page.locator("select").nth(0).selectOption("main");
   await expect(page.locator("select").nth(1).locator("option")).toHaveCount(3);
   await page.locator("select").nth(1).selectOption("feature");
-  await page.getByRole("button", { name: "$ start-review" }).click();
+  await page.getByRole("button", { name: /开始审查/ }).click();
   await expect(page.getByText("已完成").first()).toBeVisible();
 
   await page.goto("http://127.0.0.1:4173/#/sessions");

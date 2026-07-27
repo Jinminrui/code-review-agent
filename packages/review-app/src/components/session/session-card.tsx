@@ -7,7 +7,7 @@ import { Link } from 'react-router-dom'
 import { cn } from '@/lib/utils'
 import { Icon } from '@/components/ui/icon'
 import { StatusBadge, type Status } from '@/components/ui/status-badge'
-import { GitBranch, Folder, FileText, AlertTriangle, Trash2, Download } from 'lucide-react'
+import { GitBranch, Folder, FileText, AlertTriangle, Trash2, Download, RotateCcw } from 'lucide-react'
 import type { SessionSummary } from '@/lib/review-model'
 import { sessionStatusLabel } from '@/lib/review-copy'
 
@@ -15,6 +15,7 @@ interface SessionCardProps {
   session: SessionSummary;
   onDelete: (sessionId: string) => void;
   onExport: (sessionId: string) => void;
+  onRerun?: (sessionId: string) => void;
 }
 
 function getStatusBadgeStatus(status: string): Status {
@@ -28,7 +29,7 @@ function getStatusBadgeStatus(status: string): Status {
   }
 }
 
-export function SessionCard({ session, onDelete, onExport }: SessionCardProps) {
+export function SessionCard({ session, onDelete, onExport, onRerun }: SessionCardProps) {
   const statusLabel = sessionStatusLabel[session.status as keyof typeof sessionStatusLabel] ?? session.status
 
   return (
@@ -64,6 +65,11 @@ export function SessionCard({ session, onDelete, onExport }: SessionCardProps) {
           status={getStatusBadgeStatus(session.status)}
           label={statusLabel}
         />
+        {session.createdAt && (
+          <time dateTime={session.createdAt} className="text-xs text-text-tertiary">
+            {new Intl.DateTimeFormat('zh-CN', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' }).format(new Date(session.createdAt))}
+          </time>
+        )}
       </div>
 
       {/* 分隔线 */}
@@ -90,6 +96,15 @@ export function SessionCard({ session, onDelete, onExport }: SessionCardProps) {
 
         {/* 操作按钮 */}
         <div className="flex items-center gap-2">
+          {onRerun && (
+            <button
+              onClick={() => onRerun(session.sessionId)}
+              aria-label="重新审查"
+              className="p-1.5 text-text-tertiary hover:text-accent-cyan hover:bg-bg-elevated rounded transition-colors"
+            >
+              <Icon icon={RotateCcw} size="sm" />
+            </button>
+          )}
           <button
             onClick={() => onExport(session.sessionId)}
             aria-label="导出会话"

@@ -12,12 +12,12 @@ import { SidebarHeader } from '@/components/session/sidebar-header'
 import { SessionProgress } from '@/components/session/session-progress'
 import { ReviewTracePanel } from '@/components/session/review-trace-panel'
 import { ReviewSummaryPanel } from '@/components/session/review-summary-panel'
-import { RiskFileList } from '@/components/session/risk-file-list'
 import { FindingList } from '@/components/session/finding-list'
 import { MonacoDiffViewer } from '@/components/diff/monaco-diff-viewer'
 import { DiffEmptyState } from '@/components/session/diff-empty-state'
 import { AlertTriangle } from 'lucide-react'
 import { ipcClient } from '@/lib/ipc-client'
+import { getSessionEmptyState, type FindingFilter } from '@/lib/review-view-model'
 
 export function ReviewSessionPage() {
   const { sessionId = '' } = useParams()
@@ -31,6 +31,8 @@ export function ReviewSessionPage() {
   const setSelectedFinding = useReviewSessionStore((state) => state.setSelectedFinding)
   const selectedFinding = useSelectedFinding()
   const selectedDiff = selectedFinding ? session?.diffByFile[selectedFinding.file] : null
+  const [findingFilter, setFindingFilter] = useState<FindingFilter>({ severity: 'all', file: 'all' })
+  const emptyState = session ? getSessionEmptyState(session.status, session.findings.length) : null
 
   const [isCancelConfirmOpen, setCancelConfirmOpen] = useState(false)
   const [isCancelling, setIsCancelling] = useState(false)
@@ -103,14 +105,15 @@ export function ReviewSessionPage() {
               highRisk={session.summary.highSeverityCount}
             />
 
-            {/* 风险文件列表 */}
-            <RiskFileList files={session.summary.files} />
-
             {/* Finding 列表 */}
             <FindingList
               findings={session.findings}
               selectedFindingId={selectedFindingId}
               onSelectFinding={setSelectedFinding}
+              filter={findingFilter}
+              files={Array.from(new Set(session.findings.map((finding) => finding.file)))}
+              onFilterChange={setFindingFilter}
+              emptyMessage={emptyState?.message}
             />
           </>
         ) : null}

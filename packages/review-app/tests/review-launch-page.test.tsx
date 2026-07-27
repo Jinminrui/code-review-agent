@@ -166,4 +166,67 @@ describe("ReviewLaunchPage", () => {
       });
     });
   });
+
+  it("prefills the default base branch without guessing the current target branch", async () => {
+    window.reviewWorkbenchApi = {
+      listRepositories: vi.fn().mockResolvedValue(["/repo"]),
+      selectRepository: vi.fn().mockResolvedValue("/repo"),
+      listBranches: vi.fn().mockResolvedValue(["main", "feature"]),
+      createSession: vi.fn().mockResolvedValue({ sessionId: "s_5" }),
+      getSession: vi.fn(),
+      listSessions: vi.fn().mockResolvedValue([]),
+      deleteSession: vi.fn(),
+      cancelSession: vi.fn(),
+      exportSession: vi.fn(),
+      subscribeSession: vi.fn()
+    };
+
+    render(
+      <MemoryRouter>
+        <ReviewLaunchPage />
+      </MemoryRouter>
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: "选择仓库" }));
+
+    await waitFor(() => {
+      expect(screen.getAllByRole("combobox")[0]).toHaveValue("main");
+    });
+
+    expect(screen.getAllByRole("combobox")[1]).toHaveValue("");
+    expect(screen.getByText("请选择目标分支以开始审查")).toBeInTheDocument();
+  });
+
+  it("swaps base and target refs from the comparison preview", async () => {
+    window.reviewWorkbenchApi = {
+      listRepositories: vi.fn().mockResolvedValue(["/repo"]),
+      selectRepository: vi.fn().mockResolvedValue("/repo"),
+      listBranches: vi.fn().mockResolvedValue(["main", "feature"]),
+      createSession: vi.fn().mockResolvedValue({ sessionId: "s_6" }),
+      getSession: vi.fn(),
+      listSessions: vi.fn().mockResolvedValue([]),
+      deleteSession: vi.fn(),
+      cancelSession: vi.fn(),
+      exportSession: vi.fn(),
+      subscribeSession: vi.fn()
+    };
+
+    render(
+      <MemoryRouter>
+        <ReviewLaunchPage />
+      </MemoryRouter>
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: "选择仓库" }));
+    await waitFor(() => expect(screen.getAllByRole("combobox")[0]).toHaveValue("main"));
+
+    fireEvent.change(screen.getAllByRole("combobox")[1]!, { target: { value: "feature" } });
+    expect(screen.getAllByText((_, element) => element?.textContent === "将审查 feature 相对 main 的改动")[0]).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: "交换分支" }));
+
+    expect(screen.getAllByRole("combobox")[0]).toHaveValue("feature");
+    expect(screen.getAllByRole("combobox")[1]).toHaveValue("main");
+    expect(screen.getAllByText((_, element) => element?.textContent === "将审查 main 相对 feature 的改动")[0]).toBeInTheDocument();
+  });
 });

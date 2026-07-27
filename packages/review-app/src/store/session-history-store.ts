@@ -15,6 +15,7 @@ type SessionHistoryStore = {
   fetchSessions(): Promise<void>;
   deleteSession(sessionId: string): Promise<void>;
   exportSession(sessionId: string): Promise<void>;
+  rerunSession(sessionId: string): Promise<string>;
   clearError(): void;
 };
 
@@ -60,6 +61,28 @@ export const useSessionHistoryStore = create<SessionHistoryStore>((set, get) => 
     } catch (error) {
       console.error('Failed to export session:', error);
       set({ error: '导出会话报告失败' });
+    }
+  },
+
+  rerunSession: async (sessionId: string) => {
+    const session = get().sessions.find((item) => item.sessionId === sessionId);
+    if (!session) {
+      const error = '找不到要重新审查的会话';
+      set({ error });
+      throw new Error(error);
+    }
+
+    try {
+      const nextSession = await ipcClient.createSession({
+        repositoryPath: session.repositoryPath,
+        baseRef: session.baseRef,
+        targetRef: session.targetRef
+      });
+      return nextSession.sessionId;
+    } catch (error) {
+      console.error('Failed to rerun session:', error);
+      set({ error: '重新审查失败' });
+      throw error;
     }
   },
 

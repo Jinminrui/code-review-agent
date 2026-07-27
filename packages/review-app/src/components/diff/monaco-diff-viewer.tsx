@@ -11,6 +11,7 @@ import { Icon } from "@/components/ui/icon";
 import { StatusBadge } from "@/components/ui/status-badge";
 import { SectionLabel } from "@/components/ui/section-label";
 import { Lock, FileText, MessageSquare, Lightbulb } from "lucide-react";
+import { DiffToolbar, type DiffMode } from "./diff-toolbar";
 
 type MonacoDiffViewerProps = {
   original: string;
@@ -44,12 +45,12 @@ type MonacoLike = {
 export function MonacoDiffViewer({ original, modified, finding }: MonacoDiffViewerProps) {
   const [editor, setEditor] = useState<EditorLike | null>(null);
   const [monaco, setMonaco] = useState<MonacoLike | null>(null);
-  const evidence = finding?.evidence ?? finding?.suggestion ?? finding?.explanation ?? "等待选择问题后显示证据摘要。";
+  const [diffMode, setDiffMode] = useState<DiffMode>("side-by-side");
 
   useMonacoReveal(editor, monaco, finding);
 
   return (
-    <div className="grid h-full min-h-0 grid-rows-[auto_auto_1fr] gap-3 rounded-lg border border-border-default bg-bg-surface p-4">
+    <div className="grid h-full min-h-0 grid-rows-[auto_auto_auto_1fr] gap-3 rounded-lg border border-border-default bg-bg-surface p-4">
       <header className="flex items-start justify-between gap-4 rounded-md border border-border-subtle bg-bg-elevated px-4 py-3">
         <div className="grid gap-1">
           <SectionLabel icon={Lock} command="上下文" />
@@ -70,60 +71,78 @@ export function MonacoDiffViewer({ original, modified, finding }: MonacoDiffView
         </div>
       </header>
       <section className="rounded-md bg-bg-base border border-border-subtle px-4 py-3">
-        <SectionLabel icon={MessageSquare} command="证据" />
-        <div className="flex items-start gap-2 mt-2">
-          <Icon icon={Lightbulb} size="sm" variant="warning" className="mt-0.5 flex-shrink-0" />
-          <p className="text-sm leading-6 text-text-primary font-mono">{evidence}</p>
-        </div>
+        <SectionLabel icon={MessageSquare} command="问题详情" />
+        {finding ? (
+          <div className="mt-3 space-y-3 text-sm leading-6 text-text-primary">
+            <p>{finding.explanation}</p>
+            <div className="flex items-start gap-2 rounded-md border border-border-subtle bg-bg-surface px-3 py-2">
+              <Icon icon={Lightbulb} size="sm" variant="warning" className="mt-0.5 flex-shrink-0" />
+              <div className="space-y-2">
+                <p><span className="text-xs text-text-tertiary">证据：</span>{finding.evidence ?? '暂无证据摘要'}</p>
+                <p><span className="text-xs text-text-tertiary">建议：</span>{finding.suggestion ?? '暂无处理建议'}</p>
+              </div>
+            </div>
+          </div>
+        ) : (
+          <p className="mt-2 text-sm text-text-tertiary">等待选择问题后显示详情。</p>
+        )}
       </section>
       <div className="min-h-0 overflow-hidden rounded-md border border-border-subtle">
-        <DiffEditor
-          height="100%"
-          language="typescript"
-          original={original}
-          modified={modified}
-          loading="正在加载差异视图..."
-          options={{
-            readOnly: true,
-            minimap: { enabled: false },
-            renderSideBySide: false,
-            glyphMargin: true,
-            lineNumbersMinChars: 3
-          }}
-          beforeMount={(nextMonaco) => {
-            nextMonaco.editor.defineTheme("review-workbench", {
-              base: "vs-dark",
-              inherit: true,
-              rules: [
-                { token: "comment", foreground: "6e7681" },
-                { token: "keyword", foreground: "ff7b72" },
-                { token: "string", foreground: "a5d6ff" },
-                { token: "number", foreground: "79c0ff" },
-                { token: "type", foreground: "ffa657" },
-                { token: "function", foreground: "d2a8ff" },
-                { token: "variable", foreground: "e6edf3" },
-              ],
-              colors: {
-                "editor.background": "#0d1117",
-                "editor.foreground": "#e6edf3",
-                "editor.lineHighlightBackground": "#161b22",
-                "editorLineNumber.foreground": "#484f58",
-                "editorLineNumber.activeForeground": "#8b949e",
-                "diffEditor.insertedTextBackground": "rgba(46,160,67,0.25)",
-                "diffEditor.removedTextBackground": "rgba(210,153,34,0.2)",
-                "diffEditor.insertedLineBackground": "rgba(46,160,67,0.12)",
-                "diffEditor.removedLineBackground": "rgba(210,153,34,0.08)",
-                "diffEditor.insertedTextBorder": "rgba(46,160,67,0.4)",
-                "diffEditor.removedTextBorder": "rgba(210,153,34,0.3)"
-              }
-            });
-          }}
-          onMount={(nextEditor, nextMonaco) => {
-            nextMonaco.editor.setTheme("review-workbench");
-            setEditor(nextEditor as EditorLike);
-            setMonaco(nextMonaco as MonacoLike);
-          }}
+        <DiffToolbar
+          file={finding?.file ?? "暂无文件上下文"}
+          status={finding?.status ?? "file-level"}
+          mode={diffMode}
+          onModeChange={setDiffMode}
         />
+        <div className="h-[calc(100%-45px)]">
+          <DiffEditor
+            height="100%"
+            language="typescript"
+            original={original}
+            modified={modified}
+            loading="正在加载差异视图..."
+            options={{
+              readOnly: true,
+              minimap: { enabled: false },
+              renderSideBySide: diffMode === "side-by-side",
+              glyphMargin: true,
+              lineNumbersMinChars: 3
+            }}
+            beforeMount={(nextMonaco) => {
+              nextMonaco.editor.defineTheme("review-workbench", {
+                base: "vs-dark",
+                inherit: true,
+                rules: [
+                  { token: "comment", foreground: "6e7681" },
+                  { token: "keyword", foreground: "ff7b72" },
+                  { token: "string", foreground: "a5d6ff" },
+                  { token: "number", foreground: "79c0ff" },
+                  { token: "type", foreground: "ffa657" },
+                  { token: "function", foreground: "d2a8ff" },
+                  { token: "variable", foreground: "e6edf3" },
+                ],
+                colors: {
+                  "editor.background": "#0d1117",
+                  "editor.foreground": "#e6edf3",
+                  "editor.lineHighlightBackground": "#161b22",
+                  "editorLineNumber.foreground": "#484f58",
+                  "editorLineNumber.activeForeground": "#8b949e",
+                  "diffEditor.insertedTextBackground": "rgba(46,160,67,0.25)",
+                  "diffEditor.removedTextBackground": "rgba(210,153,34,0.2)",
+                  "diffEditor.insertedLineBackground": "rgba(46,160,67,0.12)",
+                  "diffEditor.removedLineBackground": "rgba(210,153,34,0.08)",
+                  "diffEditor.insertedTextBorder": "rgba(46,160,67,0.4)",
+                  "diffEditor.removedTextBorder": "rgba(210,153,34,0.3)"
+                }
+              });
+            }}
+            onMount={(nextEditor, nextMonaco) => {
+              nextMonaco.editor.setTheme("review-workbench");
+              setEditor(nextEditor as EditorLike);
+              setMonaco(nextMonaco as MonacoLike);
+            }}
+          />
+        </div>
       </div>
     </div>
   );

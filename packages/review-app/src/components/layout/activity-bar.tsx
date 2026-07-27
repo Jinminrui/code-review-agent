@@ -21,7 +21,7 @@ const topItems: ActivityBarItem[] = [
 
 export function ActivityBar() {
   return (
-    <aside className="w-12 h-screen bg-bg-base border-r border-border-muted flex flex-col items-center py-4">
+    <aside className="w-14 h-screen bg-bg-surface border-r border-border-default flex flex-col items-center py-4">
       {/* 顶部 Logo */}
       <div className="mb-4">
         <div className="w-8 h-8 flex items-center justify-center">
@@ -33,14 +33,14 @@ export function ActivityBar() {
       <div className="w-6 h-px bg-border-muted mb-4" />
 
       {/* 顶部导航 */}
-      <nav className="flex-1 flex flex-col items-center gap-1">
+      <nav aria-label="工作台导航" className="flex-1 flex flex-col items-center gap-1">
         {topItems.map((item) => (
           <NavLink
             key={item.label}
             to={item.to}
             className={({ isActive }) =>
               cn(
-                'relative w-12 h-12 flex items-center justify-center transition-colors duration-150',
+                'relative w-12 h-11 flex items-center justify-center rounded-md transition-colors duration-150',
                 isActive ? 'text-accent-cyan' : 'text-text-tertiary hover:text-text-secondary'
               )
             }
@@ -50,7 +50,7 @@ export function ActivityBar() {
               <>
                 <Icon icon={item.icon} size="md" />
                 {isActive && (
-                  <div className="absolute left-0 top-1/2 -translate-y-1/2 w-0.5 h-6 bg-accent-cyan rounded-r" />
+                    <div className="absolute left-0 top-1/2 -translate-y-1/2 w-0.5 h-5 bg-accent-cyan rounded-r" />
                 )}
               </>
             )}

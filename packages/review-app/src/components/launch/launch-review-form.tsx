@@ -9,7 +9,7 @@ import { cn } from '@/lib/utils'
 import { Icon } from '@/components/ui/icon'
 import { RepositoryPicker } from './repository-picker'
 import { BranchSelector } from './branch-selector'
-import { Play, RefreshCw, Folder, GitBranch, AlertTriangle } from 'lucide-react'
+import { Play, RefreshCw, Folder, GitBranch, AlertTriangle, ArrowUpDown } from 'lucide-react'
 import { ipcClient } from '@/lib/ipc-client'
 
 export function LaunchReviewForm() {
@@ -34,7 +34,12 @@ export function LaunchReviewForm() {
     void ipcClient.listBranches(repositoryPath).then(
       (nextBranches) => {
         setBranches(nextBranches)
-        setBaseRef((current) => (nextBranches.includes(current) ? current : ''))
+        setBaseRef((current) => {
+          if (nextBranches.includes(current)) return current
+          return nextBranches.find((branch) => branch === 'main')
+            ?? nextBranches.find((branch) => branch === 'master')
+            ?? ''
+        })
         setTargetRef((current) => (nextBranches.includes(current) ? current : ''))
       },
       (err) => {
@@ -64,6 +69,11 @@ export function LaunchReviewForm() {
     } finally {
       setIsSelectingRepository(false)
     }
+  }
+
+  function handleSwapBranches() {
+    setBaseRef(targetRef)
+    setTargetRef(baseRef)
   }
 
   async function handleSubmit(e: React.FormEvent) {
@@ -148,9 +158,8 @@ export function LaunchReviewForm() {
         {/* 仓库选择 */}
         <div>
           <label className="section-label mb-2">
-            <span className="prompt">$</span>
             <Icon icon={Folder} size="xs" />
-            <span className="command">repository</span>
+            <span className="command">仓库</span>
           </label>
           <RepositoryPicker
             value={repositoryPath}
@@ -162,9 +171,8 @@ export function LaunchReviewForm() {
         {/* 基础分支 */}
         <div>
           <label className="section-label mb-2">
-            <span className="prompt">$</span>
             <Icon icon={GitBranch} size="xs" />
-            <span className="command">base-branch</span>
+            <span className="command">基准分支</span>
           </label>
           <BranchSelector
             branches={branches}
@@ -177,9 +185,8 @@ export function LaunchReviewForm() {
         {/* 目标分支 */}
         <div>
           <label className="section-label mb-2">
-            <span className="prompt">$</span>
             <Icon icon={GitBranch} size="xs" />
-            <span className="command">target-branch</span>
+            <span className="command">目标分支</span>
           </label>
           <BranchSelector
             branches={branches}
@@ -189,9 +196,27 @@ export function LaunchReviewForm() {
           />
         </div>
 
+        <div className="flex items-center justify-between gap-3 rounded-md border border-border-subtle bg-bg-elevated px-3 py-2">
+          <p className="min-w-0 text-xs text-text-secondary">
+            {baseRef && targetRef
+              ? <>将审查 <span className="font-mono text-text-primary">{targetRef}</span> 相对 <span className="font-mono text-text-primary">{baseRef}</span> 的改动</>
+              : '请选择目标分支以开始审查'}
+          </p>
+          <button
+            type="button"
+            aria-label="交换分支"
+            onClick={handleSwapBranches}
+            disabled={!baseRef && !targetRef}
+            className="shrink-0 rounded-md p-1.5 text-text-tertiary transition-colors hover:bg-bg-overlay hover:text-text-primary disabled:cursor-not-allowed disabled:opacity-40"
+          >
+            <Icon icon={ArrowUpDown} size="sm" />
+          </button>
+        </div>
+
         {/* 提交按钮 */}
         <button
           type="submit"
+          aria-label="start-review 开始审查"
           disabled={!repositoryPath || !baseRef || !targetRef || isSubmitting}
           className={cn(
             'w-full h-10 px-4 rounded-md font-mono text-sm font-medium transition-all duration-150',
@@ -202,20 +227,21 @@ export function LaunchReviewForm() {
         >
           <span className="inline-flex items-center gap-2">
             <Icon icon={Play} size="sm" />
-            <span>$ start-review</span>
+            <span>开始审查</span>
           </span>
         </button>
 
         {/* 分隔线 */}
         <div className="flex items-center gap-4 my-6">
           <div className="flex-1 h-px bg-border-muted" />
-          <span className="text-xs text-text-disabled font-mono">or</span>
+          <span className="text-xs text-text-disabled">或者</span>
           <div className="flex-1 h-px bg-border-muted" />
         </div>
 
         {/* 审查工作区按钮 */}
         <button
           type="button"
+          aria-label="review-workspace 审查当前工作区"
           onClick={handleWorkspaceReview}
           disabled={!repositoryPath || isSubmitting}
           className={cn(
@@ -227,7 +253,7 @@ export function LaunchReviewForm() {
         >
           <span className="inline-flex items-center gap-2">
             <Icon icon={RefreshCw} size="sm" />
-            <span>$ review-workspace</span>
+            <span>审查当前工作区</span>
           </span>
         </button>
       </form>

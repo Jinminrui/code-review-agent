@@ -4,6 +4,7 @@
  * 维护提示：修改时优先保持现有契约和错误语义，并同步更新相关测试。
  */
 import { useEffect, useState } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { useSessionHistoryStore } from '@/store/session-history-store'
 import { SessionCard } from '@/components/session/session-card'
 import { DeleteConfirmDialog } from '@/components/session/delete-confirm-dialog'
@@ -11,6 +12,7 @@ import { Icon } from '@/components/ui/icon'
 import { Clock } from 'lucide-react'
 
 export function SessionHistoryPage() {
+  const navigate = useNavigate();
   const {
     sessions,
     isLoading,
@@ -18,6 +20,7 @@ export function SessionHistoryPage() {
     fetchSessions,
     deleteSession,
     exportSession,
+    rerunSession,
     clearError
   } = useSessionHistoryStore();
 
@@ -40,6 +43,15 @@ export function SessionHistoryPage() {
 
   const handleExport = (sessionId: string) => {
     exportSession(sessionId);
+  };
+
+  const handleRerun = async (sessionId: string) => {
+    try {
+      const nextSessionId = await rerunSession(sessionId);
+      navigate(`/sessions/${nextSessionId}`);
+    } catch {
+      // store 已经将可展示的错误写入页面状态。
+    }
   };
 
   return (
@@ -89,6 +101,7 @@ export function SessionHistoryPage() {
                 session={session}
                 onDelete={handleDelete}
                 onExport={handleExport}
+                onRerun={handleRerun}
               />
             ))}
           </div>
