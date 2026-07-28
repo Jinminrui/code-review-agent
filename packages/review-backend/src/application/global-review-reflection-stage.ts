@@ -17,8 +17,14 @@ import {
 } from "../domain/review-evidence.js";
 import { reviewFindingSchema, type ReviewFinding } from "../domain/review-finding.js";
 import { reviewPlanSchema, type ReviewPlan } from "../domain/review-plan.js";
+import type { StageUsage } from "../domain/review-runtime.js";
+import {
+  sanitizeFileResultForGlobal,
+  type GlobalCandidateRejection
+} from "./global-review-input.js";
 import {
   requestGlobalReviewReflection,
+  projectGlobalReviewInput,
   type GlobalEvidenceSummary,
   type GlobalReflectionFileResult,
   type ReflectionProviderErrorCode
@@ -48,11 +54,13 @@ export type GlobalReviewReflectionStageResult =
       reflectionResult: ReflectionResult;
       findings: ReviewFinding[];
       unadopted: ReflectionCandidate[];
+      usage?: StageUsage;
     }
   | {
       status: "reflection-failed";
       findings: ReviewFinding[];
       unadopted: ReflectionCandidate[];
+      usage?: StageUsage;
       error: GlobalReviewReflectionStageError;
     };
 
@@ -75,6 +83,14 @@ const globalEvidenceSummarySchema = evidenceBundleSchema
 export async function runGlobalReviewReflectionStage(
   input: GlobalReviewReflectionStageInput
 ): Promise<GlobalReviewReflectionStageResult> {
+  const startedAt = Date.now();
+  const usage = { inputTokens: 0, outputTokens: 0, modelCalls: 0, toolCalls: 0, readBytes: 0 };
+  const recordUsage = (value: { inputTokens: number; outputTokens: number }) => {
+    usage.inputTokens += value.inputTokens;
+    usage.outputTokens += value.outputTokens;
+    usage.modelCalls += 1;
+  };
+  const stageUsage = (): StageUsage => ({ ...usage, durationMs: Date.now() - startedAt });
   input.signal?.throwIfAborted();
   const parsedPlan = reviewPlanSchema.safeParse(input.reviewPlan);
   const parsedFileResults = parseArray(input.fileResults, globalFileResultSchema);
@@ -127,7 +143,27 @@ export async function runGlobalReviewReflectionStage(
     };
   }
   const reviewPlan = parsedPlan.data;
-  const fileResults = parsedFileResults.data;
+  const sanitized = parsedFileResults.data.map((fileResult) => {
+    const unit = reviewPlan.units.find((item) => item.unitId === fileResult.unitId);
+    const evidenceSummary = parsedEvidenceSummaries.data.find(
+      (summary) => summary.unitId === fileResult.unitId
+    ) ?? {
+      schemaVersion: 1 as const,
+      unitId: fileResult.unitId,
+      completeness: "incomplete" as const,
+      items: []
+    };
+    return sanitizeFileResultForGlobal({
+      unitId: fileResult.unitId,
+      file: unit?.file ?? fileResult.findings[0]?.file ?? "",
+      findings: fileResult.findings,
+      reflectionResult: fileResult.reflectionResult,
+      evidenceSummary
+    });
+  });
+  const fileResults = sanitized.map((item) => item.fileResult);
+  const rejectedInputCandidates = sanitized.flatMap((item) => item.rejectedCandidates);
+  const sanitizedInvalidFindingReasons = rejectionReasonsByFindingId(rejectedInputCandidates);
   const evidenceSummaries = parsedEvidenceSummaries.data;
   const inputValidation = validateGlobalInputContracts(
     reviewPlan,
@@ -139,12 +175,16 @@ export async function runGlobalReviewReflectionStage(
     const fileLevel = filterFileLevelBaseline({
       fileResults,
       evidenceSummaries,
-      invalidFindingReasons: inputValidation.invalidFindingReasons
+      invalidFindingReasons: mergeFindingReasons(
+        inputValidation.invalidFindingReasons,
+        sanitizedInvalidFindingReasons
+      )
     });
     return {
       status: "reflection-failed",
       findings: fileLevel.findings,
-      unadopted: fileLevel.unadopted,
+      unadopted: [...rejectedCandidatesToUnadopted(rejectedInputCandidates), ...fileLevel.unadopted],
+      usage: stageUsage(),
       error: {
         code: "invalid-global-input",
         message: `全局 Reflection 输入契约校验失败：${inputValidation.issues.join("；")}`
@@ -156,12 +196,13 @@ export async function runGlobalReviewReflectionStage(
     const fileLevel = filterFileLevelBaseline({
       fileResults,
       evidenceSummaries,
-      invalidFindingReasons: new Map()
+      invalidFindingReasons: sanitizedInvalidFindingReasons
     });
     return {
       status: "reflection-failed",
       findings: fileLevel.findings,
-      unadopted: fileLevel.unadopted,
+      unadopted: [...rejectedCandidatesToUnadopted(rejectedInputCandidates), ...fileLevel.unadopted],
+      usage: stageUsage(),
       error: {
         code: "structured-output-unsupported",
         message: "全局 Reflection provider 不支持结构化提交工具，仅保留通过文件级 accept、evidence 和合法性校验的正式 finding"
@@ -173,9 +214,8 @@ export async function runGlobalReviewReflectionStage(
   try {
     reflectionResult = await requestGlobalReviewReflection({
       provider: input.provider,
-      reviewPlan,
-      fileResults,
-      evidenceSummaries,
+      globalInput: projectGlobalReviewInput({ fileResults, evidenceSummaries }),
+      onUsage: recordUsage,
       signal: input.signal
     });
   } catch (error) {
@@ -187,12 +227,13 @@ export async function runGlobalReviewReflectionStage(
     const fileLevel = filterFileLevelBaseline({
       fileResults,
       evidenceSummaries,
-      invalidFindingReasons: new Map()
+      invalidFindingReasons: sanitizedInvalidFindingReasons
     });
     return {
       status: "reflection-failed",
       findings: fileLevel.findings,
-      unadopted: fileLevel.unadopted,
+      unadopted: [...rejectedCandidatesToUnadopted(rejectedInputCandidates), ...fileLevel.unadopted],
+      usage: stageUsage(),
       error: {
         code: providerCode === "tool-request-denied"
           ? "global-tool-request-denied"
@@ -209,7 +250,7 @@ export async function runGlobalReviewReflectionStage(
     const fileLevel = filterFileLevelBaseline({
       fileResults,
       evidenceSummaries,
-      invalidFindingReasons: new Map()
+      invalidFindingReasons: sanitizedInvalidFindingReasons
     });
     return {
       status: "reflection-failed",
@@ -225,6 +266,7 @@ export async function runGlobalReviewReflectionStage(
             ])
           }))
       ],
+      usage: stageUsage(),
       error: {
         code: "invalid-result",
         message: `全局 ReflectionResult finding id 不唯一：${[...duplicateGlobalFindingIds].join("、")}`
@@ -232,11 +274,19 @@ export async function runGlobalReviewReflectionStage(
     };
   }
 
-  return applyGlobalReflectionDecisions({
+  const completed = applyGlobalReflectionDecisions({
     reflectionResult,
     fileResults,
     evidenceSummaries
   });
+  return {
+    ...completed,
+    usage: stageUsage(),
+    unadopted: [
+      ...rejectedCandidatesToUnadopted(rejectedInputCandidates),
+      ...completed.unadopted
+    ]
+  };
 }
 
 type GlobalInputValidation = {
@@ -487,6 +537,59 @@ function addInvalidUnitReason(
   reasonsByUnitId.set(unitId, reasons);
 }
 
+function rejectedCandidatesToUnadopted(
+  rejectedCandidates: readonly GlobalCandidateRejection[]
+): ReflectionCandidate[] {
+  return rejectedCandidates.map(({ candidate, reason, unitId }) => {
+    if (candidate.decision !== "accept") return candidate;
+    return {
+      ...candidate,
+      decision: "needs-review",
+      decisionReason: mergeDecisionReasons(candidate.decisionReason, [
+        `文件级 candidate 在进入 Global Reflection 前被隔离（${formatRejectionReason(reason)}，unitId=${unitId}）`
+      ])
+    };
+  });
+}
+
+function rejectionReasonsByFindingId(
+  rejectedCandidates: readonly GlobalCandidateRejection[]
+): Map<string, string[]> {
+  const reasons = new Map<string, string[]>();
+  for (const { candidate, reason } of rejectedCandidates) {
+    const findingReasons = reasons.get(candidate.finding.id) ?? [];
+    findingReasons.push(formatRejectionReason(reason));
+    reasons.set(candidate.finding.id, findingReasons);
+  }
+  return reasons;
+}
+
+function mergeFindingReasons(
+  left: ReadonlyMap<string, readonly string[]>,
+  right: ReadonlyMap<string, readonly string[]>
+): Map<string, string[]> {
+  const merged = new Map<string, string[]>();
+  for (const [findingId, reasons] of [...left, ...right]) {
+    const existing = merged.get(findingId) ?? [];
+    for (const reason of reasons) {
+      if (!existing.includes(reason)) existing.push(reason);
+    }
+    merged.set(findingId, existing);
+  }
+  return merged;
+}
+
+function formatRejectionReason(reason: GlobalCandidateRejection["reason"]): string {
+  switch (reason) {
+    case "finding-content-mismatch":
+      return "finding-content-mismatch（内容不一致）";
+    case "file-not-owned":
+      return "file-not-owned（不属于对应 unit 范围）";
+    default:
+      return reason;
+  }
+}
+
 function groupBy<T>(
   values: readonly T[],
   keyOf: (value: T) => string
@@ -626,7 +729,10 @@ function filterFileLevelBaseline(input: {
         unadopted.push(makeNeedsReviewCandidate(
           finding,
           undefined,
-          ["正式 baseline 没有唯一且合法的文件级 candidate"]
+          [
+            "正式 baseline 没有唯一且合法的文件级 candidate",
+            ...invalidReasons
+          ]
         ));
       } else if (invalidReasons.length > 0) {
         const needsReview = makeNeedsReviewCandidate(finding, candidate, invalidReasons);

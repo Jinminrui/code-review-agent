@@ -67,7 +67,7 @@ describe("ReviewOrchestrator", () => {
     expect(store.completeSession).toHaveBeenCalledWith("s-budget", expect.objectContaining({
       diagnostics: expect.objectContaining({
         budgetUsed: expect.objectContaining({ inputTokens: 900, outputTokens: 200 }),
-        degradationReasons: ["context-budget-exceeded"]
+        degradationReasons: ["context-budget-exceeded", "global-reflection-budget-soft-limit-exceeded"]
       })
     }));
   });

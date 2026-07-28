@@ -13,7 +13,7 @@ import { validateAndNormalizeFindings } from "./review-result-validation.js";
 import type { ReviewFinding } from "../domain/review-finding.js";
 import { DEFAULT_REVIEW_PLAN, type ReviewPlan } from "../domain/review-plan.js";
 import type { LlmProvider } from "../domain/provider.js";
-import { REVIEW_RUNTIME_VERSION, REVIEW_SCHEMA_VERSION, isValidReviewPhaseTransition, type ReviewRuntimePhase } from "../domain/review-runtime.js";
+import { REVIEW_RUNTIME_VERSION, REVIEW_SCHEMA_VERSION, isValidReviewPhaseTransition, type ReviewRuntimePhase, type StageDiagnostic } from "../domain/review-runtime.js";
 import type { ReviewSessionEvent, ReviewSessionInput } from "../domain/review-session.js";
 import { collectUnitContext } from "../infrastructure/context/context-collector.js";
 import type { GitClient } from "../infrastructure/git/git-client.js";
@@ -206,6 +206,7 @@ export class ReviewOrchestrator {
     const findings: ReviewFinding[] = canReuseResults ? [...(resume?.findings ?? [])] : [];
     const sessionUsage = { inputTokens: 0, outputTokens: 0, modelCalls: 0, toolCalls: 0, readBytes: 0 };
     const degradationReasons: string[] = [];
+    const stageDiagnostics: StageDiagnostic[] = [];
     const addDegradationReason = (reason: string) => {
       if (!degradationReasons.includes(reason)) degradationReasons.push(reason);
     };
@@ -254,6 +255,12 @@ export class ReviewOrchestrator {
         sessionUsage.modelCalls += react.usage.modelCalls;
         sessionUsage.toolCalls += react.usage.toolCalls;
         sessionUsage.readBytes += react.usage.readBytes;
+        stageDiagnostics.push({
+          stage: "react",
+          unitId: unit.unitId,
+          status: react.status === "completed" ? "completed" : "incomplete",
+          usage: react.usage
+        });
         if (sessionUsage.inputTokens + sessionUsage.outputTokens > sessionInput.contextBudgetTokens) {
           partial = true;
           addDegradationReason("context-budget-exceeded");
@@ -264,6 +271,20 @@ export class ReviewOrchestrator {
         }
         yield* transition(this, "reflection-validating", unit.unitId);
         const reflection = await this.stages.reflection({ unit, evidenceBundle: react.evidenceBundle, candidateContext: { beforeContent: context.beforeContent, afterContent: context.afterContent }, provider: this.dependencies.provider, authorizers, toolExecutorContext: { gitClient: this.dependencies.gitClient, baseRef: sessionInput.baseRef, targetRef: sessionInput.targetRef, repositoryPath: sessionInput.repositoryPath, diffFiles, signal }, signal });
+        if (reflection.usage) {
+          sessionUsage.inputTokens += reflection.usage.inputTokens ?? 0;
+          sessionUsage.outputTokens += reflection.usage.outputTokens ?? 0;
+          sessionUsage.modelCalls += reflection.usage.modelCalls;
+          sessionUsage.toolCalls += reflection.usage.toolCalls;
+          sessionUsage.readBytes += reflection.usage.readBytes ?? 0;
+        }
+        stageDiagnostics.push({
+          stage: "reflection",
+          unitId: unit.unitId,
+          status: reflection.status === "reflection-failed" ? "failed" : reflection.status === "evidence-incomplete" ? "incomplete" : "completed",
+          ...(reflection.status === "reflection-failed" ? { reason: reflection.error.code } : {}),
+          ...(reflection.usage ? { usage: reflection.usage } : {})
+        });
         if (reflection.status === "reflection-failed" || reflection.status === "evidence-incomplete") {
           partial = true;
           addDegradationReason(reflection.status);
@@ -336,7 +357,24 @@ export class ReviewOrchestrator {
       try {
         if (this.phase !== "unit-completed" && this.phase !== "unit-failed" && this.phase !== "global-plan-completed" && this.phase !== "global-reflection-validating") throw new Error(`全局 Reflection 前状态非法: ${this.phase}`);
         if (this.phase !== "global-reflection-validating") yield* transition(this, "global-reflection-validating");
+        if (sessionUsage.inputTokens + sessionUsage.outputTokens > sessionInput.contextBudgetTokens) {
+          partial = true;
+          addDegradationReason("global-reflection-budget-soft-limit-exceeded");
+        }
         const global = await this.stages.globalReflection({ reviewPlan: plan, fileResults, evidenceSummaries, provider: this.dependencies.provider, signal });
+        if (global.usage) {
+          sessionUsage.inputTokens += global.usage.inputTokens ?? 0;
+          sessionUsage.outputTokens += global.usage.outputTokens ?? 0;
+          sessionUsage.modelCalls += global.usage.modelCalls;
+          sessionUsage.toolCalls += global.usage.toolCalls;
+          sessionUsage.readBytes += global.usage.readBytes ?? 0;
+        }
+        stageDiagnostics.push({
+          stage: "global-reflection",
+          status: global.status === "reflection-failed" ? "fallback" : "completed",
+          ...(global.status === "reflection-failed" ? { reason: global.error.code } : {}),
+          ...(global.usage ? { usage: global.usage } : {})
+        });
         if (signal?.aborted) return yield* this.cancel(sessionId, sessionInput, findings);
         if (global.status === "reflection-failed") {
           partial = true;
@@ -368,7 +406,7 @@ export class ReviewOrchestrator {
     }, "审查诊断汇总");
     const finished: ReviewSessionEvent = { type: "session-finished", sessionId, totalFindings: findings.length, status };
     yield* emit(finished, this.dependencies.sessionStore);
-    await this.dependencies.sessionStore.completeSession(sessionId, { sessionId, status, repositoryPath: sessionInput.repositoryPath, baseRef: sessionInput.baseRef, targetRef: sessionInput.targetRef, summary: buildReviewSummary({ findings, changedFiles: diffFiles.map((file) => file.path) }), findings, diffByFile, plan, planVersion: plan.version, planFingerprint, fileResults, evidenceSummaries, unitResults, diagnostics: { budgetUsed: sessionUsage, budgetLimit: { contextBudgetTokens: sessionInput.contextBudgetTokens }, degradationReasons } });
+    await this.dependencies.sessionStore.completeSession(sessionId, { sessionId, status, repositoryPath: sessionInput.repositoryPath, baseRef: sessionInput.baseRef, targetRef: sessionInput.targetRef, summary: buildReviewSummary({ findings, changedFiles: diffFiles.map((file) => file.path) }), findings, diffByFile, plan, planVersion: plan.version, planFingerprint, fileResults, evidenceSummaries, unitResults, diagnostics: { budgetUsed: sessionUsage, budgetLimit: { contextBudgetTokens: sessionInput.contextBudgetTokens }, degradationReasons, stageDiagnostics, globalFallback: { used: degradationReasons.includes("global-reflection-failed"), ...(degradationReasons.includes("global-reflection-failed") ? { reason: "global-reflection-failed" } : {}) } } });
     this.completed = true;
   }
 

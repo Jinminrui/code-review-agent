@@ -27,6 +27,7 @@ import {
   executeToolCall,
   type ToolExecutorContext
 } from "../infrastructure/llm/tool-executors.js";
+import type { StageUsage } from "../domain/review-runtime.js";
 
 type ReviewUnit = ReviewPlan["units"][number];
 
@@ -50,12 +51,14 @@ export type ReviewReflectionStageResult =
       reflectionResult: ReflectionResult;
       evidenceBundle: EvidenceBundle;
       backfill: ReviewReflectionStageBackfill;
+      usage?: StageUsage;
       backfillError?: { code: string; message: string };
     }
   | {
       status: "reflection-failed";
       evidenceBundle: EvidenceBundle;
       backfill: ReviewReflectionStageBackfill;
+      usage?: StageUsage;
       error: ReviewReflectionStageError;
     };
 
@@ -82,6 +85,14 @@ export async function runReviewReflectionStage(
 ): Promise<ReviewReflectionStageResult> {
   // Reflection 是“证据到 finding”的唯一决策入口；输入先过 schema，输出再经过
   // 确定性的文件、行号、证据引用、去重和状态校验。
+  const startedAt = Date.now();
+  const usage = { inputTokens: 0, outputTokens: 0, modelCalls: 0, toolCalls: 0, readBytes: 0 };
+  const recordUsage = (value: { inputTokens: number; outputTokens: number }) => {
+    usage.inputTokens += value.inputTokens;
+    usage.outputTokens += value.outputTokens;
+    usage.modelCalls += 1;
+  };
+  const stageUsage = (): StageUsage => ({ ...usage, durationMs: Date.now() - startedAt });
   input.signal?.throwIfAborted();
   const parsedEvidenceResult = evidenceBundleSchema.safeParse(input.evidenceBundle);
   if (!parsedEvidenceResult.success) {
@@ -89,6 +100,7 @@ export async function runReviewReflectionStage(
       status: "reflection-failed",
       evidenceBundle: emptyEvidenceBundle(input.unit.unitId),
       backfill: { ...NO_BACKFILL },
+      usage: stageUsage(),
       error: {
         code: "invalid-input",
         message: `Reflection 输入 schema 校验失败：${parsedEvidenceResult.error.issues
@@ -104,6 +116,7 @@ export async function runReviewReflectionStage(
       status: "reflection-failed",
       evidenceBundle: parsedEvidence,
       backfill: { ...NO_BACKFILL },
+      usage: stageUsage(),
       error: {
         code: "structured-output-unsupported",
         message: "Reflection provider 不支持结构化提交工具，禁止发布正式 finding"
@@ -112,12 +125,13 @@ export async function runReviewReflectionStage(
   }
 
   // 每个 unit 最多一次补证请求，补证工具调用也有独立上限，避免模型无限追问。
-  const firstRequest = await requestSafely(input, parsedEvidence);
+  const firstRequest = await requestSafely(input, parsedEvidence, recordUsage);
   if ("error" in firstRequest) {
     return {
       status: "reflection-failed",
       evidenceBundle: parsedEvidence,
       backfill: { ...NO_BACKFILL },
+      usage: stageUsage(),
       error: firstRequest.error
     };
   }
@@ -128,7 +142,8 @@ export async function runReviewReflectionStage(
       status: statusFromEvidence(parsedEvidence),
       reflectionResult: firstResult,
       evidenceBundle: parsedEvidence,
-      backfill: { ...NO_BACKFILL }
+      backfill: { ...NO_BACKFILL },
+      usage: stageUsage()
     };
   }
 
@@ -139,16 +154,19 @@ export async function runReviewReflectionStage(
       reflectionResult: firstResult,
       evidenceBundle: backfill.evidenceBundle,
       backfill: { requested: true, requestCount: 1, toolCalls: backfill.toolCalls, requestDenied: false },
+      usage: stageUsage(),
       backfillError: backfill.error
     };
   }
 
-  const secondRequest = await requestSafely(input, backfill.evidenceBundle);
+  usage.toolCalls += backfill.toolCalls;
+  const secondRequest = await requestSafely(input, backfill.evidenceBundle, recordUsage);
   if ("error" in secondRequest) {
     return {
       status: "reflection-failed",
       evidenceBundle: backfill.evidenceBundle,
       backfill: { requested: true, requestCount: 1, toolCalls: backfill.toolCalls, requestDenied: false },
+      usage: stageUsage(),
       error: secondRequest.error
     };
   }
@@ -160,6 +178,7 @@ export async function runReviewReflectionStage(
       reflectionResult: secondResult,
       evidenceBundle: backfill.evidenceBundle,
       backfill: { requested: true, requestCount: 1, toolCalls: backfill.toolCalls, requestDenied: true },
+      usage: stageUsage(),
       backfillError: {
         code: "second-backfill-request-denied",
         message: "文件级 Reflection 只允许一个 backfillRequest，第二次独立请求已拒绝"
@@ -171,7 +190,8 @@ export async function runReviewReflectionStage(
     status: statusFromEvidence(backfill.evidenceBundle),
     reflectionResult: secondResult,
     evidenceBundle: backfill.evidenceBundle,
-    backfill: { requested: true, requestCount: 1, toolCalls: backfill.toolCalls, requestDenied: false }
+    backfill: { requested: true, requestCount: 1, toolCalls: backfill.toolCalls, requestDenied: false },
+    usage: stageUsage()
   };
 }
 
@@ -186,7 +206,8 @@ function emptyEvidenceBundle(unitId: string): EvidenceBundle {
 
 async function requestSafely(
   input: ReviewReflectionStageInput,
-  evidenceBundle: EvidenceBundle
+  evidenceBundle: EvidenceBundle,
+  onUsage: (usage: { inputTokens: number; outputTokens: number }) => void
 ): Promise<{ result: ReflectionResult } | { error: ReviewReflectionStageError }> {
   try {
     const result = await requestReviewReflection({
@@ -194,7 +215,8 @@ async function requestSafely(
       unit: input.unit,
       evidenceBundle,
       candidateContext: input.candidateContext,
-      signal: input.signal
+      signal: input.signal,
+      onUsage
     });
     return { result };
   } catch (error) {

@@ -9,7 +9,7 @@ import {
   reflectionResultSchema,
   type ReflectionResult
 } from "../../domain/reflection-result.js";
-import type { EvidenceBundle } from "../../domain/review-evidence.js";
+import type { EvidenceBundle, EvidenceSource } from "../../domain/review-evidence.js";
 import type { ReviewFinding } from "../../domain/review-finding.js";
 import type { ReviewPlan } from "../../domain/review-plan.js";
 import { logger } from "../logging/logger.js";
@@ -54,7 +54,8 @@ const GLOBAL_REFLECTION_SYSTEM_PROMPT = [
   "工具参数必须是 JSON 对象，不是 JSON 字符串；数字、数组和对象必须保持原生类型，不得序列化成字符串。",
   "必须提交最小合法结果，例如 {\"schemaVersion\":1,\"candidates\":[]}；必须省略 unitId 和 backfillRequest。",
   "schemaVersion 必须是数字 1，candidates 必须是数组；不得省略 candidates。",
-  "只能对输入正式 finding 做接受、拒绝、needs-review 或 severity 调整，不得新增 finding、修改文件/行号/问题范围，也不得引用 Evidence 摘要中不存在的 id。",
+  "只能处理输入 units.findings 中已有的 finding。禁止新增 finding、修改文件、修改行号或扩大问题范围。",
+  "candidate.finding.id 必须来自输入正式 finding，evidenceIds 必须来自同一 unit 的 evidence，finding id 在结果中必须唯一。",
   "所有决策理由、反例摘要和 finding 文案必须使用中文；文件路径、代码内容和内部 ID 保持原样。",
   "不要输出原始思维链，只输出结构化结论、反例摘要和决策理由。"
 ].join("\n");
@@ -98,6 +99,27 @@ export type GlobalEvidenceSummary = {
   }>;
 };
 
+export type GlobalReviewInput = {
+  units: Array<{
+    unitId: string;
+    file: string;
+    findings: Array<{
+      id: string;
+      severity: ReviewFinding["severity"];
+      summary: string;
+      explanation: string;
+      suggestion: string;
+      evidenceIds: string[];
+    }>;
+    evidence: Array<{
+      id: string;
+      checkId: string;
+      source: EvidenceSource;
+      summary: string;
+    }>;
+  }>;
+};
+
 export function buildReviewReflectionMessages(input: {
   unit: ReviewUnit;
   evidenceBundle: EvidenceBundle;
@@ -117,20 +139,47 @@ export function buildReviewReflectionMessages(input: {
   ];
 }
 
-export function buildGlobalReviewReflectionMessages(input: {
-  reviewPlan: ReviewPlan;
+export function projectGlobalReviewInput(input: {
   fileResults: readonly GlobalReflectionFileResult[];
   evidenceSummaries: readonly GlobalEvidenceSummary[];
-}): ChatMessage[] {
+}): GlobalReviewInput {
+  const summariesByUnitId = new Map(input.evidenceSummaries.map((summary) => [summary.unitId, summary]));
+  return {
+    units: input.fileResults.map((fileResult) => {
+      const summary = summariesByUnitId.get(fileResult.unitId);
+      const evidenceIdsByFindingId = new Map(
+        fileResult.reflectionResult.candidates.map((candidate) => [candidate.finding.id, candidate.evidenceIds])
+      );
+      return {
+        unitId: fileResult.unitId,
+        file: fileResult.findings[0]?.file ?? "",
+        findings: fileResult.findings.map((finding) => ({
+          id: finding.id,
+          severity: finding.severity,
+          summary: finding.summary,
+          explanation: finding.explanation,
+          suggestion: finding.suggestion ?? "",
+          evidenceIds: evidenceIdsByFindingId.get(finding.id) ?? []
+        })),
+        evidence: (summary?.items ?? []).map((item) => ({
+          id: item.id,
+          checkId: item.checkId,
+          source: item.source,
+          summary: item.summary
+        }))
+      };
+    })
+  };
+}
+
+export function buildGlobalReviewReflectionMessages(input: GlobalReviewInput): ChatMessage[] {
   return [
     { role: "system", content: GLOBAL_REFLECTION_SYSTEM_PROMPT },
     {
       role: "user",
       content: JSON.stringify({
         stage: "global-reflection",
-        reviewPlan: input.reviewPlan,
-        fileResults: input.fileResults,
-        evidenceSummaries: input.evidenceSummaries
+        units: input.units
       })
     }
   ];
@@ -142,6 +191,7 @@ export async function requestReviewReflection(input: {
   evidenceBundle: EvidenceBundle;
   candidateContext: unknown;
   signal?: AbortSignal;
+  onUsage?: (usage: { inputTokens: number; outputTokens: number }) => void;
 }): Promise<ReflectionResult> {
   let messages = buildReviewReflectionMessages(input);
   for (let attempt = 0; attempt < 2; attempt += 1) {
@@ -153,6 +203,7 @@ export async function requestReviewReflection(input: {
         jsonMode: true,
         signal: input.signal
       });
+      input.onUsage?.(response?.usage ?? { inputTokens: 0, outputTokens: 0 });
       const result = parseReflectionResponse(response, reviewReflectionTool.name, "Reflection provider");
       if (result.unitId !== input.unit.unitId) {
         throw new ReflectionProviderError(
@@ -272,14 +323,13 @@ function isRetryableReflectionError(code: ReflectionProviderErrorCode): boolean 
 
 export async function requestGlobalReviewReflection(input: {
   provider: Pick<LlmProvider, "id" | "chat">;
-  reviewPlan: ReviewPlan;
-  fileResults: readonly GlobalReflectionFileResult[];
-  evidenceSummaries: readonly GlobalEvidenceSummary[];
+  globalInput: GlobalReviewInput;
   signal?: AbortSignal;
+  onUsage?: (usage: { inputTokens: number; outputTokens: number }) => void;
 }): Promise<ReflectionResult> {
-  let messages = buildGlobalReviewReflectionMessages(input);
+  let messages = buildGlobalReviewReflectionMessages(input.globalInput);
   for (let attempt = 0; attempt < 2; attempt += 1) {
-    log.info({ stage: "global-reflection", providerId: input.provider.id, attempt: attempt + 1, fileResultCount: input.fileResults.length }, "全局 Reflection 请求开始");
+    log.info({ stage: "global-reflection", providerId: input.provider.id, attempt: attempt + 1, fileResultCount: input.globalInput.units.length }, "全局 Reflection 请求开始");
     try {
       const response = await input.provider.chat({
         messages,
@@ -287,6 +337,7 @@ export async function requestGlobalReviewReflection(input: {
         jsonMode: true,
         signal: input.signal
       });
+      input.onUsage?.(response?.usage ?? { inputTokens: 0, outputTokens: 0 });
       const result = parseReflectionResponse(response, globalReviewReflectionTool.name, "全局 Reflection provider");
       if (result.unitId !== undefined) {
         throw new ReflectionProviderError("invalid-result", "全局 ReflectionResult 必须省略 unitId", ["unitId: 全局 Reflection 不属于单个文件单元"]);

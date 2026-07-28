@@ -172,6 +172,55 @@ describe("review session event schemas", () => {
 });
 
 describe("review runtime contract schemas", () => {
+  it("accepts optional stage diagnostics and global fallback details", () => {
+    const parsed = reviewSessionDetailSchema.parse({
+      sessionId: "s-diagnostics",
+      status: "partial",
+      repositoryPath: "/repo",
+      baseRef: "main",
+      targetRef: "feature",
+      summary: {
+        changedFilesCount: 1,
+        findingsCount: 1,
+        highSeverityCount: 1,
+        files: ["src/auth.ts"]
+      },
+      findings: [],
+      diffByFile: {},
+      diagnostics: {
+        stageDiagnostics: [{
+          stage: "global-reflection",
+          status: "failed",
+          reason: "duplicate-finding-id",
+          usage: { modelCalls: 1, toolCalls: 0, durationMs: 100 }
+        }],
+        globalFallback: { used: true, reason: "global-reflection-failed" }
+      }
+    });
+
+    expect(parsed.diagnostics?.stageDiagnostics).toHaveLength(1);
+  });
+
+  it("accepts legacy session details without diagnostics", () => {
+    const parsed = reviewSessionDetailSchema.parse({
+      sessionId: "s-legacy",
+      status: "finished",
+      repositoryPath: "/repo",
+      baseRef: "main",
+      targetRef: "feature",
+      summary: {
+        changedFilesCount: 0,
+        findingsCount: 0,
+        highSeverityCount: 0,
+        files: []
+      },
+      findings: [],
+      diffByFile: {}
+    });
+
+    expect(parsed).not.toHaveProperty("diagnostics");
+  });
+
   it("rejects negative phase budgets", () => {
     expect(() =>
       phaseBudgetSchema.parse({

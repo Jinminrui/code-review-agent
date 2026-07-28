@@ -62,7 +62,13 @@ describe("FileSessionStore", () => {
         files: []
       },
       findings: [],
-      diffByFile: {}
+      diffByFile: {},
+      diagnostics: {
+        budgetUsed: { modelCalls: 1, toolCalls: 0, durationMs: 4 },
+        budgetLimit: { contextBudgetTokens: 1000 },
+        degradationReasons: [],
+        stageDiagnostics: [{ stage: "global-reflection", status: "fallback", reason: "provider-failed" }]
+      }
     });
 
     const persistedSession = JSON.parse(
@@ -72,7 +78,10 @@ describe("FileSessionStore", () => {
 
     await expect(store.getSession(session.sessionId)).resolves.toMatchObject({
       sessionId: session.sessionId,
-      status: "finished"
+      status: "finished",
+      diagnostics: {
+        stageDiagnostics: [{ stage: "global-reflection", status: "fallback" }]
+      }
     });
     await expect(store.listSessions()).resolves.toHaveLength(1);
   });

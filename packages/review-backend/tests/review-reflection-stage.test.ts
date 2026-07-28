@@ -12,7 +12,8 @@ import { runGlobalReviewReflectionStage } from "../src/application/global-review
 import { runReviewReflectionStage } from "../src/application/review-reflection-stage.js";
 import {
   buildGlobalReviewReflectionMessages,
-  buildReviewReflectionMessages
+  buildReviewReflectionMessages,
+  projectGlobalReviewInput
 } from "../src/infrastructure/llm/reflection-provider.js";
 import { PlanAuthorizer } from "../src/infrastructure/llm/plan-authorizer.js";
 import type { ToolExecutorContext } from "../src/infrastructure/llm/tool-executors.js";
@@ -624,7 +625,9 @@ describe("runReviewReflectionStage", () => {
 describe("runGlobalReviewReflectionStage", () => {
   it("全局 Reflection prompt 要求只通过指定工具提交最小合法结果", () => {
     const input = globalStageInput(providerReturning({}));
-    const systemMessage = buildGlobalReviewReflectionMessages(input)[0];
+    const messages = buildGlobalReviewReflectionMessages(projectGlobalReviewInput(input));
+    const systemMessage = messages[0];
+    const payload = JSON.parse(messages[1]!.content ?? "{}");
 
     expect(systemMessage?.role).toBe("system");
     expect(systemMessage?.content).toContain("只调用 submit_global_review_reflection 工具");
@@ -632,6 +635,15 @@ describe("runGlobalReviewReflectionStage", () => {
     expect(systemMessage?.content).toContain('"schemaVersion":1');
     expect(systemMessage?.content).toContain('"candidates":[]');
     expect(systemMessage?.content).not.toContain("本阶段没有工具");
+    expect(payload.stage).toBe("global-reflection");
+    expect(payload.units[0]).toMatchObject({
+      unitId: "unit-auth",
+      file: "src/auth.ts",
+      findings: [expect.objectContaining({ id: "finding-contract-auth" })],
+      evidence: [expect.objectContaining({ id: "evidence-auth" })]
+    });
+    expect(payload).not.toHaveProperty("fileResults");
+    expect(JSON.stringify(payload)).not.toContain("raw diff content");
   });
 
   it("结合跨文件 Evidence 摘要识别契约风险并调整正式 finding severity", async () => {
@@ -675,16 +687,41 @@ describe("runGlobalReviewReflectionStage", () => {
     if (userMessage?.role !== "user") throw new Error("缺少全局 Reflection 用户消息");
     expect(JSON.parse(userMessage.content)).toMatchObject({
       stage: "global-reflection",
-      reviewPlan: { version: 1 },
-      fileResults: [
-        { unitId: "unit-auth", findings: [{ id: "finding-contract-auth" }] },
-        { unitId: "unit-client", findings: [{ id: "finding-contract-client" }] }
-      ],
-      evidenceSummaries: [
-        { unitId: "unit-auth", items: [{ id: "evidence-auth" }] },
-        { unitId: "unit-client", items: [{ id: "evidence-client" }] }
+      units: [
+        { unitId: "unit-auth", findings: [{ id: "finding-contract-auth" }], evidence: [{ id: "evidence-auth" }] },
+        { unitId: "unit-client", findings: [{ id: "finding-contract-client" }], evidence: [{ id: "evidence-client" }] }
       ]
     });
+    expect(JSON.parse(userMessage.content)).not.toHaveProperty("reviewPlan");
+    expect(JSON.parse(userMessage.content)).not.toHaveProperty("fileResults");
+    expect(JSON.parse(userMessage.content)).not.toHaveProperty("evidenceSummaries");
+  });
+
+  it("隔离文件级多余 candidate 后仍保留合法 baseline，并记录隔离原因", async () => {
+    const input = globalStageInput(providerReturning({ schemaVersion: 1, candidates: [] }));
+    input.fileResults[0]!.reflectionResult.candidates.push(
+      reflectionCandidate(
+        finding({ id: "hardcoded-jwt-secret", summary: "硬编码 JWT 密钥" }),
+        ["reflection-evidence-1"]
+      )
+    );
+
+    const result = await runGlobalReviewReflectionStage(input);
+
+    expect(result.status).toBe("completed");
+    expect(result.findings.map((item) => item.id)).toEqual(
+      input.fileResults.flatMap((fileResult) => fileResult.findings.map((item) => item.id))
+    );
+    expect(result.unadopted).toContainEqual(expect.objectContaining({
+      finding: expect.objectContaining({ id: "hardcoded-jwt-secret" }),
+      decision: "needs-review",
+      decisionReason: expect.stringContaining("finding-id-not-allowed")
+    }));
+    const request = vi.mocked(input.provider.chat).mock.calls[0]![0];
+    const payload = JSON.parse(request.messages[1]!.content ?? "{}");
+    expect(payload.units[0].findings.map((item: { id: string }) => item.id)).toEqual([
+      "finding-contract-auth"
+    ]);
   });
 
   it("合并同根因重复 finding，并将未采纳项保留为 ReflectionCandidate 轨迹", async () => {
@@ -1028,7 +1065,7 @@ describe("runGlobalReviewReflectionStage", () => {
     expect(vi.mocked(provider.chat)).not.toHaveBeenCalled();
   });
 
-  it("拒绝跨文件 Reflection 候选复用同一 finding id", async () => {
+  it("隔离跨文件 Reflection 候选复用同一 finding id", async () => {
     const provider = providerReturning({ schemaVersion: 1, candidates: [] });
     const input = globalStageInput(provider);
     const duplicatedCandidate = {
@@ -1042,19 +1079,16 @@ describe("runGlobalReviewReflectionStage", () => {
 
     const result = await runGlobalReviewReflectionStage(input);
 
-    expect(result).toMatchObject({
-      status: "reflection-failed",
-      error: {
-        code: "invalid-global-input",
-        message: expect.stringContaining("Reflection candidate finding id")
-      }
-    });
-    expect(
-      result.unadopted
-        .filter((candidate) => candidate.finding.id === duplicatedCandidate.finding.id)
-        .map((candidate) => candidate.decision)
-    ).toEqual(["needs-review", "needs-review"]);
-    expect(vi.mocked(provider.chat)).not.toHaveBeenCalled();
+    expect(result.status).toBe("completed");
+    expect(result.unadopted).toContainEqual(expect.objectContaining({
+      finding: expect.objectContaining({
+        id: duplicatedCandidate.finding.id,
+        file: "src/client.ts"
+      }),
+      decision: "needs-review",
+      decisionReason: expect.stringContaining("finding-id-not-allowed")
+    }));
+    expect(vi.mocked(provider.chat)).toHaveBeenCalled();
   });
 
   it("拒绝模型输出中的重复 finding id，不让后一个决策覆盖前一个", async () => {

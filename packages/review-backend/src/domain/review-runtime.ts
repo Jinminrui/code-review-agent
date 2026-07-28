@@ -42,9 +42,30 @@ export const reviewRuntimeMetadataSchema = z.object({
   providerCapabilities: providerCapabilitiesSchema
 });
 
+export const stageUsageSchema = z.object({
+  inputTokens: z.number().int().nonnegative().optional(),
+  outputTokens: z.number().int().nonnegative().optional(),
+  modelCalls: z.number().int().nonnegative(),
+  toolCalls: z.number().int().nonnegative(),
+  readBytes: z.number().int().nonnegative().optional(),
+  durationMs: z.number().int().nonnegative(),
+  usageUnavailable: z.boolean().optional()
+});
+
+export const stageDiagnosticSchema = z.object({
+  stage: z.enum(["plan", "react", "reflection", "backfill", "global-reflection"]),
+  unitId: z.string().min(1).optional(),
+  status: z.enum(["completed", "incomplete", "failed", "fallback"]),
+  reason: z.string().min(1).optional(),
+  details: z.record(z.unknown()).optional(),
+  usage: stageUsageSchema.optional()
+});
+
 export type ReviewRuntimePhase = z.infer<typeof reviewRuntimePhaseSchema>;
 export type PhaseBudget = z.infer<typeof phaseBudgetSchema>;
 export type ReviewRuntimeMetadata = z.infer<typeof reviewRuntimeMetadataSchema>;
+export type StageUsage = z.infer<typeof stageUsageSchema>;
+export type StageDiagnostic = z.infer<typeof stageDiagnosticSchema>;
 
 const legalNextPhases: Record<ReviewRuntimePhase, readonly ReviewRuntimePhase[]> = {
   "session-created": ["pre-analysis-completed", "session-cancelled"],

@@ -11,7 +11,8 @@ import { reflectionResultSchema } from "./reflection-result.js";
 import {
   REVIEW_SCHEMA_VERSION,
   reviewRuntimePhaseSchema,
-  isValidReviewPhaseTransition
+  isValidReviewPhaseTransition,
+  stageDiagnosticSchema
 } from "./review-runtime.js";
 
 // 领域 schema 同时承担运行时校验和 TypeScript 类型推导，避免跨进程数据漂移。
@@ -140,7 +141,14 @@ export const reviewSessionDetailSchema = z.object({
       original: z.string(),
       modified: z.string()
     })
-  )
+  ),
+  diagnostics: z.object({
+    stageDiagnostics: z.array(stageDiagnosticSchema).default([]),
+    globalFallback: z.object({
+      used: z.boolean(),
+      reason: z.string().min(1).optional()
+    }).optional()
+  }).optional()
 });
 
 export type ReviewSessionInput = z.infer<typeof reviewSessionInputSchema>;
