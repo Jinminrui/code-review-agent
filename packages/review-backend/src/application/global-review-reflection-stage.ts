@@ -695,8 +695,9 @@ function filterFileLevelBaseline(input: {
   evidenceSummaries: readonly GlobalEvidenceSummary[];
   invalidFindingReasons: ReadonlyMap<string, readonly string[]>;
 }): { findings: ReviewFinding[]; unadopted: ReflectionCandidate[] } {
-  const removedFindingIds = new Set<string>();
+  const removedFindingKeys = new Set<string>();
   const unadopted = collectFileUnadoptedCandidates(input.fileResults);
+  const canonicalDuplicateKeys = findCanonicalDuplicateKeys(input.fileResults);
   const evidenceIdsByUnit = new Map(
     input.evidenceSummaries.map((summary) => [
       summary.unitId,
@@ -710,6 +711,10 @@ function filterFileLevelBaseline(input: {
         (item) => item.finding.id === finding.id
       );
       const invalidReasons = input.invalidFindingReasons.get(finding.id) ?? [];
+      const findingKey = `${fileResult.unitId}:${finding.id}`;
+      const canKeepCanonicalDuplicate = canonicalDuplicateKeys.has(findingKey) &&
+        invalidReasons.length > 0 &&
+        invalidReasons.every(isDuplicateOnlyFindingReason);
       const hasValidEvidence = candidate !== undefined &&
         candidate.evidenceIds.length > 0 &&
         candidate.evidenceIds.every(
@@ -720,9 +725,9 @@ function filterFileLevelBaseline(input: {
         candidate === undefined ||
         candidate.decision !== "accept" ||
         !hasValidEvidence ||
-        invalidReasons.length > 0
+        (invalidReasons.length > 0 && !canKeepCanonicalDuplicate)
       ) {
-        removedFindingIds.add(finding.id);
+        removedFindingKeys.add(findingKey);
       }
 
       if (candidate === undefined) {
@@ -769,10 +774,41 @@ function filterFileLevelBaseline(input: {
 
   return {
     findings: input.fileResults
-      .flatMap((fileResult) => fileResult.findings)
-      .filter((finding) => !removedFindingIds.has(finding.id)),
+      .flatMap((fileResult) => fileResult.findings.map((finding) => ({ fileResult, finding })))
+      .filter(({ fileResult, finding }) => !removedFindingKeys.has(`${fileResult.unitId}:${finding.id}`))
+      .map(({ finding }) => finding),
     unadopted
   };
+}
+
+function findCanonicalDuplicateKeys(
+  fileResults: readonly GlobalReflectionFileResult[]
+): Set<string> {
+  const findingsById = new Map<string, Array<{ unitId: string; finding: ReviewFinding }>>();
+  for (const fileResult of fileResults) {
+    for (const finding of fileResult.findings) {
+      const entries = findingsById.get(finding.id) ?? [];
+      entries.push({ unitId: fileResult.unitId, finding });
+      findingsById.set(finding.id, entries);
+    }
+  }
+
+  const canonicalKeys = new Set<string>();
+  for (const entries of findingsById.values()) {
+    if (entries.length < 2) continue;
+    const first = entries[0]!;
+    if (entries.every((entry) => sameFindingContent(first.finding, entry.finding))) {
+      canonicalKeys.add(`${first.unitId}:${first.finding.id}`);
+    }
+  }
+  return canonicalKeys;
+}
+
+function isDuplicateOnlyFindingReason(reason: string): boolean {
+  return reason.includes("finding id") ||
+    reason.includes("没有唯一对应的文件级 candidate") ||
+    reason.includes("不属于对应 unit 范围") ||
+    reason.includes("candidate 所属 unit 不一致");
 }
 
 function reasonsForAllFindings(

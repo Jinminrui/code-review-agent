@@ -217,8 +217,8 @@ describe("validateAndNormalizeFindings", () => {
 
     expect(result.findings).toEqual([]);
     expect(result.rejected.map((item) => item.reasons[0]!.code)).toEqual([
-      "file-not-authorized",
-      "file-not-authorized",
+      "finding-file-not-owned",
+      "finding-file-not-owned",
       "line-out-of-range"
     ]);
   });
@@ -235,7 +235,25 @@ describe("validateAndNormalizeFindings", () => {
       diffFiles: [diffFile()]
     });
 
-    expect(result.rejected[0]!.reasons[0]!.code).toBe("file-not-in-diff");
+    expect(result.rejected[0]!.reasons[0]!.code).toBe("finding-file-not-owned");
+  });
+
+  it("授权依赖文件只能作为证据来源，不能成为当前 unit 的正式 finding", () => {
+    const reviewUnit = unit();
+    reviewUnit.checks[0]!.allowedFiles.push("src/config.ts");
+    const result = validateAndNormalizeFindings({
+      unit: reviewUnit,
+      evidenceBundle: evidenceBundle(),
+      reflectionResult: reflectionResult([
+        candidate(finding({ id: "config-finding", file: "src/config.ts" }))
+      ]),
+      diffFiles: [diffFile(), { ...diffFile("src/config.ts"), insertions: 1 }]
+    });
+
+    expect(result.findings).toEqual([]);
+    expect(result.rejected[0]!.reasons[0]).toMatchObject({
+      code: "finding-file-not-owned"
+    });
   });
 
   it("无法确定精确位置时降级为 file-level，不把定位问题标成 needs-review", () => {

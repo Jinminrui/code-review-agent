@@ -48,6 +48,18 @@ export function useReviewSessionStream(sessionId: string) {
       setProgress((current) => reduceReviewProgress(current, event));
 
       switch (event.type) {
+        case "phase-transitioned":
+          if (event.phase === "unit-completed" && event.unitResult) {
+            // Hybrid 运行时将单元结果嵌在阶段事件中，实时合并后才能立即展示 Diff。
+            appendUnitResult(
+              event.unitResult.findings,
+              event.unitResult.diff
+                ? { [event.unitResult.file]: event.unitResult.diff }
+                : {}
+            );
+          }
+          break;
+
         case "unit-completed":
           appendUnitResult(event.findings, event.diffByFile);
           break;

@@ -629,6 +629,34 @@ describe("runReviewReactStage", () => {
     expect(result.usage.modelCalls).toBe(1);
   });
 
+  it("最后一次模型调用收齐检查项时仍视为证据收集完成", async () => {
+    const reviewUnit = unit({ modelCalls: 1 });
+    const provider: Pick<LlmProvider, "id" | "chat"> = {
+      id: "complete-on-last-model-call-provider",
+      chat: vi.fn().mockResolvedValue({
+        content: null,
+        toolCalls: [
+          { id: "read-auth", name: "file_read", arguments: { path: "src/auth.ts" } }
+        ],
+        usage: { inputTokens: 1, outputTokens: 1 }
+      })
+    };
+
+    const result = await runReviewReactStage({
+      unit: reviewUnit,
+      authorizer: authorizer(reviewUnit),
+      provider,
+      toolExecutorContext: toolContext()
+    });
+
+    expect(result.status).toBe("completed");
+    expect(result.evidenceBundle.completeness).toBe("complete");
+    expect(result.stopReason).toEqual({
+      type: "budget-exhausted",
+      budget: "modelCalls"
+    });
+  });
+
   it.each([
     {
       label: "工具调用",

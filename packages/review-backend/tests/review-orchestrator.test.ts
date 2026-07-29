@@ -6,13 +6,14 @@
 import { describe, expect, it, vi } from "vitest";
 import { ReviewOrchestrator, type ReviewOrchestratorStages } from "../src/application/review-orchestrator.js";
 import type { ReviewSessionEvent } from "../src/domain/review-session.js";
+import type { ParsedDiffFile } from "../src/infrastructure/git/parse-unified-diff.js";
 
-const files = [
+const files: ParsedDiffFile[] = [
   { path: "src/a.ts", isNew: false, isDeleted: false, isBinary: false, insertions: 1, deletions: 0, hunks: [] },
   { path: "src/b.ts", isNew: false, isDeleted: false, isBinary: false, insertions: 1, deletions: 0, hunks: [] }
 ];
 
-function deps(stages: Partial<ReviewOrchestratorStages> = {}, diffFiles = files) {
+function deps(stages: Partial<ReviewOrchestratorStages> = {}, diffFiles: ParsedDiffFile[] = files) {
   return {
     provider: { id: "fake", capabilities: { structuredOutput: true, toolCalling: true, usage: true, cancellation: true }, chat: vi.fn() },
     gitClient: {
@@ -33,6 +34,94 @@ function deps(stages: Partial<ReviewOrchestratorStages> = {}, diffFiles = files)
 }
 
 describe("ReviewOrchestrator", () => {
+  it("保留 Reflection 返回的合法行级定位", async () => {
+    const diffFiles: ParsedDiffFile[] = [{
+      path: "src/a.ts",
+      isNew: false,
+      isDeleted: false,
+      isBinary: false,
+      insertions: 1,
+      deletions: 0,
+      hunks: [{
+        oldStart: 1,
+        oldCount: 0,
+        newStart: 1,
+        newCount: 1,
+        lines: [{ type: "added" as const, content: "const value = 1;", oldLineNum: null, newLineNum: 1 }]
+      }]
+    }, {
+      path: "src/other.ts",
+      isNew: false,
+      isDeleted: false,
+      isBinary: false,
+      insertions: 0,
+      deletions: 0,
+      hunks: []
+    }];
+    const plan = {
+      status: "planned" as const,
+      plan: {
+        version: 1,
+        changeSetSummary: { files: ["src/a.ts"], totalInsertions: 1, totalDeletions: 0 },
+        riskAreas: [],
+        units: [{
+          unitId: "u-a",
+          file: "src/a.ts",
+          order: 0,
+          checks: [{ id: "check-a", description: "检查变更", completionCriteria: ["读取变更"], allowedFiles: ["src/a.ts"], evidenceTargets: ["src/a.ts"] }],
+          budget: { modelCalls: 1, toolCalls: 0, maxInputTokens: 100, maxOutputTokens: 100, maxReadBytes: 1000, maxDurationMs: 1000 }
+        }]
+      }
+    };
+    const finding = {
+      id: "f-a",
+      severity: "high" as const,
+      category: "correctness",
+      summary: "变更行存在问题",
+      explanation: "测试定位问题",
+      file: "src/a.ts",
+      startLine: 1,
+      endLine: 1,
+      evidence: "const value = 1;",
+      confidenceSignals: ["diff-added-line"],
+      status: "line-level" as const
+    };
+    const store = { appendEvent: vi.fn(), completeSession: vi.fn() };
+    const orchestrator = new ReviewOrchestrator({
+      ...deps({
+        plan: vi.fn().mockResolvedValue(plan),
+        react: vi.fn().mockResolvedValue({
+          status: "completed",
+          evidenceBundle: {
+            schemaVersion: 1,
+            unitId: "u-a",
+            completeness: "complete",
+            items: [{ id: "evidence-a", checkId: "check-a", source: "file_read_diff", arguments: {}, content: "const value = 1;", contentHash: "sha256:a" }]
+          },
+          usage: { modelCalls: 1, toolCalls: 0, readBytes: 18, inputTokens: 0, outputTokens: 0, usageUnavailable: false, durationMs: 1 }
+        }),
+        reflection: vi.fn().mockResolvedValue({
+          status: "completed",
+          reflectionResult: { schemaVersion: 1, unitId: "u-a", candidates: [{ finding, evidenceIds: ["evidence-a"], counterEvidence: "", decision: "accept", decisionReason: "证据直接支持" }] },
+          evidenceBundle: {
+            schemaVersion: 1,
+            unitId: "u-a",
+            completeness: "complete",
+            items: [{ id: "evidence-a", checkId: "check-a", source: "file_read_diff", arguments: {}, content: "const value = 1;", contentHash: "sha256:a" }]
+          },
+          backfill: { requested: false, requestCount: 0, toolCalls: 0, requestDenied: false }
+        })
+      }, diffFiles),
+      sessionStore: store
+    });
+
+    const events: ReviewSessionEvent[] = [];
+    for await (const event of orchestrator.run({ sessionId: "s-line-location", input: { repositoryPath: "/repo", baseRef: "main", targetRef: "feature", contextBudgetTokens: 1000 } })) events.push(event);
+
+    const completed = events.find((event) => event.type === "phase-transitioned" && event.phase === "unit-completed");
+    expect(completed).toMatchObject({ unitResult: { findings: [{ id: "f-a", status: "line-level", startLine: 1, endLine: 1 }] } });
+  });
+
   it("单文件小变更使用确定性计划而不调用 Plan provider", async () => {
     const plan = vi.fn();
     const store = { appendEvent: vi.fn(), completeSession: vi.fn() };

@@ -303,7 +303,7 @@ export async function runReviewReactStage(
     const missingCheckIds = getMissingCheckIds(input.unit, items);
     return missingCheckIds.length > 0
       ? finish("evidence-incomplete", { type: "checks-incomplete", missingCheckIds })
-      : finish("evidence-incomplete", {
+      : finish("completed", {
           type: "budget-exhausted",
           budget: "modelCalls"
         });

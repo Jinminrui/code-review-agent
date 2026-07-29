@@ -175,6 +175,37 @@ describe("useReviewSessionStream", () => {
 
     expect(useReviewSessionStore.getState().session?.findings).toHaveLength(1);
     expect(useReviewSessionStore.getState().session?.diffByFile["src/file.ts"]?.modified).toBe("after\n");
+
+    eventHandler?.({
+      type: "phase-transitioned",
+      sessionId: "s_1",
+      schemaVersion: 1,
+      runtimeVersion: "hybrid-1",
+      previousPhase: "reflection-validating",
+      phase: "unit-completed",
+      unitId: "unit:src/phase.ts",
+      unitResult: {
+        unitId: "unit:src/phase.ts",
+        file: "src/phase.ts",
+        findings: [
+          {
+            id: "f_2",
+            severity: "medium",
+            category: "bug",
+            summary: "Hybrid 测试问题",
+            explanation: "测试 Hybrid 事件",
+            file: "src/phase.ts",
+            confidenceSignals: [],
+            status: "file-level"
+          }
+        ],
+        reflectionResult: { schemaVersion: 1, unitId: "unit:src/phase.ts", candidates: [] },
+        evidenceSummary: { schemaVersion: 1, unitId: "unit:src/phase.ts", completeness: "complete", items: [] },
+        diff: { original: "before phase\n", modified: "after phase\n" }
+      }
+    });
+
+    expect(useReviewSessionStore.getState().session?.diffByFile["src/phase.ts"]?.modified).toBe("after phase\n");
   });
 
   it("returns structured progress for runtime phase events", async () => {

@@ -995,6 +995,26 @@ describe("runGlobalReviewReflectionStage", () => {
     expect(vi.mocked(provider.chat)).not.toHaveBeenCalled();
   });
 
+  it("Global fallback 对同内容重复 finding 只保留首个 canonical finding", async () => {
+    const provider = providerReturning({ schemaVersion: 1, candidates: [] });
+    const input = globalStageInput(provider);
+    const duplicatedId = input.fileResults[0]!.findings[0]!.id;
+    const duplicated = {
+      ...input.fileResults[0]!.findings[0]!,
+      file: "src/auth.ts"
+    };
+    input.fileResults[1]!.findings = [duplicated];
+    input.fileResults[1]!.reflectionResult.candidates = [
+      reflectionCandidate(duplicated, ["evidence-client"])
+    ];
+
+    const result = await runGlobalReviewReflectionStage(input);
+
+    expect(result).toMatchObject({ status: "reflection-failed" });
+    expect(result.findings.filter((item) => item.id === duplicatedId)).toHaveLength(1);
+    expect(result.findings[0]!.file).toBe("src/auth.ts");
+  });
+
   it.each([
     {
       name: "Reflection unitId 与 fileResult 不一致",

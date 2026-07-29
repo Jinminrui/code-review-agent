@@ -27,6 +27,7 @@ export type FindingValidationReasonCode =
   | "reflection-needs-review"
   | "evidence-reference-invalid"
   | "unit-mismatch"
+  | "finding-file-not-owned"
   | "file-not-authorized"
   | "file-not-in-diff"
   | "line-out-of-range";
@@ -116,6 +117,16 @@ export function validateAndNormalizeFindings(input: {
     }
 
     const normalizedFile = normalizePath(candidate.finding.file);
+    if (normalizedFile !== normalizePath(input.unit.file)) {
+      rejected.push(
+        trace(
+          candidate,
+          "finding-file-not-owned",
+          `正式 finding 文件 ${normalizedFile} 必须归属当前 unit 主文件 ${normalizePath(input.unit.file)}`
+        )
+      );
+      continue;
+    }
     if (!allowedFiles.has(normalizedFile)) {
       rejected.push(
         trace(candidate, "file-not-authorized", `文件 ${normalizedFile} 不在文件子计划授权范围内`)

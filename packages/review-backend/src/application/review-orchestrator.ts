@@ -298,7 +298,8 @@ export class ReviewOrchestrator {
           yield* emit({ type: "unit-failed", sessionId, unitId: unit.unitId, reason }, this.dependencies.sessionStore);
           continue;
         }
-        const normalized = validateAndNormalizeFindings({ unit, evidenceBundle: reflection.evidenceBundle, reflectionResult: reflection.reflectionResult, diffFiles });
+        const fileLineCounts = { [unit.file]: countFileLines(context.afterContent) };
+        const normalized = validateAndNormalizeFindings({ unit, evidenceBundle: reflection.evidenceBundle, reflectionResult: reflection.reflectionResult, diffFiles, fileLineCounts });
         findings.push(...normalized.findings);
         fileResults.push({ unitId: unit.unitId, reflectionResult: reflection.reflectionResult, findings: normalized.findings });
         evidenceSummaries.push({ schemaVersion: 1, unitId: unit.unitId, completeness: react.evidenceBundle.completeness, items: react.evidenceBundle.items.map((item) => ({ id: item.id, checkId: item.checkId, source: item.source, contentHash: item.contentHash, summary: item.content.slice(0, 200) || "不可用" })) });
@@ -306,7 +307,7 @@ export class ReviewOrchestrator {
         const persistedUnitResult = {
           unitId: unit.unitId,
           file: unit.file,
-          findings: normalizedFindingsForPersistence(reflection, unit, react, diffFiles),
+          findings: normalizedFindingsForPersistence(reflection, unit, react, diffFiles, fileLineCounts),
           reflectionResult: reflection.reflectionResult,
           evidenceSummary: evidenceSummaries.at(-1)!,
           diff: diffByFile[unit.file]
@@ -442,10 +443,11 @@ function normalizedFindingsForPersistence(
   reflection: ReviewReflectionStageResult,
   unit: ReviewPlan["units"][number],
   react: ReviewReactStageResult,
-  diffFiles: readonly ParsedDiffFile[]
+  diffFiles: readonly ParsedDiffFile[],
+  fileLineCounts: Readonly<Record<string, number>>
 ): ReviewFinding[] {
   if (reflection.status === "reflection-failed") return [];
-  return validateAndNormalizeFindings({ unit, evidenceBundle: react.evidenceBundle, reflectionResult: reflection.reflectionResult, diffFiles }).findings;
+  return validateAndNormalizeFindings({ unit, evidenceBundle: react.evidenceBundle, reflectionResult: reflection.reflectionResult, diffFiles, fileLineCounts }).findings;
 }
 
 export function createReviewOrchestrator(dependencies: ReviewOrchestratorDependencies): ReviewOrchestrator {
@@ -457,4 +459,10 @@ function isCancellation(error: unknown, signal?: AbortSignal): boolean {
   if (!error || typeof error !== "object") return false;
   const candidate = error as { name?: unknown; code?: unknown };
   return candidate.name === "AbortError" || candidate.code === "ABORT_ERR";
+}
+
+function countFileLines(content: string): number {
+  if (content.length === 0) return 0;
+  const lines = content.split(/\r?\n/);
+  return content.endsWith("\n") ? lines.length - 1 : lines.length;
 }
